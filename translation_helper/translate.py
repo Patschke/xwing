@@ -213,6 +213,12 @@ for card_en in cards_en:
     # write translated text (requirements etc have been added to text)
     output_text += ('           text: """%s"""\n' % card_translation["ability_text"])
 
+# remove flavortext
+output_text = re.sub(r'<flavor>.+<\/flavor>', '', output_text)
+output_text = output_text.replace('"""<return>', '')
+output_text = output_text.replace('<return>"""', '')
+output_text = output_text.replace('""""""', '""" """')
+
 # do some replacements
 output_text = output_text.replace('<stop>', '%STOP%')
 output_text = output_text.replace('<leftbank>', '%BANKLEFT%')
@@ -227,8 +233,6 @@ output_text = output_text.replace('<return>', '%LINEBREAK%')
 output_text = output_text.replace('<nonbreak>', '&nbsp;')
 output_text = output_text.replace('<shipability>', '')
 output_text = output_text.replace('</shipability>', '')
-output_text = output_text.replace('<flavor>', '<i>')
-output_text = output_text.replace('</flavor>', '</i>')  # we could also remove all flavor text?
 output_text = output_text.replace('<smallcaps>', '<strong>')
 output_text = output_text.replace('</smallcaps>', '</strong>')
 output_text = output_text.replace('<sabold>', '<strong>')
