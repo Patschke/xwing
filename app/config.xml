@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<widget
+    id          = "io.github.raithos"
+    versionCode = "10"
+    version     = "1.0.0" >
+
+    <name>YASB X-Wing 2.0 Squad Builder</name>
+
+    <description>
+        Yet Another Squad Buider for the Star Wars X-Wing Miniatures Game 2nd Edition now available as app!
+    </description>
+
+    <author href="https://github.com/patschke">
+        Patrick Mischke
+    </author>
+
+</widget>
