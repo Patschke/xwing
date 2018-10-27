@@ -52,6 +52,11 @@ module.exports = (grunt) ->
                 cwd: 'app'
                 src: '**'
                 dest: '../xwing_page'
+            apk:
+                expand: true
+                cwd: 'apk'
+                src: '**'
+                dest: 'app/'
 
     grunt.loadNpmTasks 'grunt-bower-task'
     grunt.loadNpmTasks 'grunt-contrib-copy'
@@ -67,6 +72,7 @@ module.exports = (grunt) ->
         'pug'
         'uglify'
         'copy:main'
+        'copy:apk'
     ]
 
     grunt.registerTask 'gh_pages', [
