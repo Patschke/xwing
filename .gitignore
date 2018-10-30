@@ -1,7 +1,8 @@
 *.swp
 _vimrc_local.vim
 .sass-cache
-
+*.iml
+*.TMP
 
 images
 backgrounds.*
