@@ -14,4 +14,7 @@
         Patrick Mischke
     </author>
 
+    <access origin="https://yasb-uapp.com" />
+    <access origin="https://yasb-backend.herokuapp.com" />
+
 </widget>
