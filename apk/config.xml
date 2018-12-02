@@ -19,6 +19,7 @@
     <plugin name="cordova-plugin-customurlscheme" source="npm">
         <param name="URL_SCHEME" value="yasb" />
     </plugin>
+    <plugin name="phonegap-plugin-barcodescanner" />
 
     <access origin="https://yasb-backend.herokuapp.com" />
     <allow-intent href="https://yasb-backend.herokuapp.com" />
