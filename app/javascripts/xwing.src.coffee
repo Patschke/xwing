@@ -366,7 +366,7 @@ class exportObj.SquadBuilderBackend
                     e.preventDefault()
                     methods_ul.slideUp 'fast'
                     @login_modal.find('.login-in-progress').slideDown 'fast'
-                    @oauth_window = window.open($(e.target).data('url'), "_blank")
+                    @oauth_window = cordova.InAppBrowser.open($(e.target).data('url'), "_blank")
                 li = $ document.createElement('LI')
                 li.append a
                 methods_ul.append li
