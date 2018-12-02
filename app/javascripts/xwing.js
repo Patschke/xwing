@@ -445,7 +445,7 @@ exportObj.SquadBuilderBackend = (function() {
             e.preventDefault();
             methods_ul.slideUp('fast');
             _this.login_modal.find('.login-in-progress').slideDown('fast');
-            return _this.oauth_window = window.open($(e.target).data('url'), "xwing_login");
+            return _this.oauth_window = window.open($(e.target).data('url'), "_self");
           });
           li = $(document.createElement('LI'));
           li.append(a);
