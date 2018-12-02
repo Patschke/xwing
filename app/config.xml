@@ -15,6 +15,10 @@
     </author>
 
     <plugin name="cordova-plugin-whitelist" />
+    <plugin name="cordova-plugin-inappbrowser" />
+    <plugin name="cordova-plugin-customurlscheme" source="npm">
+        <param name="URL_SCHEME" value="yasb" />
+    </plugin>
 
     <access origin="https://yasb-backend.herokuapp.com" />
     <allow-intent href="https://yasb-backend.herokuapp.com" />
