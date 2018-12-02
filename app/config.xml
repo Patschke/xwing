@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <widget
     id          = "io.github.raithos"
-    versionCode = "14"
+    versionCode = "15"
     version     = "1.0.3" >
 
     <name>YASB X-Wing 2.0 Squad Builder</name>
