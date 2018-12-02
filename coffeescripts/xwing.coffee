@@ -13,8 +13,18 @@ exportObj.sortHelper = (a, b) ->
             0
         else
             if a_name > b_name then 1 else -1
-    else
+    else if typeof(a.points) == "string" # handling cases where points value is "*" instead of a number
+        1
+    else 
         if a.points > b.points then 1 else -1
+
+exportObj.toTTS = (txt) ->
+    if not txt?
+        null
+    else 
+        txt.replace(/\(.*\)/g,"").replace("“",'"').replace("”",'"')
+
+    
 
 $.isMobile = ->
     navigator.userAgent.match /(iPhone|iPod|iPad|Android)/i
@@ -271,6 +281,10 @@ class exportObj.SquadBuilder
                     <p>Copy the below and paste it into your reddit post.</p>
                     <textarea></textarea><button class="btn btn-copy">Copy</button>
                 </div>
+                <div class="tts-list">
+                    <p>Copy the below and paste it into the Tabletop Simulator.</p>
+                    <textarea></textarea><br><button class="btn btn-copy">Copy</button>
+                </div>
                 <div class="bbcode-list">
                     <p>Copy the BBCode below and paste it into your forum post.</p>
                     <textarea></textarea><button class="btn btn-copy">Copy</button>
@@ -302,6 +316,7 @@ class exportObj.SquadBuilder
                     <button class="btn select-simple-view">Simple</button>
                     <button class="btn select-fancy-view hidden-phone">Fancy</button>
                     <button class="btn select-reddit-view">Reddit</button>
+                    <button class="btn select-tts-view">TTS</button>
                     <button class="btn select-bbcode-view">BBCode</button>
                     <button class="btn select-html-view">HTML</button>
                 </div>
@@ -315,6 +330,9 @@ class exportObj.SquadBuilder
         @reddit_container = $ @list_modal.find('div.modal-body .reddit-list')
         @reddit_textarea = $ @reddit_container.find('textarea')
         @reddit_textarea.attr 'readonly', 'readonly'
+        @tts_container = $ @list_modal.find('div.modal-body .tts-list')
+        @tts_textarea = $ @tts_container.find('textarea')
+        @tts_textarea.attr 'readonly', 'readonly'
         @bbcode_container = $ @list_modal.find('div.modal-body .bbcode-list')
         @bbcode_textarea = $ @bbcode_container.find('textarea')
         @bbcode_textarea.attr 'readonly', 'readonly'
@@ -349,6 +367,7 @@ class exportObj.SquadBuilder
                 @simple_container.show()
                 @fancy_container.hide()
                 @reddit_container.hide()
+                @tts_container.hide()
                 @bbcode_container.hide()
                 @htmlview_container.hide()
                 @toggle_vertical_space_container.hide()
@@ -369,6 +388,7 @@ class exportObj.SquadBuilder
                 @fancy_container.show()
                 @simple_container.hide()
                 @reddit_container.hide()
+                @tts_container.hide()
                 @bbcode_container.hide()
                 @htmlview_container.hide()
                 @toggle_vertical_space_container.show()
@@ -378,7 +398,7 @@ class exportObj.SquadBuilder
                 @toggle_qrcode_container.show()
                 @toggle_obstacle_container.show()
                 @btn_print_list.disabled = false;
-
+                
         @select_reddit_view_button = $ @list_modal.find('.select-reddit-view')
         @select_reddit_view_button.click (e) =>
             @select_reddit_view_button.blur()
@@ -388,11 +408,35 @@ class exportObj.SquadBuilder
                 @list_display_mode = 'reddit'
                 @reddit_container.show()
                 @bbcode_container.hide()
+                @tts_container.hide()
                 @htmlview_container.hide()
                 @simple_container.hide()
                 @fancy_container.hide()
                 @reddit_textarea.select()
                 @reddit_textarea.focus()
+                @toggle_vertical_space_container.hide()
+                @toggle_color_print_container.hide()
+                @toggle_maneuver_dial_container.hide()
+                @toggle_expanded_shield_hull_container.hide()
+                @toggle_qrcode_container.hide()
+                @toggle_obstacle_container.hide()
+                @btn_print_list.disabled = true;
+
+        @select_tts_view_button = $ @list_modal.find('.select-tts-view')
+        @select_tts_view_button.click (e) =>
+            @select_tts_view_button.blur()
+            unless @list_display_mode == 'tts'
+                @list_modal.find('.list-display-mode .btn').removeClass 'btn-inverse'
+                @select_tts_view_button.addClass 'btn-inverse'
+                @list_display_mode = 'tts'
+                @tts_container.show()
+                @bbcode_container.hide()
+                @htmlview_container.hide()
+                @simple_container.hide()
+                @reddit_container.hide()
+                @fancy_container.hide()
+                @tts_textarea.select()
+                @tts_textarea.focus()
                 @toggle_vertical_space_container.hide()
                 @toggle_color_print_container.hide()
                 @toggle_maneuver_dial_container.hide()
@@ -410,6 +454,7 @@ class exportObj.SquadBuilder
                 @list_display_mode = 'bbcode'
                 @bbcode_container.show()
                 @reddit_container.hide()
+                @tts_container.hide()
                 @htmlview_container.hide()
                 @simple_container.hide()
                 @fancy_container.hide()
@@ -431,6 +476,7 @@ class exportObj.SquadBuilder
                 @select_html_view_button.addClass 'btn-inverse'
                 @list_display_mode = 'html'
                 @reddit_container.hide()
+                @tts_container.hide()
                 @bbcode_container.hide()
                 @htmlview_container.show()
                 @simple_container.hide()
@@ -1083,6 +1129,7 @@ class exportObj.SquadBuilder
         @fancy_container.text ''
         @simple_container.html '<table class="simple-table"></table>'
         reddit_ships = []
+        tts_ships = []
         bbcode_ships = []
         htmlview_ships = []
         for ship in @ships
@@ -1094,6 +1141,7 @@ class exportObj.SquadBuilder
 
                 @simple_container.find('table').append ship.toTableRow()
                 reddit_ships.push ship.toRedditText()
+                tts_ships.push ship.toTTSText()
                 bbcode_ships.push ship.toBBCode()
                 htmlview_ships.push ship.toSimpleHTML()
         @htmlview_container.find('textarea').val $.trim """#{htmlview_ships.join '<br />'}
@@ -1109,6 +1157,7 @@ class exportObj.SquadBuilder
     \n
 [View in Yet Another Squad Builder 2.0](#{@getPermaLink()})    \n
 """
+        @tts_container.find('textarea').val $.trim """#{tts_ships.join ""}"""
 
         @bbcode_container.find('textarea').val $.trim """#{bbcode_ships.join "\n\n"}
 
@@ -1421,7 +1470,7 @@ class exportObj.SquadBuilder
         retval = ({ id: upgrade.id, text: "#{if upgrade.display_name then upgrade.display_name else upgrade.name} (#{upgrade.points})", points: upgrade.points, name: upgrade.name, display_name: upgrade.display_name, disabled: upgrade not in eligible_upgrades } for upgrade in available_upgrades)
         if sorted
             retval = retval.sort exportObj.sortHelper
-        
+
         # Possibly adjust the upgrade
         if this_upgrade_obj?adjustment_func?
             (this_upgrade_obj.adjustment_func(upgrade) for upgrade in retval)
@@ -2644,12 +2693,12 @@ class Ship
             chargeHTML = ''
 
         shieldIconHTML = ''
-        if effective_stats.shields?
+        if effective_stats.shields
             for _ in [1..(effective_stats.shields)]
                 shieldIconHTML += """<i class="xwing-miniatures-font header-shield xwing-miniatures-font-shield expanded-hull-or-shield"></i>"""
 
         hullIconHTML = ''
-        if effective_stats.hull?
+        if effective_stats.hull
             for _ in [1..(effective_stats.hull)]
                 hullIconHTML += """<i class="xwing-miniatures-font header-hull xwing-miniatures-font-hull expanded-hull-or-shield"></i>"""
 
@@ -2747,6 +2796,11 @@ class Ship
 
         # if @getPoints() != @pilot.points
         table_html += """<tr class="simple-ship-total"><td colspan="2">Ship Total: #{@getPoints()}</td></tr>"""
+        
+        halfPoints = Math.ceil @getPoints() / 2        
+        threshold = Math.ceil (@effectiveStats()['hull'] + @effectiveStats()['shields']) / 2
+
+        table_html += """<tr class="simple-ship-half-points"><td colspan="2">Half Points: #{halfPoints} Threshold: #{threshold}</td></tr>"""
 
         table_html += '<tr><td>&nbsp;</td><td></td></tr>'
         table_html
@@ -2765,6 +2819,16 @@ class Ship
             reddit += """&nbsp;*Ship total: (#{@getPoints()})*    \n"""
 
         reddit
+
+    toTTSText: ->
+        tts = """#{exportObj.toTTS(@pilot.name)}"""
+        slotted_upgrades = (upgrade for upgrade in @upgrades when upgrade.data?)
+        if slotted_upgrades.length > 0
+            for upgrade in slotted_upgrades
+                upgrade_tts = upgrade.toTTSText()
+                tts += (" + " + upgrade_tts) if upgrade_tts?
+        tts += " / "
+        tts
 
     toBBCode: ->
         bbcode = """[b]#{if @pilot.display_name then @pilot.display_name else @pilot.name} (#{@pilot.points})[/b]"""
@@ -3279,10 +3343,16 @@ class GenericAddon
             """
         else
             ''
-
+            
     toRedditText: (points) ->
         if @data?
             """*&nbsp;#{@data.name} (#{points})*    \n"""
+        else
+            null
+
+    toTTSText: () ->
+        if @data?
+            """#{exportObj.toTTS(@data.name)}"""
         else
             null
 
