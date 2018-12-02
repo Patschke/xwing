@@ -178,7 +178,7 @@ r {
   border: 2px solid #d6c9d2; }
 
 .info-maneuvers table > tbody > tr > td:first-child {
-  color: white;
+  color: pink;
   text-align: center;
   padding: 3px;
   background-color: #888888;
@@ -202,7 +202,7 @@ r {
 
 .info-well {
   color: black;
-  background: gray;
+  background-color: gray;
   margin-top: 10px; }
 
 .info-well table > tbody > tr > td:first-child {
