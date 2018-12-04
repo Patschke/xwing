@@ -1405,6 +1405,16 @@ exportObj.secondEditionCheck = (data, faction='') ->
         return true if source in exportObj.secondEditionExpansions
     false
 
+exportObj.hyperspaceCheck = (data, faction='') ->
+# Handle special cases
+    if (data.name == 'Y-Wing' and faction == 'Scum and Villainy')
+        return false
+    else if (data.name == 'TIE Fighter' and faction == 'Rebel Alliance')
+        return false
+    for source in data.sources
+        return true if source in exportObj.secondEditionExpansions
+    return data.isHyperspace
+
 String::canonicalize = ->
     this.toLowerCase()
         .replace(/[^a-z0-9]/g, '')
@@ -1511,6 +1521,7 @@ exportObj.basicCardData = ->
               [ 0, 0, 1, 0, 0, 3, 0, 0]
             ]
             large: true
+            isHyperspace: true
         "Customized YT-1300":
             name: "Customized YT-1300"
             canonical_name: 'Customized YT-1300'.canonicalize()
@@ -2307,6 +2318,7 @@ exportObj.basicCardData = ->
                 [ 1, 2, 2, 2, 1, 0, 3, 3 ]
                 [ 0, 1, 2, 1, 0, 0, 0, 0 ]
             ]
+            isHyperspace: true
         "Auzituck Gunship":
             name: "Auzituck Gunship"
             xws: "Auzituck Gunship".canonicalize()
@@ -3505,6 +3517,7 @@ exportObj.basicCardData = ->
                 "Title"
                 "Illicit"
             ]
+            isHyperspace: true
         }
         {
             name: "Lando Calrissian"
@@ -3525,6 +3538,7 @@ exportObj.basicCardData = ->
                 "Title"
                 "Illicit"
             ]
+            isHyperspace: true
         }
         {
             name: "Chewbacca"
@@ -3546,6 +3560,7 @@ exportObj.basicCardData = ->
                 "Title"
                 "Illicit"
             ]
+            isHyperspace: true
         }
         {
             name: "Outer Rim Smuggler"
@@ -3563,6 +3578,7 @@ exportObj.basicCardData = ->
                 "Title"
                 "Illicit"
             ]
+            isHyperspace: true
         }
         {
             name: "Jan Ors"
@@ -6238,6 +6254,7 @@ exportObj.basicCardData = ->
                 "Device"
                 "Modification"
               ]
+            isHyperspace: true
         }
         {
             name: '"Pure Sabacc"'
@@ -6253,6 +6270,7 @@ exportObj.basicCardData = ->
                 "Device"
                 "Modification"
               ]
+            isHyperspace: true
         }
         {
             name: '"Duchess"'
@@ -6268,6 +6286,7 @@ exportObj.basicCardData = ->
                 "Device"
                 "Modification"
               ]
+            isHyperspace: true
         }
         {
             name: "Black Squadron Scout"
@@ -6282,6 +6301,7 @@ exportObj.basicCardData = ->
                 "Device"
                 "Modification"
               ]
+            isHyperspace: true
         }
         {
             name: "Planetary Sentinel"
@@ -6295,6 +6315,7 @@ exportObj.basicCardData = ->
                 "Device"
                 "Modification"
               ]
+            isHyperspace: true
         }
         {
             name: "Rear Admiral Chiraneau"
@@ -7901,7 +7922,8 @@ exportObj.basicCardData = ->
            unique: true
            faction: "Rebel Alliance"
            charge: 2
-           recurring: true 
+           recurring: true
+           isHyperspace: true
        }
        {
            name: "Chewbacca (Scum)"
@@ -8126,6 +8148,7 @@ exportObj.basicCardData = ->
            points: 5
            unique: true
            faction: "Rebel Alliance"
+           isHyperspace: true
        }
        {
            name: "Lando Calrissian (Scum)"
@@ -8144,7 +8167,8 @@ exportObj.basicCardData = ->
            unique: true
            faction: "Rebel Alliance"
            charge: 3
-           recurring: true 
+           recurring: true
+           isHyperspace: true
        }
        {
            name: "Latts Razzi"
@@ -8218,6 +8242,7 @@ exportObj.basicCardData = ->
                             s[3] = 2
                         else if s[3] = 3
                             s[3] = 1
+           isHyperspace: true
        }
        {
            name: "Novice Technician"
@@ -8248,6 +8273,7 @@ exportObj.basicCardData = ->
            points: 8
            unique: true
            faction: "Rebel Alliance"
+           isHyperspace: true
        }
        {
            name: "Sabine Wren"
@@ -8494,6 +8520,7 @@ exportObj.basicCardData = ->
            points: 12
            unique: true
            faction: "Rebel Alliance"
+           isHyperspace: true
        }
        {
            name: "Han Solo (Scum)"
@@ -8518,6 +8545,7 @@ exportObj.basicCardData = ->
            force: 1
            unique: true
            faction: "Rebel Alliance"
+           isHyperspace: true
            modifier_func: (stats) ->
                 stats.force += 1
        }
@@ -9108,6 +9136,7 @@ exportObj.basicCardData = ->
            unique: true
            faction: "Rebel Alliance"
            ship: "YT-1300"
+           isHyperspace: true
            modifier_func: (stats) ->
                 stats.actions.push 'Evade' if 'Evade' not in stats.actions
        }
@@ -22750,6 +22779,7 @@ class exportObj.SquadBuilder
         @total_points = 0
         @isCustom = false
         @isSecondEdition = false
+        @isHyperspace = false
         @maxSmallShipsOfOneType = null
         @maxLargeShipsOfOneType = null
 
@@ -22840,6 +22870,7 @@ class exportObj.SquadBuilder
                     Points: <span class="total-points">0</span> / <input type="number" class="desired-points" value="100">
                     <select class="game-type-selector">
                         <option value="standard">Extended</option>
+                        <option value="hyperspace">Hyperspace</option>
                         <option value="second_edition">Second Edition</option>
                         <option value="custom">Custom</option>
                     </select>
@@ -23724,25 +23755,36 @@ class exportObj.SquadBuilder
 
     onGameTypeChanged: (gametype, cb=$.noop) =>
         oldSecondEdition = @isSecondEdition
+        oldHyperspace = @isHyperspace
         switch gametype
             when 'standard'
                 @isSecondEdition = false
+                @isHyperspace = false
+                @isCustom = false
+                @desired_points_input.val 200
+                @maxSmallShipsOfOneType = null
+                @maxLargeShipsOfOneType = null
+            when 'hyperspace'
+                @isSecondEdition = false
+                @isHyperspace = true
                 @isCustom = false
                 @desired_points_input.val 200
                 @maxSmallShipsOfOneType = null
                 @maxLargeShipsOfOneType = null
             when 'second_edition'
                 @isSecondEdition = true
+                @isHyperspace = false
                 @isCustom = false
                 @desired_points_input.val 200
                 @maxSmallShipsOfOneType = null
                 @maxLargeShipsOfOneType = null
             when 'custom'
                 @isSecondEdition = false
+                @isHyperspace = false
                 @isCustom = true
                 @maxSmallShipsOfOneType = null
                 @maxLargeShipsOfOneType = null
-        if (oldSecondEdition != @isSecondEdition)
+        if (oldSecondEdition != @isSecondEdition || oldHyperspace != @isHyperspace)
             @newSquadFromScratch()
         @onPointsUpdated cb
 
@@ -23885,6 +23927,8 @@ class exportObj.SquadBuilder
         game_type_abbrev = switch @game_type_selector.val()
             when 'standard'
                 's'
+            when 'hyperspace'
+                'h'
             when 'second_edition'
                 'se'
             when 'custom'
@@ -23908,6 +23952,9 @@ class exportObj.SquadBuilder
                     switch game_type_abbrev
                         when 's'
                             @game_type_selector.val 'standard'
+                            @game_type_selector.change()
+                        when 'h'
+                            @game_type_selector.val 'hyperspace'
                             @game_type_selector.change()
                         when 'se'
                             @game_type_selector.val 'second_edition'
@@ -24010,11 +24057,19 @@ class exportObj.SquadBuilder
         else
             getPrimaryFaction(faction) == @faction
 
+    isItemAvailable: (item_data) ->
+        if (not @isSecondEdition and not @isHyperspace)
+            return true
+        else if (@isSecondEdition)
+            return exportObj.secondEditionCheck(item_data, @faction)
+        else # hyperspace
+            return exportObj.hyperspaceCheck(item_data, @faction)
+
     getAvailableShipsMatching: (term='',sorted = true) ->
         ships = []
         for ship_name, ship_data of exportObj.ships
             if @isOurFaction(ship_data.factions) and (@matcher(ship_data.name, term) or (ship_data.display_name and @matcher(ship_data.display_name, term)))
-                if (not @isSecondEdition or exportObj.secondEditionCheck(ship_data, @faction))
+                if (@isItemAvailable(ship_data))
                     if not ship_data.huge or @isCustom
                         if ship_data.display_name
                             ships.push
@@ -24048,7 +24103,7 @@ class exportObj.SquadBuilder
         
     getAvailablePilotsForShipIncluding: (ship, include_pilot, term='', sorted = true) ->
         # Returns data formatted for Select2
-        available_faction_pilots = (pilot for pilot_name, pilot of exportObj.pilots when (not ship? or pilot.ship == ship) and @isOurFaction(pilot.faction) and (@matcher(pilot_name, term) or (pilot.display_name and @matcher(pilot.display_name, term)) ) and (not @isSecondEdition or exportObj.secondEditionCheck(pilot)))
+        available_faction_pilots = (pilot for pilot_name, pilot of exportObj.pilots when (not ship? or pilot.ship == ship) and @isOurFaction(pilot.faction) and (@matcher(pilot_name, term) or (pilot.display_name and @matcher(pilot.display_name, term)) ) and (@isItemAvailable(pilot)))
 
         eligible_faction_pilots = (pilot for pilot_name, pilot of available_faction_pilots when (not pilot.unique? or pilot not in @uniques_in_use['Pilot'] or pilot.canonical_name.getXWSBaseName() == include_pilot?.canonical_name.getXWSBaseName()))
 
@@ -24088,7 +24143,7 @@ class exportObj.SquadBuilder
         # Returns data formatted for Select2
         limited_upgrades_in_use = (upgrade.data for upgrade in ship.upgrades when upgrade?.data?.limited?)
 
-        available_upgrades = (upgrade for upgrade_name, upgrade of exportObj.upgrades when upgrade.slot == slot and ( @matcher(upgrade_name, term) or (upgrade.display_name and @matcher(upgrade.display_name, term)) ) and (not upgrade.ship? or @isShip(upgrade.ship, ship.data.name)) and (not upgrade.faction? or @isOurFaction(upgrade.faction)) and (not @isSecondEdition or exportObj.secondEditionCheck(upgrade)))
+        available_upgrades = (upgrade for upgrade_name, upgrade of exportObj.upgrades when upgrade.slot == slot and ( @matcher(upgrade_name, term) or (upgrade.display_name and @matcher(upgrade.display_name, term)) ) and (not upgrade.ship? or @isShip(upgrade.ship, ship.data.name)) and (not upgrade.faction? or @isOurFaction(upgrade.faction)) and (@isItemAvailable(upgrade)))
 
         if filter_func != @dfl_filter_func
             available_upgrades = (upgrade for upgrade in available_upgrades when filter_func(upgrade))

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <widget
     id          = "io.github.raithos"
-    versionCode = "16"
-    version     = "1.0.3" >
+    versionCode = "17"
+    version     = "1.0.4" >
 
     <name>YASB X-Wing 2.0 Squad Builder</name>
 
@@ -19,6 +19,7 @@
     <plugin name="cordova-plugin-customurlscheme" source="npm">
         <param name="URL_SCHEME" value="yasb" />
     </plugin>
+    <plugin name="phonegap-plugin-barcodescanner" />
 
     <access origin="https://yasb-backend.herokuapp.com" />
     <allow-intent href="https://yasb-backend.herokuapp.com" />
