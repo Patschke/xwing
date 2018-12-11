@@ -5529,6 +5529,7 @@ exportObj.basicCardData = ->
             id: 246
             unique: true
             faction: "Resistance"
+            xws: "chewbacca-scavengedyt1300"
             ship: "Scavenged YT-1300"
             skill: 4
             points: 72
@@ -5704,6 +5705,7 @@ exportObj.basicCardData = ->
             name: "Black Squadron Ace (T-70)"
             id: 256
             faction: "Resistance"
+            xws: "blacksquadronace-t70xwing" 
             ship: "T-70 X-Wing"
             skill: 4
             points: 50
@@ -5930,6 +5932,7 @@ exportObj.basicCardData = ->
                 "Missile"
                 "Tech"
             ]
+            isHyperspace: true
         }
         {
             name: "Zari Bangel"
@@ -5945,6 +5948,7 @@ exportObj.basicCardData = ->
                 "Missile"
                 "Tech"
             ]
+            isHyperspace: true
         }
         {
             name: "Darth Maul"
@@ -6382,8 +6386,6 @@ exportObj.basicCardData = ->
             ship: "T-70 X-Wing"
             skill: 4
             points: 54
-            charge: 1
-            recurring: true 
             slots: [
                 "Talent"
                 "Astromech"
@@ -8428,6 +8430,7 @@ exportObj.basicCardData = ->
             id: 192
             slot: "Crew"
             points: 6
+            xws: "hansolo-scavengedyt1300"
             unique: true
             faction: "Resistance"
             modifier_func: (stats) ->
@@ -8435,9 +8438,10 @@ exportObj.basicCardData = ->
             isHyperspace: true
        }
        {
-            name: "Rey's Millenium Falcon"
+            name: "Rey's Millennium Falcon"
             id: 193
             slot: "Title"
+            xws: ""
             points: 5
             unique: true
             ship: "Scavenged YT-1300"
