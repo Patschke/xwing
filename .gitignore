@@ -3,6 +3,7 @@ _vimrc_local.vim
 .sass-cache
 *.iml
 *.TMP
+api_export*.json
 
 images
 backgrounds.*
