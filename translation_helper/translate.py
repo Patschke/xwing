@@ -45,7 +45,7 @@ manual_stuff = "Please edit the following cards manually: \nL3-37's programming:
 pilot_name_list = {}
 
 # sort by name
-cards_en = sorted(cards_en, key=lambda k: k['name'])
+cards_en = sorted(cards_en, key=lambda k: k['name'][1:] if k['name'].startswith( '•' ) else k['name'])
 
 # load names changed by yasb
 renamed_cards = json.load(open('renamed_cards.json', encoding="utf8"))
@@ -62,7 +62,8 @@ output_text = ""
 
 # create ship translations
 for k, ship in ship_translations.items():
-    output_text += '    exportObj.renameShip """%s""", """%s"""\n' % (ship['name_yasb'], ship['name_' + lang])
+    if ship['name_' + lang] != 'CHANGE ME':
+        output_text += '    exportObj.renameShip """%s""", """%s"""\n' % (ship['name_yasb'], ship['name_' + lang])
 
 output_text += "\n\n    pilot_translations =\n"
 
@@ -257,6 +258,7 @@ output_text = output_text.replace('<evade>', '%EVADE%')
 output_text = output_text.replace('<focus>', '%FOCUS%')
 output_text = output_text.replace('<reinforce>', '%REINFORCE%')
 output_text = output_text.replace('<calculate>', '%CALCULATE%')
+output_text = output_text.replace('<rotate>', '%ROTATEARC%')
 output_text = output_text.replace('<standardcharge>', '%CHARGE%')
 output_text = output_text.replace('<forcecharge>', '%FORCE%')
 output_text = output_text.replace('<torpedo>', '%TORPEDO%')

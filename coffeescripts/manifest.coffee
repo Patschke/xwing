@@ -3304,7 +3304,7 @@ exportObj.manifestByExpansion =
             count: 1
         }
         {
-            name: 'Nien Numb'
+            name: 'Nien Nunb'
             type: 'pilot'
             count: 1
         }
@@ -3339,6 +3339,11 @@ exportObj.manifestByExpansion =
             count: 1
         }
         {
+            name: 'Black Squadron Ace (T-70)'
+            type: 'pilot'
+            count: 1
+        }
+        {
             name: 'Red Squadron Expert'
             type: 'pilot'
             count: 4
@@ -3346,7 +3351,7 @@ exportObj.manifestByExpansion =
         {
             name: 'Blue Squadron Rookie'
             type: 'pilot'
-            count: 1
+            count: 4
         }
         {
             name: 'R2-HA'
@@ -3466,7 +3471,7 @@ exportObj.manifestByExpansion =
         {
             name: 'Heroic'
             type: 'upgrade'
-            count: 2
+            count: 3
         }
         {
             name: 'Intimidation'
@@ -3781,7 +3786,7 @@ exportObj.manifestByExpansion =
             count: 1
         }
         {
-            name: 'Nien Numb'
+            name: 'Nien Nunb'
             type: 'pilot'
             count: 1
         }
@@ -3830,7 +3835,36 @@ exportObj.manifestByExpansion =
             type: 'pilot'
             count: 1
         }
-
+        {
+            name: 'Black One'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'BB-8'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'BB Astromech'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Integrated S-Foils'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'M9-G8'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Targeting Synchronizer'
+            type: 'upgrade'
+            count: 1
+        }
     ]
     'RZ-2 A-Wing Expansion Pack': [
         {
@@ -3866,6 +3900,31 @@ exportObj.manifestByExpansion =
         {
             name: 'Blue Squadron Recruit'
             type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Heroic'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Ferrosphere Paint'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Homing Missiles'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Primed Thrusters'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Proton Rockets'
+            type: 'upgrade'
             count: 1
         }
     ]
@@ -3908,6 +3967,21 @@ exportObj.manifestByExpansion =
     ]
     'First Order Conversion Kit': [
         {
+            name: 'Commander Malarus'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Lieutenant Rivas'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'TN-3465'
+            type: 'pilot'
+            count: 1
+        }
+        {
             name: 'Epsilon Squadron Cadet'
             type: 'pilot'
             count: 7
@@ -3928,17 +4002,7 @@ exportObj.manifestByExpansion =
             count: 1
         }
         {
-            name: 'Lieutenant Rivas'
-            type: 'pilot'
-            count: 1
-        }
-        {
             name: '"Muse"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'TN-3465'
             type: 'pilot'
             count: 1
         }
@@ -3954,11 +4018,6 @@ exportObj.manifestByExpansion =
         }
         {
             name: '"Scorch"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Commander Malarus'
             type: 'pilot'
             count: 1
         }
@@ -4058,14 +4117,9 @@ exportObj.manifestByExpansion =
             count: 1
         }
         {
-            name: "Fanatical"
-            type: 'upgrade'
-            count: 1
-        }
-        {
             name: "Special Forces Gunner"
             type: 'upgrade'
-            count: 1
+            count: 4
         }
         {
             name: "Supreme Leader Snoke"
@@ -4107,78 +4161,6 @@ exportObj.manifestByExpansion =
             type: 'upgrade'
             count: 1
         }
-    ]
-    'TIE/FO Fighter Expansion Pack': [
-        {
-            name: 'TIE/FO Fighter'
-            type: 'ship'
-            count: 1
-        }
-        {
-            name: 'Epsilon Squadron Cadet'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Zeta Squadron Pilot'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Omega Squadron Ace'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Null"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Lieutenant Rivas'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Muse"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'TN-3465'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Longshot"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Static"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Scorch"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Commander Malarus'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: '"Midnight"'
-            type: 'pilot'
-            count: 1
-        }
-        {
-            name: 'Fanatical'
-            type: 'upgrade'
-            count: 3
-        }
         {
             name: 'Crack Shot'
             type: 'upgrade'
@@ -4198,6 +4180,11 @@ exportObj.manifestByExpansion =
             name: 'Elusive'
             type: 'upgrade'
             count: 2
+        }
+        {
+            name: 'Fanatical'
+            type: 'upgrade'
+            count: 3
         }
         {
             name: 'Intimidation'
@@ -4380,69 +4367,9 @@ exportObj.manifestByExpansion =
             count: 2
         }
         {
-            name: 'Special Forces Gunner'
-            type: 'upgrade'
-            count: 4
-        }
-        {
-            name: 'Contraband Cybernetics'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: "Deadman's Switch"
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Feedback Array'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Inertial Dampeners'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Rigged Cargo Chute'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Bomblet Generator'
-            type: 'upgrade'
-            count: 1
-        }
-        {
-            name: 'Conner Nets'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Proton Bombs'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Proximity Mines'
-            type: 'upgrade'
-            count: 2
-        }
-        {
-            name: 'Seismic Charges'
-            type: 'upgrade'
-            count: 2
-        }
-        {
             name: 'Ablative Plating'
             type: 'upgrade'
             count: 2
-        }
-        {
-            name: 'Advanced SLAM'
-            type: 'upgrade'
-            count: 1
         }
         {
             name: 'Electronic Baffle'
@@ -4483,6 +4410,98 @@ exportObj.manifestByExpansion =
             name: 'Tactical Scrambler'
             type: 'upgrade'
             count: 2
+        }
+    ]
+    'TIE/FO Fighter Expansion Pack': [
+        {
+            name: 'TIE/FO Fighter'
+            type: 'ship'
+            count: 1
+        }
+        {
+            name: 'Epsilon Squadron Cadet'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Zeta Squadron Pilot'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Omega Squadron Ace'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Null"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Lieutenant Rivas'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Muse"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'TN-3465'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Longshot"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Static"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Scorch"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Commander Malarus'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: '"Midnight"'
+            type: 'pilot'
+            count: 1
+        }
+        {
+            name: 'Fanatical'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Squad Leader'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Swarm Tactics'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Advanced Optics'
+            type: 'upgrade'
+            count: 1
+        }
+        {
+            name: 'Targeting Synchronizer'
+            type: 'upgrade'
+            count: 1
         }
     ]
 
@@ -4738,12 +4757,12 @@ exportObj.manifestByExpansion =
             count: 3
         }
         {
-            name: 'TIE Silencer'
+            name: 'TIE/VN Silencer'
             type: 'ship'
             count: 3
         }
         {
-            name: 'Upsilon-Class Shuttle'
+            name: 'Upsilon-Class Command Shuttle'
             type: 'ship'
             count: 3
         }
@@ -4845,12 +4864,12 @@ exportObj.manifestByExpansion =
             count: 3
         }
         {
-            name: 'Upsilon-Class Shuttle'
+            name: 'Upsilon-Class Command Shuttle'
             type: 'ship'
             count: 3
         }
         {
-            name: 'TIE Silencer'
+            name: 'TIE/VN Silencer'
             type: 'ship'
             count: 3
         }
