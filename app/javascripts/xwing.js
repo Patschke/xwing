@@ -470,10 +470,14 @@ exportObj.SquadBuilderBackend = (function() {
         return _this.ui_ready = true;
       };
     })(this));
+    this.reload_done_modal = $(document.createElement('DIV'));
+    this.reload_done_modal.addClass('modal hide fade hidden-print');
+    $(document.body).append(this.reload_done_modal);
+    this.reload_done_modal.append($.trim("<div class=\"modal-header\">\n    <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-hidden=\"true\">&times;</button>\n    <h3>Reload Done</h3>\n</div>\n<div class=\"modal-body\">\n    <p>All squads of that faction have been reloaded.</p>\n</div>\n<div class=\"modal-footer\">\n    <button class=\"btn btn-primary\" aria-hidden=\"true\" data-dismiss=\"modal\">Well done!</button>\n</div>"));
     this.squad_list_modal = $(document.createElement('DIV'));
     this.squad_list_modal.addClass('modal hide fade hidden-print squad-list');
     $(document.body).append(this.squad_list_modal);
-    this.squad_list_modal.append($.trim("<div class=\"modal-header\">\n    <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-hidden=\"true\">&times;</button>\n    <h3 class=\"squad-list-header-placeholder hidden-phone hidden-tablet\"></h3>\n    <h4 class=\"squad-list-header-placeholder hidden-desktop\"></h4>\n</div>\n<div class=\"modal-body\">\n    <ul class=\"squad-list\"></ul>\n    <p class=\"pagination-centered squad-list-loading\">\n        <i class=\"fa fa-spinner fa-spin fa-3x\"></i>\n        <br />\n        Fetching squads...\n    </p>\n</div>\n<div class=\"modal-footer\">\n    <div class=\"btn-group delete-multiple-squads\">\n        <button class=\"btn select-all\">Select All</button>\n        <button class=\"btn btn-danger delete-selected\">Delete Selected</button>\n    </div>\n    <div class=\"btn-group squad-display-mode\">\n        <button class=\"btn btn-inverse show-all-squads\">All</button>\n        <button class=\"btn show-standard-squads\">Standard</button>\n        <button class=\"btn show-epic-squads\">Epic</button>\n        <button class=\"btn show-team-epic-squads\">Team<span class=\"hidden-phone\"> Epic</span></button>\n    </div>\n    <button class=\"btn\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
+    this.squad_list_modal.append($.trim("<div class=\"modal-header\">\n    <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-hidden=\"true\">&times;</button>\n    <h3 class=\"squad-list-header-placeholder hidden-phone hidden-tablet\"></h3>\n    <h4 class=\"squad-list-header-placeholder hidden-desktop\"></h4>\n</div>\n<div class=\"modal-body\">\n    <ul class=\"squad-list\"></ul>\n    <p class=\"pagination-centered squad-list-loading\">\n        <i class=\"fa fa-spinner fa-spin fa-3x\"></i>\n        <br />\n        Fetching squads...\n    </p>\n</div>\n<div class=\"modal-footer\">\n    <div class=\"btn-group delete-multiple-squads\">\n        <button class=\"btn select-all\">Select All</button>\n        <button class=\"btn btn-danger delete-selected\">Delete Selected</button>\n    </div>\n    <div class=\"btn-group squad-display-mode\">\n        <button class=\"btn btn-inverse show-all-squads\">All</button>\n        <button class=\"btn show-extended-squads\">Extended</button>\n        <button class=\"btn show-hyperspace-squads\">Hyperspace</button>\n        <button class=\"btn show-quickbuild-squads\">Quickbuild</button>\n    </div>\n    <button class=\"btn btn reload-all\">Reload<span class=\"hidden-phone\"> all squads (this might take a while)</span></button>\n    <button class=\"btn\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
     this.squad_list_modal.find('ul.squad-list').hide();
     this.squad_list_modal.find('div.delete-multiple-squads').hide();
     this.delete_selected_button = $(this.squad_list_modal.find('button.delete-selected'));
@@ -512,6 +516,48 @@ exportObj.SquadBuilderBackend = (function() {
         return _results;
       };
     })(this));
+    this.squad_list_modal.find('button.reload-all').click((function(_this) {
+      return function(e) {
+        var builder, li, squadDataStack, squadProcessingStack, ul, _i, _len, _ref;
+        ul = _this.squad_list_modal.find('ul.squad-list');
+        squadProcessingStack = [
+          function() {
+            return _this.reload_done_modal.modal('show');
+          }
+        ];
+        squadDataStack = [];
+        _ref = ul.find('li');
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          li = _ref[_i];
+          li = $(li);
+          squadDataStack.push(li.data('squad'));
+          builder = li.data('builder');
+          squadProcessingStack.push(function() {
+            var sqd;
+            sqd = squadDataStack.pop();
+            return builder.container.trigger('xwing-backend:squadLoadRequested', [
+              sqd, function() {
+                var additional_data;
+                additional_data = {
+                  points: builder.total_points,
+                  description: builder.describeSquad(),
+                  cards: builder.listCards(),
+                  notes: builder.notes.val().substr(0, 1024),
+                  obstacles: builder.getObstacles()
+                };
+                return _this.save(builder.serialize(), builder.current_squad.id, builder.current_squad.name, builder.faction, additional_data, squadProcessingStack.pop());
+              }
+            ]);
+          });
+        }
+        _this.squad_list_modal.modal('hide');
+        if (builder.current_squad.dirty) {
+          return _this.warnUnsaved(builder, squadProcessingStack.pop());
+        } else {
+          return squadProcessingStack.pop()();
+        }
+      };
+    })(this));
     this.select_all_button = $(this.squad_list_modal.find('button.select-all'));
     this.select_all_button.click((function(_this) {
       return function(e) {
@@ -537,7 +583,6 @@ exportObj.SquadBuilderBackend = (function() {
         return _results;
       };
     })(this));
-    this.squad_list_modal.find('div.squad-display-mode').hide();
     this.show_all_squads_button = $(this.squad_list_modal.find('.show-all-squads'));
     this.show_all_squads_button.click((function(_this) {
       return function(e) {
@@ -549,41 +594,41 @@ exportObj.SquadBuilderBackend = (function() {
         }
       };
     })(this));
-    this.show_standard_squads_button = $(this.squad_list_modal.find('.show-standard-squads'));
-    this.show_standard_squads_button.click((function(_this) {
+    this.show_extended_squads_button = $(this.squad_list_modal.find('.show-extended-squads'));
+    this.show_extended_squads_button.click((function(_this) {
       return function(e) {
-        if (_this.squad_display_mode !== 'standard') {
-          _this.squad_display_mode = 'standard';
+        if (_this.squad_display_mode !== 'extended') {
+          _this.squad_display_mode = 'extended';
           _this.squad_list_modal.find('.squad-display-mode .btn').removeClass('btn-inverse');
-          _this.show_standard_squads_button.addClass('btn-inverse');
+          _this.show_extended_squads_button.addClass('btn-inverse');
           return _this.squad_list_modal.find('.squad-list li').each(function(idx, elem) {
-            return $(elem).toggle(($(elem).data().squad.serialized.search(/v\d+!e/) === -1) && ($(elem).data().squad.serialized.search(/v\d+!t/) === -1));
+            return $(elem).toggle($(elem).data().squad.serialized.search(/v\d+!s/) !== -1);
           });
         }
       };
     })(this));
-    this.show_epic_squads_button = $(this.squad_list_modal.find('.show-epic-squads'));
-    this.show_epic_squads_button.click((function(_this) {
+    this.show_hyperspace_squads_button = $(this.squad_list_modal.find('.show-hyperspace-squads'));
+    this.show_hyperspace_squads_button.click((function(_this) {
       return function(e) {
-        if (_this.squad_display_mode !== 'epic') {
-          _this.squad_display_mode = 'epic';
+        if (_this.squad_display_mode !== 'hyperspace') {
+          _this.squad_display_mode = 'hyperspace';
           _this.squad_list_modal.find('.squad-display-mode .btn').removeClass('btn-inverse');
-          _this.show_epic_squads_button.addClass('btn-inverse');
+          _this.show_hyperspace_squads_button.addClass('btn-inverse');
           return _this.squad_list_modal.find('.squad-list li').each(function(idx, elem) {
-            return $(elem).toggle($(elem).data().squad.serialized.search(/v\d+!e/) !== -1);
+            return $(elem).toggle($(elem).data().squad.serialized.search(/v\d+!h/) !== -1);
           });
         }
       };
     })(this));
-    this.show_team_epic_squads_button = $(this.squad_list_modal.find('.show-team-epic-squads'));
-    this.show_team_epic_squads_button.click((function(_this) {
+    this.show_quickbuild_squads_button = $(this.squad_list_modal.find('.show-quickbuild-squads'));
+    this.show_quickbuild_squads_button.click((function(_this) {
       return function(e) {
-        if (_this.squad_display_mode !== 'team-epic') {
-          _this.squad_display_mode = 'team-epic';
+        if (_this.squad_display_mode !== 'quickbuild') {
+          _this.squad_display_mode = 'quickbuild';
           _this.squad_list_modal.find('.squad-display-mode .btn').removeClass('btn-inverse');
-          _this.show_team_epic_squads_button.addClass('btn-inverse');
+          _this.show_quickbuild_squads_button.addClass('btn-inverse');
           return _this.squad_list_modal.find('.squad-list li').each(function(idx, elem) {
-            return $(elem).toggle($(elem).data().squad.serialized.search(/v\d+!t/) !== -1);
+            return $(elem).toggle($(elem).data().squad.serialized.search(/v\d+!q/) !== -1);
           });
         }
       };
@@ -829,7 +874,7 @@ exportObj.SquadBuilderBackend = (function() {
                 return headers = arguments[0];
               };
             })(),
-            lineno: 711
+            lineno: 754
           }));
           __iced_deferrals._fulfill();
         });
@@ -951,7 +996,6 @@ String.prototype.capitalize = function() {
 
 exportObj.CardBrowser = (function() {
   function CardBrowser(args) {
-    this.toggleAdvancedSearch = __bind(this.toggleAdvancedSearch, this);
     this.container = $(args.container);
     this.currently_selected = null;
     this.language = 'English';
@@ -962,33 +1006,34 @@ exportObj.CardBrowser = (function() {
   }
 
   CardBrowser.prototype.setupUI = function() {
-    var opt, slot;
-    this.container.append($.trim("<div class=\"container-fluid xwing-card-browser\">\n    <div class=\"row-fluid\">\n        <div class=\"span12\">\n            <span class=\"translate sort-cards-by\">Sort cards by</span>: <select class=\"sort-by\">\n                <option value=\"name\">Name</option>\n                <option value=\"source\">Source</option>\n                <option value=\"type-by-points\">Type (by Points)</option>\n                <option value=\"type-by-name\" selected=\"1\">Type (by Name)</option>\n            </select>\n        </div>\n    </div>\n    <div class=\"row-fluid\">\n        <div class=\"span4 card-selector-container\">\n\n        </div>\n        <div class=\"span8\">\n            <div class=\"well card-search-container\">\n                <input type=\"search\" placeholder=\"Search for name, text or ship\" class = \"card-search-text\">" + "                <button class=\"btn btn-primary show-advanced-search\">\n                    Advanced Search\n                </button>\n                <div class=\"advanced-search-container\">\n                    <div class= \"advanced-search-faction-selection-container\">\n                        <strong>Faction:</strong>\n                        <label class = \"toggle-rebel-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"rebel-checkbox advanced-search-checkbox\" checked=\"checked\" /> Rebel\n                        </label>\n                        <label class = \"toggle-imperial-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"imperial-checkbox advanced-search-checkbox\" checked=\"checked\" /> Imperial\n                        </label>\n                        <label class = \"toggle-scum-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"scum-checkbox advanced-search-checkbox\" checked=\"checked\" /> Scum\n                        </label>\n                        <label class = \"toggle-fo-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"fo-checkbox advanced-search-checkbox\" checked=\"checked\" /> First Order\n                        </label>\n                        <label class = \"toggle-resistance-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"resistance-checkbox advanced-search-checkbox\" checked=\"checked\" /> Resistance\n                        </label>\n                        <label class = \"toggle-separatist-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"separatist-checkbox advanced-search-checkbox\" checked=\"checked\" /> Separatist\n                        </label>\n                        <label class = \"toggle-republic-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"republic-checkbox advanced-search-checkbox\" checked=\"checked\" /> Republic\n                        </label>\n                        <label class = \"toggle-factionless-search advanced-search-label\">\n                            <input type=\"checkbox\" class=\"factionless-checkbox advanced-search-checkbox\" checked=\"checked\" /> Factionless\n                            <span class=\"advanced-search-tooltip\" tooltip=\"A card is considered factionless, if it can be used by more than one faction.\"> &#9432 </span>\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-point-selection-container\">\n                        <strong>Point costs:</strong>\n                        <label class = \"advanced-search-label set-minimum-points\">\n                            from <input type=\"number\" class=\"minimum-point-cost advanced-search-number-input\" value=\"0\" /> \n                        </label>\n                        <label class = \"advanced-search-label set-maximum-points\">\n                            to <input type=\"number\" class=\"maximum-point-cost advanced-search-number-input\" value=\"200\" /> \n                        </label>\n                        <label class = \"advanced-search-label toggle-variable-cost-search\">\n                            <input type=\"checkbox\" class=\"variable-point-cost-checkbox advanced-search-checkbox\" checked=\"checked\" /> Variable point cost\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-collection-container\">\n                        <strong>Owned copies:</strong>\n                        <label class = \"advanced-search-label set-minimum-owned-copies\">\n                            from <input type=\"number\" class=\"minimum-owned-copies advanced-search-number-input\" value=\"0\" /> \n                        </label>\n                        <label class = \"advanced-search-label set-maximum-owened-copies\">\n                            to <input type=\"number\" class=\"maximum-owned-copies advanced-search-number-input\" value=\"100\" /> \n                        </label>\n                    </div>\n                    <div class = \"advanced-search-slot-available-container\">\n                        <label class = \"advanced-search-label select-available-slots\">\n                            <strong>Available slots: </strong>\n                            <select class=\"advanced-search-selection slot-available-selection\" multiple=\"1\" data-placeholder=\"No slots selected\"></select>\n                            <span class=\"advanced-search-tooltip\" tooltip=\"Search for pilots and ships having all selected slots available.\"> &#9432 </span>\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-slot-used-container\">\n                        <label class = \"advanced-search-label select-used-slots\">\n                            <strong>Used slot: </strong>\n                            <select class=\"advanced-search-selection slot-used-selection\" multiple=\"1\" data-placeholder=\"No slots selected\"></select>\n                            <span class=\"advanced-search-tooltip\" tooltip=\"Search for upgrades using any of the selected slots.\"> &#9432 </span>\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-charge-container\">\n                        <strong>Charges:</strong>\n                        <label class = \"advanced-search-label set-minimum-charge\">\n                            from <input type=\"number\" class=\"minimum-charge advanced-search-number-input\" value=\"0\" /> \n                        </label>\n                        <label class = \"advanced-search-label set-maximum-charge\">\n                            to <input type=\"number\" class=\"maximum-charge advanced-search-number-input\" value=\"5\" /> \n                        </label>\n                        <label class = \"advanced-search-label has-recurring-charge\">\n                            <input type=\"checkbox\" class=\"advanced-search-checkbox has-recurring-charge-checkbox\" checked=\"checked\"/> recurring\n                        </label>\n                        <label class = \"advanced-search-label has-not-recurring-charge\">\n                            <input type=\"checkbox\" class=\"advanced-search-checkbox has-not-recurring-charge-checkbox\" checked=\"checked\"/> not recurring\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-ini-container\">\n                        <strong>Initiative:</strong>\n                        <label class = \"advanced-search-label set-minimum-ini\">\n                            from <input type=\"number\" class=\"minimum-ini advanced-search-number-input\" value=\"0\" /> \n                        </label>\n                        <label class = \"advanced-search-label set-maximum-ini\">\n                            to <input type=\"number\" class=\"maximum-ini advanced-search-number-input\" value=\"6\" /> \n                            <span class=\"advanced-search-tooltip\" tooltip=\"Changing these values will also hide all upgrades. \"> &#9432 </span>\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-base-size-container\">\n                        <strong>Base size:</strong>\n                        <label class = \"advanced-search-label toggle-small-base\">\n                            <input type=\"checkbox\" class=\"small-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Small\n                        </label>\n                        <label class = \"advanced-search-label toggle-medium-base\">\n                            <input type=\"checkbox\" class=\"medium-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Medium\n                        </label>\n                        <label class = \"advanced-search-label toggle-large-base\">\n                            <input type=\"checkbox\" class=\"large-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Large\n                            <span class=\"advanced-search-tooltip\" tooltip=\"Unchecking these boxes will also hide all upgrades\"> &#9432 </span>\n                        </label>\n                    </div>\n                    <div class = \"advanced-search-misc-container\">\n                        <strong>Misc:</strong>\n                        <label class = \"advanced-search-label toggle-unique\">\n                            <input type=\"checkbox\" class=\"unique-checkbox advanced-search-checkbox\" /> Is unique\n                        </label>\n                        <label class = \"advanced-search-label toggle-non-unique\">\n                            <input type=\"checkbox\" class=\"non-unique-checkbox advanced-search-checkbox\" /> Is not unique\n                        </label>\n                        <label class = \"advanced-search-label toggle-hyperspace\">\n                            <input type=\"checkbox\" class=\"hyperspace-checkbox advanced-search-checkbox\" /> Hyperspace only\n                            <span class=\"advanced-search-tooltip\" tooltip=\"Check to search only hyperspace compatible cards.\"> &#9432 </span>\n                        </label>\n                    </div>\n                </div>\n            </div>\n            <div class=\"well card-viewer-placeholder info-well\">\n                <p class=\"translate select-a-card\">Select a card from the list at the left.</p>\n            </div>\n            <div class=\"well card-viewer-container info-well\">\n                <span class=\"info-name\"></span>\n                <br />\n                <span class=\"info-type\"></span>\n                <br />\n                <span class=\"info-sources\"></span>\n                <br />\n                <span class=\"info-collection\"></span>\n                <table>\n                    <tbody>\n                        <tr class=\"info-skill\">\n                            <td class=\"info-header\">Skill</td>\n                            <td class=\"info-data info-skill\"></td>\n                        </tr>\n                        <tr class=\"info-energy\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-energy xwing-miniatures-font-energy\"></i></td>\n                            <td class=\"info-data info-energy\"></td>\n                        </tr>\n                        <tr class=\"info-attack\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-frontarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-fullfront\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-fullfrontarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-bullseye\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-bullseyearc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-back\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-reararc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-turret\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-singleturretarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-doubleturret\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-doubleturretarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-agility\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i></td>\n                            <td class=\"info-data info-agility\"></td>\n                        </tr>\n                        <tr class=\"info-hull\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull\"></i></td>\n                            <td class=\"info-data info-hull\"></td>\n                        </tr>\n                        <tr class=\"info-shields\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield\"></i></td>\n                            <td class=\"info-data info-shields\"></td>\n                        </tr>\n                        <tr class=\"info-force\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-force xwing-miniatures-font-forcecharge\"></i></td>\n                            <td class=\"info-data info-force\"></td>\n                        </tr>\n                        <tr class=\"info-charge\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-charge xwing-miniatures-font-charge\"></i></td>\n                            <td class=\"info-data info-charge\"></td>\n                        </tr>\n                        <tr class=\"info-range\">\n                            <td class=\"info-header\">Range</td>\n                            <td class=\"info-data info-range\"></td>\n                        </tr>\n                        <tr class=\"info-actions\">\n                            <td class=\"info-header\">Actions</td>\n                            <td class=\"info-data\"></td>\n                        </tr>\n                        <tr class=\"info-actions-red\">\n                            <td></td>\n                            <td class=\"info-data-red\"></td>\n                        </tr>\n                        <tr class=\"info-upgrades\">\n                            <td class=\"info-header\">Upgrades</td>\n                            <td class=\"info-data\"></td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p class=\"info-text\" />\n            </div>\n        </div>\n    </div>\n</div>"));
+    var action, faction, factionless_option, linkedaction, opt, pilot, slot, _i, _j, _len, _len1, _ref, _ref1, _ref2;
+    this.container.append($.trim("<div class=\"container-fluid xwing-card-browser\">\n    <div class=\"row-fluid\">\n        <div class=\"span4\">\n            <div class=\"well card-search-container\">\n            <h3>Card Search</h3>\n                <div class=\"advanced-search-container\">\n                    <div class = \"well search-container general-search-container\">\n                        <h4>General</h4>\n                        <lable class = \"text-search advanced-search-label\">\n                        <strong>Textsearch: </strong>\n                            <input type=\"search\" placeholder=\"Search for name, text or ship\" class = \"card-search-text\">\n                        </label>\n                        <div class= \"advanced-search-faction-selection-container\">\n                            <label class = \"advanced-search-label select-available-slots\">\n                                <strong>Factions: </strong>\n                                <select class=\"advanced-search-selection faction-selection\" multiple=\"1\" data-placeholder=\"All factions\"></select>\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-point-selection-container\">\n                            <strong>Point costs:</strong>\n                            <label class = \"advanced-search-label set-minimum-points\">\n                                from <input type=\"number\" class=\"minimum-point-cost advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-points\">\n                                to <input type=\"number\" class=\"maximum-point-cost advanced-search-number-input\" value=\"200\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-collection-container\">\n                            <strong>Owned copies:</strong>\n                            <label class = \"advanced-search-label set-minimum-owned-copies\">\n                                from <input type=\"number\" class=\"minimum-owned-copies advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-owened-copies\">\n                                to <input type=\"number\" class=\"maximum-owned-copies advanced-search-number-input\" value=\"100\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-misc-container\">\n                            <strong>Misc:</strong>\n                            <label class = \"advanced-search-label toggle-unique\">\n                                <input type=\"checkbox\" class=\"unique-checkbox advanced-search-checkbox\" /> Is unique\n                            </label>\n                            <label class = \"advanced-search-label toggle-non-unique\">\n                                <input type=\"checkbox\" class=\"non-unique-checkbox advanced-search-checkbox\" /> Is not unique\n                            </label>\n                            <label class = \"advanced-search-label toggle-hyperspace\">\n                                <input type=\"checkbox\" class=\"hyperspace-checkbox advanced-search-checkbox\" /> Hyperspace legal\n                            </label>\n                        </div>\n                    </div>\n                    <div class = \"well search-container ship-search-container\">\n                        <h4>Ships and Pilots</h4>\n                        <div class = \"advanced-search-slot-available-container\">\n                            <label class = \"advanced-search-label select-available-slots\">\n                                <strong>Slots: </strong>\n                                <select class=\"advanced-search-selection slot-available-selection\" multiple=\"1\" data-placeholder=\"No slots selected\"></select>\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-actions-available-container\">\n                            <label class = \"advanced-search-label select-available-actions\">\n                                <strong>Actions: </strong>\n                                <select class=\"advanced-search-selection action-available-selection\" multiple=\"1\" data-placeholder=\"No actions selected\"></select>\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-linkedactions-available-container\">\n                            <label class = \"advanced-search-label select-available-linkedactions\">\n                                <strong>Linked actions: </strong>\n                                <select class=\"advanced-search-selection linkedaction-available-selection\" multiple=\"1\" data-placeholder=\"No actions selected\"></select>\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-ini-container\">\n                            <strong>Initiative:</strong>\n                            <label class = \"advanced-search-label set-minimum-ini\">\n                                from <input type=\"number\" class=\"minimum-ini advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-ini\">\n                                to <input type=\"number\" class=\"maximum-ini advanced-search-number-input\" value=\"6\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-hull-container\">\n                            <strong>Hull:</strong>\n                            <label class = \"advanced-search-label set-minimum-hull\">\n                                from <input type=\"number\" class=\"minimum-hull advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-hull\">\n                                to <input type=\"number\" class=\"maximum-hull advanced-search-number-input\" value=\"12\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-shields-container\">\n                            <strong>Shields:</strong>\n                            <label class = \"advanced-search-label set-minimum-shields\">\n                                from <input type=\"number\" class=\"minimum-shields advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-shields\">\n                                to <input type=\"number\" class=\"maximum-shields advanced-search-number-input\" value=\"6\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-agility-container\">\n                            <strong>Agility:</strong>\n                            <label class = \"advanced-search-label set-minimum-agility\">\n                                from <input type=\"number\" class=\"minimum-agility advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-agility\">\n                                to <input type=\"number\" class=\"maximum-agility advanced-search-number-input\" value=\"3\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-base-size-container\">\n                            <strong>Base size:</strong>\n                            <label class = \"advanced-search-label toggle-small-base\">\n                                <input type=\"checkbox\" class=\"small-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Small\n                            </label>\n                            <label class = \"advanced-search-label toggle-medium-base\">\n                                <input type=\"checkbox\" class=\"medium-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Medium\n                            </label>\n                            <label class = \"advanced-search-label toggle-large-base\">\n                                <input type=\"checkbox\" class=\"large-base-checkbox advanced-search-checkbox\" checked=\"checked\"/> Large\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attack-container\">\n                            <strong>Attack  <i class=\"xwing-miniatures-font xwing-miniatures-font-frontarc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attack\">\n                                from <input type=\"number\" class=\"minimum-attack advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attack\">\n                                to <input type=\"number\" class=\"maximum-attack advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attackt-container\">\n                            <strong>Attack  <i class=\"xwing-miniatures-font xwing-miniatures-font-singleturretarc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attackt\">\n                                from <input type=\"number\" class=\"minimum-attackt advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attackt\">\n                                to <input type=\"number\" class=\"maximum-attackt advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attackdt-container\">\n                            <strong>Attack <i class=\"xwing-miniatures-font xwing-miniatures-font-doubleturretarc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attackdt\">\n                                from <input type=\"number\" class=\"minimum-attackdt advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attackdt\">\n                                to <input type=\"number\" class=\"maximum-attackdt advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attackf-container\">\n                            <strong>Attack <i class=\"xwing-miniatures-font xwing-miniatures-font-fullfrontarc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attackf\">\n                                from <input type=\"number\" class=\"minimum-attackf advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attackf\">\n                                to <input type=\"number\" class=\"maximum-attackf advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attackb-container\">\n                            <strong>Attack <i class=\"xwing-miniatures-font xwing-miniatures-font-reararc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attackb\">\n                                from <input type=\"number\" class=\"minimum-attackb advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attackb\">\n                                to <input type=\"number\" class=\"maximum-attackb advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                        <div class = \"advanced-search-attackbull-container\">\n                            <strong>Attack <i class=\"xwing-miniatures-font xwing-miniatures-font-bullseyearc\"></i>:</strong>\n                            <label class = \"advanced-search-label set-minimum-attackbull\">\n                                from <input type=\"number\" class=\"minimum-attackbull advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-attackbull\">\n                                to <input type=\"number\" class=\"maximum-attackbull advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                        </div>\n                    </div>\n                    <div class = \"well search-container other-stuff-search-container\">\n                        <h4>Other Stuff</h4>\n                        <div class = \"advanced-search-slot-used-container\">\n                            <label class = \"advanced-search-label select-used-slots\">\n                                <strong>Used slot: </strong>\n                                <select class=\"advanced-search-selection slot-used-selection\" multiple=\"1\" data-placeholder=\"No slots selected\"></select>\n                            </label>\n                        </div>\n                        <div class = \"advanced-search-charge-container\">\n                            <strong>Charges:</strong>\n                            <label class = \"advanced-search-label set-minimum-charge\">\n                                from <input type=\"number\" class=\"minimum-charge advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-charge\">\n                                to <input type=\"number\" class=\"maximum-charge advanced-search-number-input\" value=\"5\" /> \n                            </label>\n                            <label class = \"advanced-search-label has-recurring-charge\">\n                                <input type=\"checkbox\" class=\"advanced-search-checkbox has-recurring-charge-checkbox\" checked=\"checked\"/> recurring\n                            </label>\n                            <label class = \"advanced-search-label has-not-recurring-charge\">\n                                <input type=\"checkbox\" class=\"advanced-search-checkbox has-not-recurring-charge-checkbox\" checked=\"checked\"/> not recurring\n                            </label>\n                        <div class = \"advanced-search-force-container\">\n                            <strong>Force:</strong>\n                            <label class = \"advanced-search-label set-minimum-force\">\n                                from <input type=\"number\" class=\"minimum-force advanced-search-number-input\" value=\"0\" /> \n                            </label>\n                            <label class = \"advanced-search-label set-maximum-force\">\n                                to <input type=\"number\" class=\"maximum-force advanced-search-number-input\" value=\"3\" /> \n                            </label>\n                        </div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class=\"span4 card-selecting-area\">\n            <span class=\"translate sort-cards-by\">Sort cards by</span>: <select class=\"sort-by\">\n                <option value=\"name\">Name</option>\n                <option value=\"source\">Source</option>\n                <option value=\"type-by-points\">Type (by Points)</option>\n                <option value=\"type-by-name\" selected=\"1\">Type (by Name)</option>\n            </select>\n            <div class=\"card-selector-container\">\n\n            </div>\n        </div>\n        <div class=\"span4\">\n            <div class=\"well card-viewer-placeholder info-well\">\n                <p class=\"translate select-a-card\">Select a card from the list at the left.</p>\n            </div>\n            <div class=\"well card-viewer-container info-well\">\n                <span class=\"info-name\"></span>\n                <br />\n                <span class=\"info-type\"></span>\n                <br />\n                <span class=\"info-collection\"></span>\n                <table>\n                    <tbody>\n                        <tr class=\"info-skill\">\n                            <td class=\"info-header\">Skill</td>\n                            <td class=\"info-data info-skill\"></td>\n                        </tr>\n                        <tr class=\"info-energy\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-energy xwing-miniatures-font-energy\"></i></td>\n                            <td class=\"info-data info-energy\"></td>\n                        </tr>\n                        <tr class=\"info-attack\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-frontarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-fullfront\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-fullfrontarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-bullseye\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-bullseyearc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-back\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-reararc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-turret\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-singleturretarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-attack-doubleturret\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-doubleturretarc\"></i></td>\n                            <td class=\"info-data info-attack\"></td>\n                        </tr>\n                        <tr class=\"info-agility\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i></td>\n                            <td class=\"info-data info-agility\"></td>\n                        </tr>\n                        <tr class=\"info-hull\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull\"></i></td>\n                            <td class=\"info-data info-hull\"></td>\n                        </tr>\n                        <tr class=\"info-shields\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield\"></i></td>\n                            <td class=\"info-data info-shields\"></td>\n                        </tr>\n                        <tr class=\"info-force\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-force xwing-miniatures-font-forcecharge\"></i></td>\n                            <td class=\"info-data info-force\"></td>\n                        </tr>\n                        <tr class=\"info-charge\">\n                            <td class=\"info-header\"><i class=\"xwing-miniatures-font header-charge xwing-miniatures-font-charge\"></i></td>\n                            <td class=\"info-data info-charge\"></td>\n                        </tr>\n                        <tr class=\"info-range\">\n                            <td class=\"info-header\">Range</td>\n                            <td class=\"info-data info-range\"></td>\n                        </tr>\n                        <tr class=\"info-actions\">\n                            <td class=\"info-header\">Actions</td>\n                            <td class=\"info-data\"></td>\n                        </tr>\n                        <tr class=\"info-actions-red\">\n                            <td></td>\n                            <td class=\"info-data-red\"></td>\n                        </tr>\n                        <tr class=\"info-upgrades\">\n                            <td class=\"info-header\">Upgrades</td>\n                            <td class=\"info-data\"></td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p class=\"info-text\" />\n                <p class=\"info-maneuvers\" />\n                <br />\n                <span class=\"info-header info-sources\">Sources</span>: \n                <span class=\"info-data info-sources\"></span>\n            </div>\n        </div>\n    </div>\n</div>"));
     this.card_selector_container = $(this.container.find('.xwing-card-browser .card-selector-container'));
     this.card_viewer_container = $(this.container.find('.xwing-card-browser .card-viewer-container'));
     this.card_viewer_container.hide();
     this.card_viewer_placeholder = $(this.container.find('.xwing-card-browser .card-viewer-placeholder'));
-    this.advanced_search_button = ($(this.container.find('.xwing-card-browser .show-advanced-search')))[0];
     this.advanced_search_container = $(this.container.find('.xwing-card-browser .advanced-search-container'));
-    this.advanced_search_container.hide();
-    this.advanced_search_active = false;
     this.sort_selector = $(this.container.find('select.sort-by'));
     this.sort_selector.select2({
       minimumResultsForSearch: -1
     });
     this.card_search_text = ($(this.container.find('.xwing-card-browser .card-search-text')))[0];
-    this.faction_selectors = {};
-    this.faction_selectors["Rebel Alliance"] = ($(this.container.find('.xwing-card-browser .rebel-checkbox')))[0];
-    this.faction_selectors["Scum and Villainy"] = ($(this.container.find('.xwing-card-browser .scum-checkbox')))[0];
-    this.faction_selectors["Galactic Empire"] = ($(this.container.find('.xwing-card-browser .imperial-checkbox')))[0];
-    this.faction_selectors["Resistance"] = ($(this.container.find('.xwing-card-browser .resistance-checkbox')))[0];
-    this.faction_selectors["First Order"] = ($(this.container.find('.xwing-card-browser .fo-checkbox')))[0];
-    this.faction_selectors["Separatist Alliance"] = ($(this.container.find('.xwing-card-browser .separatist-checkbox')))[0];
-    this.faction_selectors["Galactic Republic"] = ($(this.container.find('.xwing-card-browser .republic-checkbox')))[0];
-    this.faction_selectors[void 0] = ($(this.container.find('.xwing-card-browser .factionless-checkbox')))[0];
+    this.faction_selection = $(this.container.find('.xwing-card-browser select.faction-selection'));
+    _ref = exportObj.pilotsByFactionXWS;
+    for (faction in _ref) {
+      pilot = _ref[faction];
+      opt = $(document.createElement('OPTION'));
+      opt.text(faction);
+      this.faction_selection.append(opt);
+    }
+    factionless_option = $(document.createElement('OPTION'));
+    factionless_option.text("Factionless");
+    this.faction_selection.append(factionless_option);
+    this.faction_selection.select2({
+      minimumResultsForSearch: $.isMobile() ? -1 : 0
+    });
     this.minimum_point_costs = ($(this.container.find('.xwing-card-browser .minimum-point-cost')))[0];
     this.maximum_point_costs = ($(this.container.find('.xwing-card-browser .maximum-point-cost')))[0];
-    this.variable_point_costs = ($(this.container.find('.xwing-card-browser .variable-point-cost-checkbox')))[0];
     this.hyperspace_checkbox = ($(this.container.find('.xwing-card-browser .hyperspace-checkbox')))[0];
     this.unique_checkbox = ($(this.container.find('.xwing-card-browser .unique-checkbox')))[0];
     this.non_unique_checkbox = ($(this.container.find('.xwing-card-browser .non-unique-checkbox')))[0];
@@ -1006,6 +1051,28 @@ exportObj.CardBrowser = (function() {
     this.slot_available_selection.select2({
       minimumResultsForSearch: $.isMobile() ? -1 : 0
     });
+    this.action_available_selection = $(this.container.find('.xwing-card-browser select.action-available-selection'));
+    _ref1 = ["Evade", "Focus", "Lock", "Boost", "Barrel Roll", "Calculate", "Reinforce", "Rotate Arc", "Coordinate", "Slam", "Reload"].sort();
+    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+      action = _ref1[_i];
+      opt = $(document.createElement('OPTION'));
+      opt.text(action);
+      this.action_available_selection.append(opt);
+    }
+    this.action_available_selection.select2({
+      minimumResultsForSearch: $.isMobile() ? -1 : 0
+    });
+    this.linkedaction_available_selection = $(this.container.find('.xwing-card-browser select.linkedaction-available-selection'));
+    _ref2 = ["Evade", "Focus", "Lock", "Boost", "Barrel Roll", "Calculate", "Reinforce", "Rotate Arc", "Coordinate", "Slam", "Reload"].sort();
+    for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+      linkedaction = _ref2[_j];
+      opt = $(document.createElement('OPTION'));
+      opt.text(linkedaction);
+      this.linkedaction_available_selection.append(opt);
+    }
+    this.linkedaction_available_selection.select2({
+      minimumResultsForSearch: $.isMobile() ? -1 : 0
+    });
     this.slot_used_selection = $(this.container.find('.xwing-card-browser select.slot-used-selection'));
     for (slot in exportObj.upgradesBySlotCanonicalName) {
       opt = $(document.createElement('OPTION'));
@@ -1019,6 +1086,26 @@ exportObj.CardBrowser = (function() {
     this.maximum_charge = ($(this.container.find('.xwing-card-browser .maximum-charge')))[0];
     this.minimum_ini = ($(this.container.find('.xwing-card-browser .minimum-ini')))[0];
     this.maximum_ini = ($(this.container.find('.xwing-card-browser .maximum-ini')))[0];
+    this.minimum_force = ($(this.container.find('.xwing-card-browser .minimum-force')))[0];
+    this.maximum_force = ($(this.container.find('.xwing-card-browser .maximum-force')))[0];
+    this.minimum_hull = ($(this.container.find('.xwing-card-browser .minimum-hull')))[0];
+    this.maximum_hull = ($(this.container.find('.xwing-card-browser .maximum-hull')))[0];
+    this.minimum_shields = ($(this.container.find('.xwing-card-browser .minimum-shields')))[0];
+    this.maximum_shields = ($(this.container.find('.xwing-card-browser .maximum-shields')))[0];
+    this.minimum_agility = ($(this.container.find('.xwing-card-browser .minimum-agility')))[0];
+    this.maximum_agility = ($(this.container.find('.xwing-card-browser .maximum-agility')))[0];
+    this.minimum_attack = ($(this.container.find('.xwing-card-browser .minimum-attack')))[0];
+    this.maximum_attack = ($(this.container.find('.xwing-card-browser .maximum-attack')))[0];
+    this.minimum_attackt = ($(this.container.find('.xwing-card-browser .minimum-attackt')))[0];
+    this.maximum_attackt = ($(this.container.find('.xwing-card-browser .maximum-attackt')))[0];
+    this.minimum_attackdt = ($(this.container.find('.xwing-card-browser .minimum-attackdt')))[0];
+    this.maximum_attackdt = ($(this.container.find('.xwing-card-browser .maximum-attackdt')))[0];
+    this.minimum_attackf = ($(this.container.find('.xwing-card-browser .minimum-attackf')))[0];
+    this.maximum_attackf = ($(this.container.find('.xwing-card-browser .maximum-attackf')))[0];
+    this.minimum_attackb = ($(this.container.find('.xwing-card-browser .minimum-attackb')))[0];
+    this.maximum_attackb = ($(this.container.find('.xwing-card-browser .maximum-attackb')))[0];
+    this.minimum_attackbull = ($(this.container.find('.xwing-card-browser .minimum-attackbull')))[0];
+    this.maximum_attackbull = ($(this.container.find('.xwing-card-browser .maximum-attackbull')))[0];
     this.recurring_charge = ($(this.container.find('.xwing-card-browser .has-recurring-charge-checkbox')))[0];
     this.not_recurring_charge = ($(this.container.find('.xwing-card-browser .has-not-recurring-charge-checkbox')))[0];
     this.minimum_owned_copies = ($(this.container.find('.xwing-card-browser .minimum-owned-copies')))[0];
@@ -1026,7 +1113,7 @@ exportObj.CardBrowser = (function() {
   };
 
   CardBrowser.prototype.setupHandlers = function() {
-    var basesize, checkbox, faction, _ref, _ref1;
+    var basesize, checkbox, _ref;
     this.sort_selector.change((function(_this) {
       return function(e) {
         return _this.renderList(_this.sort_selector.val());
@@ -1041,25 +1128,28 @@ exportObj.CardBrowser = (function() {
         _this.prepareData();
         return _this.renderList(_this.sort_selector.val());
       };
+    })(this)).on('xwing-collection:created', (function(_this) {
+      return function(e, collection) {
+        return _this.collection = collection;
+      };
+    })(this)).on('xwing-collection:destroyed', (function(_this) {
+      return function(e, collection) {
+        return _this.collection = null;
+      };
     })(this));
     this.card_search_text.oninput = (function(_this) {
       return function() {
         return _this.renderList(_this.sort_selector.val());
       };
     })(this);
-    this.advanced_search_button.onclick = this.toggleAdvancedSearch;
-    _ref = this.faction_selectors;
-    for (faction in _ref) {
-      checkbox = _ref[faction];
-      checkbox.onclick = (function(_this) {
-        return function() {
-          return _this.renderList(_this.sort_selector.val());
-        };
-      })(this);
-    }
-    _ref1 = this.base_size_checkboxes;
-    for (basesize in _ref1) {
-      checkbox = _ref1[basesize];
+    this.faction_selection[0].onchange = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    _ref = this.base_size_checkboxes;
+    for (basesize in _ref) {
+      checkbox = _ref[basesize];
       checkbox.onclick = (function(_this) {
         return function() {
           return _this.renderList(_this.sort_selector.val());
@@ -1072,11 +1162,6 @@ exportObj.CardBrowser = (function() {
       };
     })(this);
     this.maximum_point_costs.oninput = (function(_this) {
-      return function() {
-        return _this.renderList(_this.sort_selector.val());
-      };
-    })(this);
-    this.variable_point_costs.onclick = (function(_this) {
       return function() {
         return _this.renderList(_this.sort_selector.val());
       };
@@ -1097,6 +1182,16 @@ exportObj.CardBrowser = (function() {
       };
     })(this);
     this.slot_available_selection[0].onchange = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.action_available_selection[0].onchange = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.linkedaction_available_selection[0].onchange = (function(_this) {
       return function() {
         return _this.renderList(_this.sort_selector.val());
       };
@@ -1136,6 +1231,106 @@ exportObj.CardBrowser = (function() {
         return _this.renderList(_this.sort_selector.val());
       };
     })(this);
+    this.minimum_hull.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_hull.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_force.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_force.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_shields.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_shields.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_agility.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_agility.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attack.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attack.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attackt.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attackt.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attackdt.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attackdt.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attackf.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attackf.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attackb.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attackb.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.minimum_attackbull.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
+    this.maximum_attackbull.oninput = (function(_this) {
+      return function() {
+        return _this.renderList(_this.sort_selector.val());
+      };
+    })(this);
     this.minimum_owned_copies.oninput = (function(_this) {
       return function() {
         return _this.renderList(_this.sort_selector.val());
@@ -1146,16 +1341,6 @@ exportObj.CardBrowser = (function() {
         return _this.renderList(_this.sort_selector.val());
       };
     })(this);
-  };
-
-  CardBrowser.prototype.toggleAdvancedSearch = function() {
-    if (this.advanced_search_active) {
-      this.advanced_search_container.hide();
-    } else {
-      this.advanced_search_container.show();
-    }
-    this.advanced_search_active = !this.advanced_search_active;
-    return this.renderList(this.sort_selector.val());
   };
 
   CardBrowser.prototype.prepareData = function() {
@@ -1374,336 +1559,18 @@ exportObj.CardBrowser = (function() {
   };
 
   CardBrowser.prototype.renderCard = function(card) {
-    var action, addon_count, cls, data, display_name, first, ini, inis, name, orig_type, pilot, pilot_count, point_info, possible_inis, ship, ship_count, slot, slot_types, source, state, type, _i, _j, _k, _l, _len, _len1, _len2, _m, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref22, _ref23, _ref24, _ref25, _ref26, _ref27, _ref28, _ref29, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9, _results, _results1;
+    var add_opts, data, display_name, name, orig_type;
     display_name = card.data('display_name');
     name = card.data('name');
-    type = card.data('type');
     data = card.data('card');
     orig_type = card.data('orig_type');
-    this.card_viewer_container.find('.info-name').html("" + (data.unique ? "&middot;&nbsp;" : "") + (display_name ? display_name : name) + " (" + data.points + ")" + (data.limited != null ? " (" + (exportObj.translate(this.language, 'ui', 'limited')) + ")" : "") + (data.epic != null ? " (" + (exportObj.translate(this.language, 'ui', 'epic')) + ")" : "") + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
-    if (data.pointsarray != null) {
-      point_info = "<i>Point cost " + data.pointsarray + " when ";
-      if ((data.variableagility != null) && data.variableagility) {
-        point_info += "agility is " + (function() {
-          _results = [];
-          for (var _i = 0, _ref = data.pointsarray.length - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; 0 <= _ref ? _i++ : _i--){ _results.push(_i); }
-          return _results;
-        }).apply(this);
-      } else if ((data.variableinit != null) && data.variableinit) {
-        point_info += "initiative is " + (function() {
-          _results1 = [];
-          for (var _j = 0, _ref1 = data.pointsarray.length - 1; 0 <= _ref1 ? _j <= _ref1 : _j >= _ref1; 0 <= _ref1 ? _j++ : _j--){ _results1.push(_j); }
-          return _results1;
-        }).apply(this);
-      } else if ((data.variablebase != null) && data.variablebase) {
-        point_info += " base size is small, medium or large";
-      }
-      point_info += "</i><br/><br/>";
+    if (!(orig_type === 'Pilot' || orig_type === 'Ship' || orig_type === 'Quickbuild')) {
+      add_opts = {
+        addon_type: orig_type
+      };
+      orig_type = 'Addon';
     }
-    this.card_viewer_container.find('p.info-text').html((point_info != null ? point_info : '') + ((_ref2 = data.text) != null ? _ref2 : ''));
-    this.card_viewer_container.find('.info-sources').text(((function() {
-      var _k, _len, _ref3, _results2;
-      _ref3 = data.sources;
-      _results2 = [];
-      for (_k = 0, _len = _ref3.length; _k < _len; _k++) {
-        source = _ref3[_k];
-        _results2.push(exportObj.translate(this.language, 'sources', source));
-      }
-      return _results2;
-    }).call(this)).sort().join(', '));
-    switch (orig_type) {
-      case 'Pilot':
-        ship = exportObj.ships[data.ship];
-        this.card_viewer_container.find('.info-type').text("" + data.ship + " Pilot (" + data.faction + ")");
-        if (((_ref3 = exportObj.builders[0].collection) != null ? _ref3.counts : void 0) != null) {
-          ship_count = (_ref4 = (_ref5 = exportObj.builders[0].collection.counts) != null ? (_ref6 = _ref5.ship) != null ? _ref6[data.ship] : void 0 : void 0) != null ? _ref4 : 0;
-          pilot_count = (_ref7 = (_ref8 = exportObj.builders[0].collection.counts) != null ? (_ref9 = _ref8.pilot) != null ? _ref9[data.name] : void 0 : void 0) != null ? _ref7 : 0;
-          this.card_viewer_container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " and " + pilot_count + " pilot card" + (pilot_count > 1 ? 's' : '') + " in your collection.");
-        } else {
-          this.card_viewer_container.find('.info-collection').text('');
-        }
-        this.card_viewer_container.find('tr.info-skill td.info-data').text(data.skill);
-        this.card_viewer_container.find('tr.info-skill').show();
-        this.card_viewer_container.find('tr.info-attack td.info-data').text((_ref10 = (_ref11 = data.ship_override) != null ? _ref11.attack : void 0) != null ? _ref10 : ship.attack);
-        this.card_viewer_container.find('tr.info-attack-bullseye td.info-data').text(ship.attackbull);
-        this.card_viewer_container.find('tr.info-attack-fullfront td.info-data').text(ship.attackf);
-        this.card_viewer_container.find('tr.info-attack-back td.info-data').text(ship.attackb);
-        this.card_viewer_container.find('tr.info-attack-turret td.info-data').text(ship.attackt);
-        this.card_viewer_container.find('tr.info-attack-doubleturret td.info-data').text(ship.attackdt);
-        this.card_viewer_container.find('tr.info-attack').toggle(ship.attack != null);
-        this.card_viewer_container.find('tr.info-attack-bullseye').toggle(ship.attackbull != null);
-        this.card_viewer_container.find('tr.info-attack-fullfront').toggle(ship.attackf != null);
-        this.card_viewer_container.find('tr.info-attack-back').toggle(ship.attackb != null);
-        this.card_viewer_container.find('tr.info-attack-turret').toggle(ship.attackt != null);
-        this.card_viewer_container.find('tr.info-attack-doubleturret').toggle(ship.attackdt != null);
-        _ref12 = this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font')[0].classList;
-        for (_k = 0, _len = _ref12.length; _k < _len; _k++) {
-          cls = _ref12[_k];
-          if (cls.startsWith('xwing-miniatures-font-attack')) {
-            this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').removeClass(cls);
-          }
-        }
-        this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref13 = ship.attack_icon) != null ? _ref13 : 'xwing-miniatures-font-attack');
-        this.card_viewer_container.find('tr.info-energy td.info-data').text((_ref14 = (_ref15 = data.ship_override) != null ? _ref15.energy : void 0) != null ? _ref14 : ship.energy);
-        this.card_viewer_container.find('tr.info-energy').toggle((((_ref16 = data.ship_override) != null ? _ref16.energy : void 0) != null) || (ship.energy != null));
-        this.card_viewer_container.find('tr.info-range').hide();
-        this.card_viewer_container.find('tr.info-agility td.info-data').text((_ref17 = (_ref18 = data.ship_override) != null ? _ref18.agility : void 0) != null ? _ref17 : ship.agility);
-        this.card_viewer_container.find('tr.info-agility').show();
-        this.card_viewer_container.find('tr.info-hull td.info-data').text((_ref19 = (_ref20 = data.ship_override) != null ? _ref20.hull : void 0) != null ? _ref19 : ship.hull);
-        this.card_viewer_container.find('tr.info-hull').show();
-        this.card_viewer_container.find('tr.info-shields td.info-data').text((_ref21 = (_ref22 = data.ship_override) != null ? _ref22.shields : void 0) != null ? _ref21 : ship.shields);
-        this.card_viewer_container.find('tr.info-shields').show();
-        if (data.force != null) {
-          this.card_viewer_container.find('tr.info-force td.info-data').html(data.force + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-          this.card_viewer_container.find('tr.info-force td.info-header').show();
-          this.card_viewer_container.find('tr.info-force').show();
-        } else {
-          this.card_viewer_container.find('tr.info-force').hide();
-        }
-        if (data.charge != null) {
-          if (data.recurring != null) {
-            this.card_viewer_container.find('tr.info-charge td.info-data').html(data.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-          } else {
-            this.card_viewer_container.find('tr.info-charge td.info-data').text(data.charge);
-          }
-          this.card_viewer_container.find('tr.info-charge').show();
-        } else {
-          this.card_viewer_container.find('tr.info-charge').hide();
-        }
-        this.card_viewer_container.find('tr.info-actions td.info-data').html(((((function() {
-          var _l, _len1, _ref23, _results2;
-          _ref23 = exportObj.ships[data.ship].actions;
-          _results2 = [];
-          for (_l = 0, _len1 = _ref23.length; _l < _len1; _l++) {
-            action = _ref23[_l];
-            _results2.push(exportObj.translate(this.language, 'action', action));
-          }
-          return _results2;
-        }).call(this)).join(', ')).replace(/, <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">')).replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked">'));
-        this.card_viewer_container.find('tr.info-actions').show();
-        if (ships[data.ship].actionsred != null) {
-          this.card_viewer_container.find('tr.info-actions-red td.info-data').html(((function() {
-            var _l, _len1, _ref23, _results2;
-            _ref23 = exportObj.ships[data.ship].actionsred;
-            _results2 = [];
-            for (_l = 0, _len1 = _ref23.length; _l < _len1; _l++) {
-              action = _ref23[_l];
-              _results2.push(exportObj.translate(this.language, 'action', action));
-            }
-            return _results2;
-          }).call(this)).join(' '));
-          this.card_viewer_container.find('tr.info-actions-red').show();
-        } else {
-          this.card_viewer_container.find('tr.info-actions-red').hide();
-        }
-        this.card_viewer_container.find('tr.info-upgrades').show();
-        this.card_viewer_container.find('tr.info-upgrades td.info-data').html(((function() {
-          var _l, _len1, _ref23, _results2;
-          _ref23 = data.slots;
-          _results2 = [];
-          for (_l = 0, _len1 = _ref23.length; _l < _len1; _l++) {
-            slot = _ref23[_l];
-            _results2.push(exportObj.translate(this.language, 'sloticon', slot));
-          }
-          return _results2;
-        }).call(this)).join(' ') || 'None');
-        break;
-      case 'Ship':
-        possible_inis = [];
-        slot_types = {};
-        for (slot in exportObj.upgradesBySlotCanonicalName) {
-          slot_types[slot] = -1;
-        }
-        _ref23 = exportObj.pilots;
-        for (name in _ref23) {
-          pilot = _ref23[name];
-          if (pilot.ship !== data.name) {
-            continue;
-          }
-          if (!(_ref24 = pilot.skill, __indexOf.call(possible_inis, _ref24) >= 0)) {
-            possible_inis.push(pilot.skill);
-          }
-          for (slot in slot_types) {
-            state = slot_types[slot];
-            if (__indexOf.call(pilot.slots, slot) >= 0) {
-              switch (state) {
-                case -1:
-                  slot_types[slot] = 1;
-                  break;
-                case 0:
-                  slot_types[slot] = 2;
-              }
-            } else {
-              switch (state) {
-                case -1:
-                  slot_types[slot] = 0;
-                  break;
-                case 1:
-                  slot_types[slot] = 2;
-              }
-            }
-          }
-        }
-        possible_inis.sort();
-        this.card_viewer_container.find('.info-type').text(type);
-        if (((_ref25 = exportObj.builders[0].collection) != null ? _ref25.counts : void 0) != null) {
-          ship_count = this.getCollectionNumber({
-            orig_type: 'Ship',
-            name: name
-          });
-          this.card_viewer_container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " in your collection.");
-        } else {
-          this.card_viewer_container.find('.info-collection').text('');
-        }
-        first = true;
-        inis = String(possible_inis[0]);
-        for (_l = 0, _len1 = possible_inis.length; _l < _len1; _l++) {
-          ini = possible_inis[_l];
-          if (!first) {
-            inis += ", " + ini;
-          }
-          first = false;
-        }
-        this.card_viewer_container.find('tr.info-skill td.info-data').text(inis);
-        this.card_viewer_container.find('tr.info-skill').show();
-        this.card_viewer_container.find('tr.info-attack td.info-data').text(data.attack);
-        this.card_viewer_container.find('tr.info-attack-bullseye td.info-data').text(data.attackbull);
-        this.card_viewer_container.find('tr.info-attack-fullfront td.info-data').text(data.attackf);
-        this.card_viewer_container.find('tr.info-attack-back td.info-data').text(data.attackb);
-        this.card_viewer_container.find('tr.info-attack-turret td.info-data').text(data.attackt);
-        this.card_viewer_container.find('tr.info-attack-doubleturret td.info-data').text(data.attackdt);
-        this.card_viewer_container.find('tr.info-attack').toggle(data.attack != null);
-        this.card_viewer_container.find('tr.info-attack-bullseye').toggle(data.attackbull != null);
-        this.card_viewer_container.find('tr.info-attack-fullfront').toggle(data.attackf != null);
-        this.card_viewer_container.find('tr.info-attack-back').toggle(data.attackb != null);
-        this.card_viewer_container.find('tr.info-attack-turret').toggle(data.attackt != null);
-        this.card_viewer_container.find('tr.info-attack-doubleturret').toggle(data.attackdt != null);
-        _ref26 = this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font')[0].classList;
-        for (_m = 0, _len2 = _ref26.length; _m < _len2; _m++) {
-          cls = _ref26[_m];
-          if (cls.startsWith('xwing-miniatures-font-attack')) {
-            this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').removeClass(cls);
-          }
-        }
-        this.card_viewer_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref27 = data.attack_icon) != null ? _ref27 : 'xwing-miniatures-font-attack');
-        this.card_viewer_container.find('tr.info-energy td.info-data').text(data.energy);
-        this.card_viewer_container.find('tr.info-energy').toggle(data.energy != null);
-        this.card_viewer_container.find('tr.info-range').hide();
-        this.card_viewer_container.find('tr.info-agility td.info-data').text(data.agility);
-        this.card_viewer_container.find('tr.info-agility').show();
-        this.card_viewer_container.find('tr.info-hull td.info-data').text(data.hull);
-        this.card_viewer_container.find('tr.info-hull').show();
-        this.card_viewer_container.find('tr.info-shields td.info-data').text(data.shields);
-        this.card_viewer_container.find('tr.info-shields').show();
-        this.card_viewer_container.find('tr.info-force').hide();
-        this.card_viewer_container.find('tr.info-charge').hide();
-        this.card_viewer_container.find('tr.info-actions td.info-data').html(((((function() {
-          var _len3, _n, _ref28, _results2;
-          _ref28 = data.actions;
-          _results2 = [];
-          for (_n = 0, _len3 = _ref28.length; _n < _len3; _n++) {
-            action = _ref28[_n];
-            _results2.push(exportObj.translate(this.language, 'action', action));
-          }
-          return _results2;
-        }).call(this)).join(', ')).replace(/, <r><i class="xwing-miniatures-font xwing-miniatures-font-linked red">/g, ' <r><i class="xwing-miniatures-font xwing-miniatures-font-linked red">').replace(/, <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">')).replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked red">/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked red">').replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked">'));
-        this.card_viewer_container.find('tr.info-actions').show();
-        if (data.actionsred != null) {
-          this.card_viewer_container.find('tr.info-actions-red td.info-data').html(((function() {
-            var _len3, _n, _ref28, _results2;
-            _ref28 = data.actionsred;
-            _results2 = [];
-            for (_n = 0, _len3 = _ref28.length; _n < _len3; _n++) {
-              action = _ref28[_n];
-              _results2.push(exportObj.translate(this.language, 'action', action));
-            }
-            return _results2;
-          }).call(this)).join(' '));
-          this.card_viewer_container.find('tr.info-actions-red').show();
-        } else {
-          this.card_viewer_container.find('tr.info-actions-red').hide();
-        }
-        this.card_viewer_container.find('tr.info-upgrades').show();
-        this.card_viewer_container.find('tr.info-upgrades td.info-data').html(((function() {
-          var _results2;
-          _results2 = [];
-          for (slot in slot_types) {
-            state = slot_types[slot];
-            _results2.push(state === 1 ? exportObj.translate(this.language, 'sloticon', slot) : (state === 2 ? '(' + exportObj.translate(this.language, 'sloticon', slot) + ')' : void 0));
-          }
-          return _results2;
-        }).call(this)).join(' ') || 'None');
-        break;
-      default:
-        this.card_viewer_container.find('.info-type').text(type);
-        if (data.faction != null) {
-          this.card_viewer_container.find('.info-type').append(" &ndash; " + data.faction + " only");
-        }
-        if (((_ref28 = exportObj.builders[0].collection) != null ? _ref28.counts : void 0) != null) {
-          addon_count = (_ref29 = exportObj.builders[0].collection.counts.upgrade[data.name]) != null ? _ref29 : 0;
-          this.card_viewer_container.find('.info-collection').text("You have " + addon_count + " in your collection.");
-        } else {
-          this.card_viewer_container.find('.info-collection').text('');
-        }
-        this.card_viewer_container.find('tr.info-ship').hide();
-        this.card_viewer_container.find('tr.info-skill').hide();
-        if (data.energy != null) {
-          this.card_viewer_container.find('tr.info-energy td.info-data').text(data.energy);
-          this.card_viewer_container.find('tr.info-energy').show();
-        } else {
-          this.card_viewer_container.find('tr.info-energy').hide();
-        }
-        if (data.attack != null) {
-          this.card_viewer_container.find('tr.info-attack td.info-data').text(data.attack);
-          this.card_viewer_container.find('tr.info-attack').show();
-        } else {
-          this.card_viewer_container.find('tr.info-attack').hide();
-        }
-        if (data.attackbull != null) {
-          this.card_viewer_container.find('tr.info-attack-bullseye td.info-data').text(data.attackbull);
-          this.card_viewer_container.find('tr.info-attack-bullseye').show();
-        } else {
-          this.card_viewer_container.find('tr.info-attack-bullseye').hide();
-        }
-        if (data.attackt != null) {
-          this.card_viewer_container.find('tr.info-attack-turret td.info-data').text(data.attackt);
-          this.card_viewer_container.find('tr.info-attack-turret').show();
-        } else {
-          this.card_viewer_container.find('tr.info-attack-turret').hide();
-        }
-        if (data.range != null) {
-          this.card_viewer_container.find('tr.info-range td.info-data').text(data.range);
-          this.card_viewer_container.find('tr.info-range').show();
-        } else {
-          this.card_viewer_container.find('tr.info-range').hide();
-        }
-        if (data.force != null) {
-          this.card_viewer_container.find('tr.info-force td.info-data').html(data.force + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-          this.card_viewer_container.find('tr.info-force td.info-header').show();
-          this.card_viewer_container.find('tr.info-force').show();
-        } else {
-          this.card_viewer_container.find('tr.info-force').hide();
-        }
-        if (data.charge != null) {
-          if (data.recurring != null) {
-            this.card_viewer_container.find('tr.info-charge td.info-data').html(data.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-          } else {
-            this.card_viewer_container.find('tr.info-charge td.info-data').text(data.charge);
-          }
-          this.card_viewer_container.find('tr.info-charge').show();
-        } else {
-          this.card_viewer_container.find('tr.info-charge').hide();
-        }
-        this.card_viewer_container.find('tr.info-attack-fullfront').hide();
-        this.card_viewer_container.find('tr.info-attack-back').hide();
-        this.card_viewer_container.find('tr.info-attack-doubleturret').hide();
-        this.card_viewer_container.find('tr.info-agility').hide();
-        this.card_viewer_container.find('tr.info-hull').hide();
-        this.card_viewer_container.find('tr.info-shields').hide();
-        this.card_viewer_container.find('tr.info-actions').hide();
-        this.card_viewer_container.find('tr.info-actions-red').hide();
-        this.card_viewer_container.find('tr.info-upgrades').hide();
-    }
+    exportObj.builders[0].showTooltip(orig_type, data, add_opts != null ? add_opts : {}, this.card_viewer_container);
     this.card_viewer_container.show();
     return this.card_viewer_placeholder.hide();
   };
@@ -1743,7 +1610,7 @@ exportObj.CardBrowser = (function() {
   };
 
   CardBrowser.prototype.checkSearchCriteria = function(card) {
-    var checkbox, faction, faction_matches, hyperspace_legal, matches, name, owned_copies, pilot, pilots, required_slots, s, search_text, ship, size_matches, slot, slots, text_in_ship, text_search, used_slots, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _ref3, _ref4;
+    var action, actions, all_factions, faction, faction_matches, hyperspace_legal, matches, matching_points, name, owned_copies, pilot, pilots, points, required_actions, required_linked_actions, required_slots, s, search_text, selected_factions, ship, size_matches, slot, slots, text_in_ship, text_search, used_slots, _i, _j, _k, _l, _len, _len1, _len10, _len11, _len12, _len2, _len3, _len4, _len5, _len6, _len7, _len8, _len9, _m, _n, _o, _p, _q, _r, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9, _s, _t, _u;
     search_text = this.card_search_text.value.toLowerCase();
     text_search = card.name.toLowerCase().indexOf(search_text) > -1 || (card.data.text && card.data.text.toLowerCase().indexOf(search_text)) > -1 || (card.display_name && card.display_name.toLowerCase().indexOf(search_text) > -1);
     if (!text_search) {
@@ -1772,30 +1639,55 @@ exportObj.CardBrowser = (function() {
     if (card.data.slot === "Hardpoint") {
       return false;
     }
-    if (!this.advanced_search_active) {
-      return true;
-    }
-    if (!(this.faction_selectors[card.data.faction].checked || card.orig_type === 'Ship')) {
-      return false;
-    }
-    if (card.orig_type === 'Ship') {
-      faction_matches = false;
-      _ref = card.data.factions;
-      for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-        faction = _ref[_j];
-        if (this.faction_selectors[faction].checked) {
-          faction_matches = true;
+    all_factions = (function() {
+      var _ref, _results;
+      _ref = exportObj.pilotsByFactionXWS;
+      _results = [];
+      for (faction in _ref) {
+        pilot = _ref[faction];
+        _results.push(faction);
+      }
+      return _results;
+    })();
+    selected_factions = this.faction_selection.val();
+    if (selected_factions) {
+      if (__indexOf.call(selected_factions, "Factionless") >= 0) {
+        selected_factions.push(void 0);
+      }
+      if (!((_ref = card.data.faction, __indexOf.call(selected_factions, _ref) >= 0) || card.orig_type === 'Ship' || card.data.faction instanceof Array)) {
+        return false;
+      }
+      if (card.data.faction instanceof Array) {
+        faction_matches = false;
+        _ref1 = card.data.faction;
+        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+          faction = _ref1[_j];
+          if (__indexOf.call(selected_factions, faction) >= 0) {
+            faction_matches = true;
+            break;
+          }
         }
       }
-      if (!faction_matches) {
-        return false;
+      if (card.orig_type === 'Ship') {
+        faction_matches = false;
+        _ref2 = card.data.factions;
+        for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+          faction = _ref2[_k];
+          if (__indexOf.call(selected_factions, faction) >= 0) {
+            faction_matches = true;
+            break;
+          }
+        }
+        if (!faction_matches) {
+          return false;
+        }
       }
     }
     if (this.hyperspace_checkbox.checked) {
-      _ref1 = this.faction_selectors;
-      for (faction in _ref1) {
-        checkbox = _ref1[faction];
-        hyperspace_legal = hyperspace_legal || (checkbox.checked && exportObj.hyperspaceCheck(card.data, faction, card.orig_type === 'Ship'));
+      _ref3 = selected_factions != null ? selected_factions : all_factions;
+      for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
+        faction = _ref3[_l];
+        hyperspace_legal = hyperspace_legal || exportObj.hyperspaceCheck(card.data, faction, card.orig_type === 'Ship');
       }
       if (!hyperspace_legal) {
         return false;
@@ -1806,15 +1698,15 @@ exportObj.CardBrowser = (function() {
       slots = card.data.slots;
       if (card.orig_type === 'Ship') {
         slots = [];
-        _ref2 = this.faction_selectors;
-        for (faction in _ref2) {
-          checkbox = _ref2[faction];
-          if (checkbox.checked && faction !== 'undefined') {
-            _ref3 = exportObj.pilotsByFactionCanonicalName[faction];
-            for (name in _ref3) {
-              pilots = _ref3[name];
-              for (_k = 0, _len2 = pilots.length; _k < _len2; _k++) {
-                pilot = pilots[_k];
+        _ref4 = selected_factions != null ? selected_factions : all_factions;
+        for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
+          faction = _ref4[_m];
+          if (faction !== void 0) {
+            _ref5 = exportObj.pilotsByFactionCanonicalName[faction];
+            for (name in _ref5) {
+              pilots = _ref5[name];
+              for (_n = 0, _len5 = pilots.length; _n < _len5; _n++) {
+                pilot = pilots[_n];
                 if (pilot.ship === card.data.name) {
                   slots.push.apply(slots, pilot.slots);
                 }
@@ -1823,15 +1715,84 @@ exportObj.CardBrowser = (function() {
           }
         }
       }
-      for (_l = 0, _len3 = required_slots.length; _l < _len3; _l++) {
-        slot = required_slots[_l];
+      for (_o = 0, _len6 = required_slots.length; _o < _len6; _o++) {
+        slot = required_slots[_o];
         if (!((slots != null) && __indexOf.call(slots, slot) >= 0)) {
           return false;
         }
       }
     }
-    if (!((card.data.points >= this.minimum_point_costs.value && card.data.points <= this.maximum_point_costs.value) || (this.variable_point_costs.checked && (card.data.points === "*" || (card.data.points == null))))) {
-      return false;
+    required_actions = this.action_available_selection.val();
+    required_linked_actions = this.linkedaction_available_selection.val();
+    if (required_actions || required_linked_actions) {
+      actions = (_ref6 = card.data.actions) != null ? _ref6 : [];
+      actions = actions.concat((_ref7 = card.data.actionsred) != null ? _ref7 : []);
+      if (card.orig_type === 'Pilot') {
+        actions = exportObj.ships[card.data.ship].actions;
+        actions = actions.concat(exportObj.ships[card.data.ship].actionsred);
+      }
+    }
+    _ref8 = required_actions != null ? required_actions : [];
+    for (_p = 0, _len7 = _ref8.length; _p < _len7; _p++) {
+      action = _ref8[_p];
+      if (!((actions != null) && ((__indexOf.call(actions, action) >= 0) || (_ref9 = "F-" + action, __indexOf.call(actions, _ref9) >= 0)))) {
+        return false;
+      }
+    }
+    _ref10 = required_linked_actions != null ? required_linked_actions : [];
+    for (_q = 0, _len8 = _ref10.length; _q < _len8; _q++) {
+      action = _ref10[_q];
+      if (!((actions != null) && ((_ref11 = "R> " + action, __indexOf.call(actions, _ref11) >= 0) || (_ref12 = "> " + action, __indexOf.call(actions, _ref12) >= 0)))) {
+        return false;
+      }
+    }
+    if (this.minimum_point_costs.value > 0 || this.maximum_point_costs.value < 200) {
+      if (!((card.data.points >= this.minimum_point_costs.value && card.data.points <= this.maximum_point_costs.value) || (card.data.points === "*" || (card.data.points == null)))) {
+        return false;
+      }
+      if (card.data.pointsarray != null) {
+        matching_points = false;
+        _ref13 = card.data.pointsarray;
+        for (_r = 0, _len9 = _ref13.length; _r < _len9; _r++) {
+          points = _ref13[_r];
+          if (points >= this.minimum_point_costs.value && points <= this.maximum_point_costs.value) {
+            matching_points = true;
+            break;
+          }
+        }
+        if (!matching_points) {
+          return false;
+        }
+      }
+      if (card.orig_type === 'Ship') {
+        matching_points = false;
+        _ref14 = selected_factions != null ? selected_factions : all_factions;
+        for (_s = 0, _len10 = _ref14.length; _s < _len10; _s++) {
+          faction = _ref14[_s];
+          _ref15 = exportObj.pilotsByFactionCanonicalName[faction];
+          for (name in _ref15) {
+            pilots = _ref15[name];
+            for (_t = 0, _len11 = pilots.length; _t < _len11; _t++) {
+              pilot = pilots[_t];
+              if (pilot.ship === card.data.name) {
+                if (pilot.points >= this.minimum_point_costs.value && pilot.points <= this.maximum_point_costs.value) {
+                  matching_points = true;
+                  break;
+                }
+              }
+            }
+            if (matching_points) {
+              break;
+            }
+          }
+          if (matching_points) {
+            break;
+          }
+        }
+        if (!matching_points) {
+          return false;
+        }
+      }
     }
     used_slots = this.slot_used_selection.val();
     if (used_slots) {
@@ -1839,8 +1800,8 @@ exportObj.CardBrowser = (function() {
         return false;
       }
       matches = false;
-      for (_m = 0, _len4 = used_slots.length; _m < _len4; _m++) {
-        slot = used_slots[_m];
+      for (_u = 0, _len12 = used_slots.length; _u < _len12; _u++) {
+        slot = used_slots[_u];
         if (card.data.slot === slot) {
           matches = true;
           break;
@@ -1865,7 +1826,7 @@ exportObj.CardBrowser = (function() {
     if (card.data.charge && !card.data.recurring && !this.not_recurring_charge.checked) {
       return false;
     }
-    if (((_ref4 = exportObj.builders[0].collection) != null ? _ref4.counts : void 0) != null) {
+    if (((_ref16 = exportObj.builders[0].collection) != null ? _ref16.counts : void 0) != null) {
       owned_copies = this.getCollectionNumber(card);
       if (!(owned_copies >= this.minimum_owned_copies.value && owned_copies <= this.maximum_owned_copies.value)) {
         return false;
@@ -1893,6 +1854,56 @@ exportObj.CardBrowser = (function() {
         size_matches = size_matches || !ship.medium && !ship.large && this.base_size_checkboxes['small'].checked;
       }
       if (!size_matches) {
+        return false;
+      }
+    }
+    if (this.minimum_hull.value !== "0" || this.maximum_hull.value !== "12") {
+      if (!(((card.data.hull != null) && card.data.hull >= this.minimum_hull.value && card.data.hull <= this.maximum_hull.value) || (card.orig_type === 'Pilot' && exportObj.ships[card.data.ship].hull >= this.minimum_hull.value && exportObj.ships[card.data.ship].hull <= this.maximum_hull.value))) {
+        return false;
+      }
+    }
+    if (this.minimum_shields.value !== "0" || this.maximum_shields.value !== "6") {
+      if (!(((card.data.shields != null) && card.data.shields >= this.minimum_shields.value && card.data.shields <= this.maximum_shields.value) || (card.orig_type === 'Pilot' && exportObj.ships[card.data.ship].shields >= this.minimum_shields.value && exportObj.ships[card.data.ship].shields <= this.maximum_shields.value))) {
+        return false;
+      }
+    }
+    if (this.minimum_agility.value !== "0" || this.maximum_agility.value !== "3") {
+      if (!(((card.data.agility != null) && card.data.agility >= this.minimum_agility.value && card.data.agility <= this.maximum_agility.value) || (card.orig_type === 'Pilot' && exportObj.ships[card.data.ship].agility >= this.minimum_agility.value && exportObj.ships[card.data.ship].agility <= this.maximum_agility.value))) {
+        return false;
+      }
+    }
+    if (this.minimum_attack.value !== "0" || this.maximum_attack.value !== "5") {
+      if (!(((card.data.attack != null) && card.data.attack >= this.minimum_attack.value && card.data.attack <= this.maximum_attack.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attack != null) && exportObj.ships[card.data.ship].attack >= this.minimum_attack.value && exportObj.ships[card.data.ship].attack <= this.maximum_attack.value) || ((exportObj.ships[card.data.ship].attack == null) && this.minimum_attack.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attack == null) && this.minimum_attack.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_attackt.value !== "0" || this.maximum_attackt.value !== "5") {
+      if (!(((card.data.attackt != null) && card.data.attackt >= this.minimum_attackt.value && card.data.attackt <= this.maximum_attackt.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attackt != null) && exportObj.ships[card.data.ship].attackt >= this.minimum_attackt.value && exportObj.ships[card.data.ship].attackt <= this.maximum_attackt.value) || ((exportObj.ships[card.data.ship].attackt == null) && this.minimum_attackt.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attackt == null) && this.minimum_attackt.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_attackdt.value !== "0" || this.maximum_attackdt.value !== "5") {
+      if (!(((card.data.attackdt != null) && card.data.attackdt >= this.minimum_attackdt.value && card.data.attackdt <= this.maximum_attackdt.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attackdt != null) && exportObj.ships[card.data.ship].attackdt >= this.minimum_attackdt.value && exportObj.ships[card.data.ship].attackdt <= this.maximum_attackdt.value) || ((exportObj.ships[card.data.ship].attackdt == null) && this.minimum_attackdt.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attackdt == null) && this.minimum_attackdt.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_attackf.value !== "0" || this.maximum_attackf.value !== "5") {
+      if (!(((card.data.attackf != null) && card.data.attackf >= this.minimum_attackf.value && card.data.attackf <= this.maximum_attackf.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attackf != null) && exportObj.ships[card.data.ship].attackf >= this.minimum_attackf.value && exportObj.ships[card.data.ship].attackf <= this.maximum_attackf.value) || ((exportObj.ships[card.data.ship].attackf == null) && this.minimum_attackf.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attackf == null) && this.minimum_attackf.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_attackb.value !== "0" || this.maximum_attackb.value !== "5") {
+      if (!(((card.data.attackb != null) && card.data.attackb >= this.minimum_attackb.value && card.data.attackb <= this.maximum_attackb.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attackb != null) && exportObj.ships[card.data.ship].attackb >= this.minimum_attackb.value && exportObj.ships[card.data.ship].attackb <= this.maximum_attackb.value) || ((exportObj.ships[card.data.ship].attackb == null) && this.minimum_attackb.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attackb == null) && this.minimum_attackb.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_attackbull.value !== "0" || this.maximum_attackbull.value !== "5") {
+      if (!(((card.data.attackbull != null) && card.data.attackbull >= this.minimum_attackbull.value && card.data.attackbull <= this.maximum_attackbull.value) || (card.orig_type === 'Pilot' && (((exportObj.ships[card.data.ship].attackbull != null) && exportObj.ships[card.data.ship].attackbull >= this.minimum_attackbull.value && exportObj.ships[card.data.ship].attackbull <= this.maximum_attackbull.value) || ((exportObj.ships[card.data.ship].attackbull == null) && this.minimum_attackbull.value <= 0))) || (card.orig_type === 'Ship' && (card.data.attackbull == null) && this.minimum_attackbull.value <= 0))) {
+        return false;
+      }
+    }
+    if (this.minimum_force.value !== "0" || this.maximum_force.value !== "3") {
+      if (!(((card.data.force != null) && card.data.force >= this.minimum_force.value && card.data.force <= this.maximum_force.value) || (card.orig_type === 'Pilot' && exportObj.ships[card.data.ship].force >= this.minimum_force.value && exportObj.ships[card.data.ship].force <= this.maximum_force.value) || ((card.data.force == null) && this.minimum_force.value === "0"))) {
         return false;
       }
     }
@@ -2622,9 +2633,9 @@ exportObj.basicCardData = function() {
         agility: 2,
         hull: 5,
         shields: 0,
-        actions: ["Focus", "Evade", "Lock", "R> Evade"],
+        actions: ["Focus", "Evade", "Lock", "Barrel Roll", "R> Evade"],
         actionsred: [],
-        maneuvers: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [3, 2, 2, 2, 3, 0, 0, 0, 0, 0], [1, 1, 2, 1, 1, 0, 0, 0, 3, 3], [0, 1, 2, 1, 0, 3, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+        maneuvers: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [3, 2, 2, 2, 3, 0, 0, 0, 0, 0], [1, 1, 2, 1, 1, 0, 0, 0, 3, 3], [0, 3, 2, 3, 0, 3, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
       },
       "Delta-7 Aethersprite": {
         name: "Delta-7 Aethersprite",
@@ -2645,6 +2656,7 @@ exportObj.basicCardData = function() {
         attack: 3,
         agility: 1,
         hull: 6,
+        large: true,
         shields: 4,
         actions: ["Focus", "Lock"],
         actionsred: ["Barrel Roll"],
@@ -2673,6 +2685,30 @@ exportObj.basicCardData = function() {
         actions: ["Focus", "Lock", "Barrel Roll", "R> Focus", "Boost", "R> Focus"],
         actionsred: [],
         maneuvers: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0, 0, 0], [1, 2, 2, 2, 1, 0, 0, 0, 0, 0], [3, 1, 2, 1, 3, 0, 3, 3, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]]
+      },
+      "Naboo Royal N-1 Starfighter": {
+        name: "Naboo Royal N-1 Starfighter",
+        xws: "Naboo Royal N-1 Starfighter".canonicalize(),
+        factions: ["Galactic Republic"],
+        attack: 2,
+        agility: 2,
+        hull: 3,
+        shields: 2,
+        actions: ["Focus", "Lock", "Barrel Roll", "Boost"],
+        actionsred: [],
+        maneuvers: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 1, 1, 0, 0, 0, 0, 0, 0], [1, 2, 2, 2, 1, 0, 0, 0, 0, 0], [1, 2, 2, 2, 1, 0, 0, 0, 3, 3], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]]
+      },
+      "Hyena-Class Droid Bomber": {
+        name: "Hyena-Class Droid Bomber",
+        xws: "Hyena-Class Droid Bomber".canonicalize(),
+        factions: ["Separatist Alliance"],
+        attack: 2,
+        agility: 2,
+        hull: 5,
+        shields: 0,
+        actions: ["Calculate", "Lock", "Barrel Roll", "R> Lock"],
+        actionsred: ["Reload"],
+        maneuvers: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 3, 1, 3, 1, 0, 0, 0, 0, 0], [2, 1, 2, 1, 2, 3, 0, 0, 3, 3], [1, 0, 2, 0, 1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 3, 0, 0, 0, 0, 0, 0, 0]]
       }
     },
     pilotsById: [
@@ -2749,7 +2785,7 @@ exportObj.basicCardData = function() {
         points: 48,
         slots: ["Torpedo", "Astromech", "Modification", "Configuration"]
       }, {
-        name: "Edrio Two-Tubes",
+        name: "Edrio Two Tubes",
         id: 8,
         unique: true,
         faction: "Rebel Alliance",
@@ -2996,7 +3032,7 @@ exportObj.basicCardData = function() {
         points: 52,
         slots: ["Talent", "Sensor", "Crew", "Crew", "Modification", "Configuration", "Illicit"]
       }, {
-        name: "Benthic Two-Tubes",
+        name: "Benthic Two Tubes",
         id: 36,
         unique: true,
         faction: "Rebel Alliance",
@@ -3830,6 +3866,7 @@ exportObj.basicCardData = function() {
         skill: 4,
         points: 76,
         force: 2,
+        darkside: true,
         slots: ["Force", "Crew", "Illicit", "Illicit", "Modification", "Title"]
       }, {
         name: "Ketsu Onyo",
@@ -4150,16 +4187,18 @@ exportObj.basicCardData = function() {
           _ref = builder.uniques_in_use;
           for (t in _ref) {
             things = _ref[t];
-            if (__indexOf.call((function() {
-              var _i, _len, _results;
-              _results = [];
-              for (_i = 0, _len = things.length; _i < _len; _i++) {
-                thing = things[_i];
-                _results.push(thing.canonical_name.getXWSBaseName());
+            if (t !== 'Slot') {
+              if (__indexOf.call((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = things.length; _i < _len; _i++) {
+                  thing = things[_i];
+                  _results.push(thing.canonical_name.getXWSBaseName());
+                }
+                return _results;
+              })(), 'houndstooth') >= 0) {
+                return true;
               }
-              return _results;
-            })(), 'houndstooth') >= 0) {
-              return true;
             }
           }
           return false;
@@ -4806,6 +4845,7 @@ exportObj.basicCardData = function() {
       }, {
         name: '"Longshot"',
         id: 234,
+        skip: true,
         unique: true,
         faction: "First Order",
         ship: "TIE/FO Fighter",
@@ -4849,7 +4889,7 @@ exportObj.basicCardData = function() {
         faction: "First Order",
         ship: "Upsilon-Class Command Shuttle",
         skill: 2,
-        points: 60,
+        points: 70,
         slots: ["Tech", "Tech", "Crew", "Crew", "Crew", "Cannon", "Sensor", "Modification"]
       }, {
         name: "L'ulo L'ampar",
@@ -5154,18 +5194,18 @@ exportObj.basicCardData = function() {
         skill: 5,
         force: 3,
         darkside: true,
-        points: 100,
-        slots: ["Force", "Modification"]
+        points: 65,
+        slots: ["Force", "Cannon", "Torpedo", "Crew", "Crew", "Device", "Modification", "Title", "Tactical Relay"]
       }, {
-        name: "Anakin Skylwaker",
+        name: "Anakin Skywalker",
         id: 273,
         unique: true,
         faction: "Galactic Republic",
         ship: "Delta-7 Aethersprite",
         skill: 6,
         force: 3,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        points: 60,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Luminara Unduli",
         id: 274,
@@ -5174,18 +5214,18 @@ exportObj.basicCardData = function() {
         ship: "Delta-7 Aethersprite",
         skill: 4,
         force: 2,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        points: 44,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Barriss Offee",
         id: 275,
         unique: true,
         faction: "Galactic Republic",
         ship: "Delta-7 Aethersprite",
-        skill: 6,
-        force: 3,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        skill: 4,
+        force: 1,
+        points: 43,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Ahsoka Tano",
         id: 276,
@@ -5194,8 +5234,8 @@ exportObj.basicCardData = function() {
         ship: "Delta-7 Aethersprite",
         skill: 3,
         force: 2,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        points: 47,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Jedi Knight",
         id: 277,
@@ -5203,8 +5243,8 @@ exportObj.basicCardData = function() {
         ship: "Delta-7 Aethersprite",
         skill: 3,
         force: 1,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        points: 39,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Obi-Wan Kenobi",
         id: 278,
@@ -5212,25 +5252,26 @@ exportObj.basicCardData = function() {
         faction: "Galactic Republic",
         ship: "Delta-7 Aethersprite",
         skill: 5,
-        force: 2,
-        points: 100,
-        slots: ["Force", "Configuration", "Modification"]
+        force: 3,
+        points: 53,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
       }, {
         name: "Trade Federation Drone",
         id: 279,
         faction: "Separatist Alliance",
         ship: "Vulture-class Droid Fighter",
         skill: 1,
-        points: 100,
+        points: 20,
         slots: ["Missile", "Configuration", "Modification"]
       }, {
         name: '"Sinker"',
         id: 280,
+        unique: true,
         faction: "Galactic Republic",
         ship: "ARC-170",
         skill: 3,
-        points: 100,
-        slots: ["Talent", "Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+        points: 54,
+        slots: ["Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
       }, {
         name: "Petty Officer Thanisson",
         id: 281,
@@ -5450,14 +5491,14 @@ exportObj.basicCardData = function() {
         points: 24,
         slots: ["Modification"]
       }, {
-        name: "General Grevious",
+        name: "General Grievous",
         id: 305,
         faction: "Separatist Alliance",
         ship: "Belbullab-22 Starfighter",
         unique: true,
         skill: 4,
-        points: 100,
-        slots: ["Talent", "Modification"]
+        points: 47,
+        slots: ["Talent", "Tactical Relay", "Modification", "Title"]
       }, {
         name: "Wat Tambor",
         id: 306,
@@ -5465,16 +5506,16 @@ exportObj.basicCardData = function() {
         ship: "Belbullab-22 Starfighter",
         unique: true,
         skill: 3,
-        points: 100,
-        slots: ["Talent", "Modification"]
+        points: 43,
+        slots: ["Talent", "Tactical Relay", "Modification", "Title"]
       }, {
         name: "Feethan Ottraw Autopilot",
         id: 307,
         faction: "Separatist Alliance",
         ship: "Belbullab-22 Starfighter",
         skill: 1,
-        points: 100,
-        slots: ["Modification"],
+        points: 37,
+        slots: ["Tactical Relay", "Modification", "Title"],
         ship_override: {
           actions: ["Calculate", "Lock", "Barrel Roll", "R> Calculate", "Boost", "R> Calculate"]
         }
@@ -5485,25 +5526,25 @@ exportObj.basicCardData = function() {
         ship: "Belbullab-22 Starfighter",
         unique: true,
         skill: 2,
-        points: 100,
-        slots: ["Configuration", "Modification"]
+        points: 39,
+        slots: ["Tactical Relay", "Modification", "Title"]
       }, {
         name: "Precise Hunter",
         id: 309,
         faction: "Separatist Alliance",
         ship: "Vulture-class Droid Fighter",
         skill: 3,
-        points: 100,
-        restricted: 3,
+        points: 26,
+        max_per_squad: 3,
         slots: ["Missile", "Configuration", "Modification"]
       }, {
-        name: "Hadr Chall Prototype",
+        name: "Haor Chall Prototype",
         id: 310,
         faction: "Separatist Alliance",
         ship: "Vulture-class Droid Fighter",
         skill: 1,
-        points: 100,
-        restricted: 2,
+        points: 23,
+        max_per_squad: 2,
         slots: ["Missile", "Configuration", "Modification"]
       }, {
         name: "DFS-081",
@@ -5511,9 +5552,306 @@ exportObj.basicCardData = function() {
         faction: "Separatist Alliance",
         ship: "Vulture-class Droid Fighter",
         skill: 3,
-        points: 100,
+        points: 27,
         unique: true,
         slots: ["Missile", "Configuration", "Modification"]
+      }, {
+        name: "Plo Koon",
+        id: 312,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Delta-7 Aethersprite",
+        skill: 5,
+        force: 2,
+        points: 51,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
+      }, {
+        name: "Saesee Tiin",
+        id: 313,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Delta-7 Aethersprite",
+        skill: 4,
+        force: 2,
+        points: 44,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
+      }, {
+        name: "Mace Windu",
+        id: 314,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Delta-7 Aethersprite",
+        skill: 4,
+        force: 3,
+        points: 46,
+        slots: ["Force", "Astromech", "Configuration", "Modification"]
+      }, {
+        name: '"Kickback"',
+        id: 315,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 4,
+        points: 36,
+        slots: ["Talent", "Missile", "Modification"]
+      }, {
+        name: '"Odd Ball"',
+        id: 316,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 5,
+        points: 38,
+        slots: ["Talent", "Missile", "Modification"]
+      }, {
+        name: '"Swoop"',
+        id: 317,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 3,
+        points: 32,
+        slots: ["Missile", "Modification"]
+      }, {
+        name: '"Axe"',
+        id: 318,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 3,
+        points: 33,
+        slots: ["Talent", "Missile", "Modification"]
+      }, {
+        name: '"Tucker"',
+        id: 319,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 2,
+        points: 31,
+        slots: ["Missile", "Modification"]
+      }, {
+        name: "Blue Squadron Protector",
+        id: 320,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 3,
+        points: 29,
+        slots: ["Talent", "Missile", "Modification"]
+      }, {
+        name: "Gold Squadron Trooper",
+        id: 321,
+        faction: "Galactic Republic",
+        ship: "V-19 Torrent",
+        skill: 2,
+        points: 25,
+        slots: ["Missile", "Modification"]
+      }, {
+        name: "Anakin Skywalker (N-1 Starfighter)",
+        id: 322,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 4,
+        force: 1,
+        points: 200,
+        slots: ["Force", "Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Generic PS 2",
+        id: 323,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 2,
+        points: 200,
+        slots: ["Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Generic PS 1",
+        id: 324,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 1,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Bombardment Drone",
+        id: 325,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 3,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Unique PS 4",
+        id: 326,
+        unique: true,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 4,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Unique PS 3",
+        id: 327,
+        unique: true,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 3,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Pilot PS 3",
+        id: 328,
+        max_per_squad: 3,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 3,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Pilot PS 1",
+        id: 329,
+        max_per_squad: 2,
+        faction: "Separatist Alliance",
+        ship: "Hyena-Class Droid Bomber",
+        skill: 1,
+        points: 200,
+        slots: ["Sensor", "Torpedo", "Missile", "Missile", "Device", "Device", "Configuration"]
+      }, {
+        name: "Pilot PS 1",
+        id: 330,
+        max_per_squad: 2,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 1,
+        points: 200,
+        slots: ["Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Unique PS 3",
+        id: 331,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 3,
+        points: 200,
+        slots: ["Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Unique PS 4",
+        id: 332,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 4,
+        points: 200,
+        slots: ["Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Unique PS 5",
+        id: 333,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "Naboo Royal N-1 Starfighter",
+        skill: 5,
+        points: 200,
+        slots: ["Sensor", "Astromech", "Torpedo"]
+      }, {
+        name: "Count Dooku",
+        id: 334,
+        unique: true,
+        faction: "Separatist Alliance",
+        ship: "Sith Infiltrator",
+        skill: 3,
+        force: 3,
+        darkside: true,
+        points: 61,
+        slots: ["Force", "Cannon", "Torpedo", "Crew", "Crew", "Device", "Modification", "Title", "Tactical Relay"]
+      }, {
+        name: "0-66",
+        id: 335,
+        unique: true,
+        faction: "Separatist Alliance",
+        ship: "Sith Infiltrator",
+        skill: 3,
+        points: 55,
+        slots: ["Cannon", "Torpedo", "Crew", "Crew", "Device", "Modification", "Title", "Tactical Relay"],
+        ship_override: {
+          actions: ["Calculate", "Lock"]
+        }
+      }, {
+        name: "Dark Courier",
+        id: 336,
+        faction: "Separatist Alliance",
+        ship: "Sith Infiltrator",
+        skill: 2,
+        points: 53,
+        slots: ["Cannon", "Torpedo", "Crew", "Crew", "Device", "Modification", "Title", "Tactical Relay"]
+      }, {
+        name: "DFS-311",
+        id: 337,
+        faction: "Separatist Alliance",
+        ship: "Vulture-class Droid Fighter",
+        skill: 1,
+        points: 24,
+        unique: true,
+        slots: ["Missile", "Configuration", "Modification"]
+      }, {
+        name: '"Odd Ball" (ARC-170)',
+        id: 338,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "ARC-170",
+        skill: 5,
+        points: 55,
+        slots: ["Talent", "Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+      }, {
+        name: '"Jag"',
+        id: 339,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "ARC-170",
+        skill: 3,
+        points: 49,
+        slots: ["Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+      }, {
+        name: "Squad Seven Veteran",
+        id: 340,
+        faction: "Galactic Republic",
+        ship: "ARC-170",
+        skill: 3,
+        points: 47,
+        slots: ["Talent", "Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+      }, {
+        name: "104th Battalion Pilot",
+        id: 341,
+        faction: "Galactic Republic",
+        ship: "ARC-170",
+        skill: 2,
+        points: 42,
+        slots: ["Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+      }, {
+        name: '"Wolffe"',
+        id: 342,
+        unique: true,
+        faction: "Galactic Republic",
+        ship: "ARC-170",
+        skill: 4,
+        charge: 1,
+        points: 51,
+        slots: ["Talent", "Torpedo", "Crew", "Gunner", "Astromech", "Modification"]
+      }, {
+        name: "Separatist Drone",
+        id: 343,
+        faction: "Separatist Alliance",
+        ship: "Vulture-class Droid Fighter",
+        skill: 3,
+        points: 22,
+        slots: ["Missile", "Configuration", "Modification"]
+      }, {
+        name: "Skakoan Ace",
+        id: 344,
+        faction: "Separatist Alliance",
+        ship: "Belbullab-22 Starfighter",
+        skill: 3,
+        points: 41,
+        slots: ["Talent", "Tactical Relay", "Modification", "Title"]
       }
     ],
     upgradesById: [
@@ -5954,6 +6292,7 @@ exportObj.basicCardData = function() {
         slot: "Crew",
         points: 11,
         unique: true,
+        faction: ["Scum and Villainy", "Rebel Alliance"],
         force: 1,
         modifier_func: function(stats) {
           stats.force += 1;
@@ -5968,16 +6307,18 @@ exportObj.basicCardData = function() {
           _ref = builder.uniques_in_use;
           for (t in _ref) {
             things = _ref[t];
-            if (__indexOf.call((function() {
-              var _i, _len, _results;
-              _results = [];
-              for (_i = 0, _len = things.length; _i < _len; _i++) {
-                thing = things[_i];
-                _results.push(thing.canonical_name.getXWSBaseName());
+            if (t !== 'Slot') {
+              if (__indexOf.call((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = things.length; _i < _len; _i++) {
+                  thing = things[_i];
+                  _results.push(thing.canonical_name.getXWSBaseName());
+                }
+                return _results;
+              })(), 'ezrabridger') >= 0) {
+                return true;
               }
-              return _results;
-            })(), 'ezrabridger') >= 0) {
-              return true;
             }
           }
           return false;
@@ -6127,6 +6468,7 @@ exportObj.basicCardData = function() {
         slot: "Crew",
         points: 5,
         unique: true,
+        faction: ["Scum and Villainy", "Galactic Empire"],
         restriction_func: function(ship) {
           var builder, t, thing, things, _ref;
           builder = ship.builder;
@@ -6136,16 +6478,18 @@ exportObj.basicCardData = function() {
           _ref = builder.uniques_in_use;
           for (t in _ref) {
             things = _ref[t];
-            if (__indexOf.call((function() {
-              var _i, _len, _results;
-              _results = [];
-              for (_i = 0, _len = things.length; _i < _len; _i++) {
-                thing = things[_i];
-                _results.push(thing.canonical_name.getXWSBaseName());
+            if (t !== 'Slot') {
+              if (__indexOf.call((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = things.length; _i < _len; _i++) {
+                  thing = things[_i];
+                  _results.push(thing.canonical_name.getXWSBaseName());
+                }
+                return _results;
+              })(), 'darthvader') >= 0) {
+                return true;
               }
-              return _results;
-            })(), 'darthvader') >= 0) {
-              return true;
             }
           }
           return false;
@@ -6263,6 +6607,7 @@ exportObj.basicCardData = function() {
         slot: "Gunner",
         points: 2,
         unique: true,
+        faction: ["Scum and Villainy", "Galactic Empire"],
         restriction_func: function(ship) {
           var builder, t, thing, things, _ref;
           builder = ship.builder;
@@ -6272,16 +6617,18 @@ exportObj.basicCardData = function() {
           _ref = builder.uniques_in_use;
           for (t in _ref) {
             things = _ref[t];
-            if (__indexOf.call((function() {
-              var _i, _len, _results;
-              _results = [];
-              for (_i = 0, _len = things.length; _i < _len; _i++) {
-                thing = things[_i];
-                _results.push(thing.canonical_name.getXWSBaseName());
+            if (t !== 'Slot') {
+              if (__indexOf.call((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = things.length; _i < _len; _i++) {
+                  thing = things[_i];
+                  _results.push(thing.canonical_name.getXWSBaseName());
+                }
+                return _results;
+              })(), 'darthvader') >= 0) {
+                return true;
               }
-              return _results;
-            })(), 'darthvader') >= 0) {
-              return true;
             }
           }
           return false;
@@ -7081,6 +7428,7 @@ exportObj.basicCardData = function() {
         slot: "Hardpoint",
         points: 0,
         ignorecollection: true,
+        faction: [],
         confersAddons: [
           {
             type: exportObj.Upgrade,
@@ -7092,6 +7440,7 @@ exportObj.basicCardData = function() {
         id: 169,
         slot: "Hardpoint",
         ignorecollection: true,
+        faction: [],
         points: 0,
         confersAddons: [
           {
@@ -7104,6 +7453,7 @@ exportObj.basicCardData = function() {
         id: 170,
         slot: "Hardpoint",
         ignorecollection: true,
+        faction: [],
         points: 0,
         confersAddons: [
           {
@@ -7244,7 +7594,7 @@ exportObj.basicCardData = function() {
         id: 185,
         slot: "Tech",
         faction: "First Order",
-        points: 2,
+        points: 10,
         restriction_func: function(ship) {
           return ship.data.large != null;
         }
@@ -7368,13 +7718,18 @@ exportObj.basicCardData = function() {
         name: "Brilliant Evasion",
         id: 199,
         slot: "Force",
-        points: 0
+        points: '*',
+        pointsarray: [0, 2, 4, 6],
+        variableagility: true,
+        points: 6
       }, {
         name: "Calibrated Laser Targeting",
         id: 200,
         slot: "Configuration",
         ship: "Delta-7 Aethersprite",
-        points: 0,
+        points: "*",
+        pointsarray: [0, 0, 2, 4, 6, 8, 10],
+        variableinit: true,
         unequips_upgrades: ["Modification"],
         also_occupies_upgrades: ["Modification"]
       }, {
@@ -7382,7 +7737,9 @@ exportObj.basicCardData = function() {
         id: 201,
         slot: "Configuration",
         ship: "Delta-7 Aethersprite",
-        points: 0,
+        points: "*",
+        pointsarray: [12, 13, 14, 15, 16, 17, 18],
+        variableinit: true,
         modifier_func: function(stats) {
           stats.attack += 1;
           stats.agility += -1;
@@ -7406,7 +7763,10 @@ exportObj.basicCardData = function() {
         name: "Hate",
         id: 204,
         slot: "Force",
-        points: 3
+        points: 3,
+        restriction_func: function(ship) {
+          return ship.effectiveStats().darkside === true;
+        }
       }, {
         name: "R5-X3",
         id: 205,
@@ -7425,13 +7785,13 @@ exportObj.basicCardData = function() {
         ship: "Belbullab-22 Starfighter",
         charge: 2,
         slot: "Modification",
-        points: 100
+        points: 6
       }, {
         name: "Grappling Struts",
         id: 208,
         ship: "Vulture-class Droid Fighter",
         slot: "Configuration",
-        points: 100
+        points: 3
       }, {
         name: "Energy-Shell Charges",
         id: 209,
@@ -7441,9 +7801,207 @@ exportObj.basicCardData = function() {
         range: "2-3",
         rangebonus: true,
         charge: 1,
-        points: 100,
+        points: 4,
         restriction_func: function(ship) {
           return __indexOf.call(ship.effectiveStats().actions, "Calculate") >= 0 || __indexOf.call(ship.effectiveStats().actionsred, "Calculate") >= 0;
+        }
+      }, {
+        name: "Dedicated",
+        id: 210,
+        faction: "Galactic Republic",
+        slot: "Talent",
+        points: 3,
+        restriction_func: function(ship) {
+          return !ship.pilot.unique;
+        }
+      }, {
+        name: "Synchronized Console",
+        id: 211,
+        faction: "Galactic Republic",
+        slot: "Modification",
+        points: 2,
+        restriction_func: function(ship) {
+          return __indexOf.call(ship.effectiveStats().actions, "Lock") >= 0 || __indexOf.call(ship.effectiveStats().actionsred, "Lock") >= 0;
+        }
+      }, {
+        name: "Battle Meditation",
+        id: 212,
+        faction: "Galactic Republic",
+        slot: "Force",
+        points: "*",
+        pointsarray: [3, 5, 7, 9, 11, 13, 15],
+        variableinit: true,
+        modifier_func: function(stats) {
+          if (__indexOf.call(stats.actions, 'F-Coordinate') < 0) {
+            return stats.actions.push('F-Coordinate');
+          }
+        }
+      }, {
+        name: "R4-P Astromech",
+        id: 213,
+        faction: "Galactic Republic",
+        slot: "Astromech",
+        charge: 2,
+        points: 4
+      }, {
+        name: "R4-P17",
+        id: 214,
+        unique: true,
+        faction: "Galactic Republic",
+        slot: "Astromech",
+        charge: 2,
+        points: 5
+      }, {
+        name: "Spare Parts Canisters",
+        id: 215,
+        slot: "Modification",
+        charge: 1,
+        points: 4,
+        restriction_func: function(ship) {
+          if (__indexOf.call(ship.pilot.slots, "Astromech") >= 0) {
+            if (!ship.isSlotOccupied("Astromech")) {
+              return true;
+            }
+          } else if (ship.doesSlotExist("Astromech")) {
+            if (!ship.isSlotOccupied("Astromech")) {
+              return true;
+            }
+          }
+          return false;
+        }
+      }, {
+        name: "Scimitar",
+        id: 216,
+        unique: true,
+        ship: "Sith Infiltrator",
+        slot: "Title",
+        faction: "Separatist Alliance",
+        points: 4,
+        modifier_func: function(stats) {
+          if (__indexOf.call(stats.actionsred, 'Cloak') < 0) {
+            stats.actionsred.push('Cloak');
+          }
+          if (__indexOf.call(stats.actions, 'Jam') < 0) {
+            return stats.actions.push('Jam');
+          }
+        }
+      }, {
+        name: "Chancellor Palpatine",
+        id: 217,
+        unique: true,
+        slot: "Crew",
+        faction: ["Galactic Republic", "Separatist Alliance"],
+        force: 1,
+        points: 14,
+        modifier_func: function(stats) {
+          stats.force += 1;
+          if (__indexOf.call(stats.actions, 'F-Coordinate') < 0) {
+            return stats.actions.push('F-Coordinate');
+          }
+        }
+      }, {
+        name: "Count Dooku",
+        id: 218,
+        unique: true,
+        slot: "Crew",
+        force: 1,
+        faction: "Separatist Alliance",
+        points: 9,
+        modifier_func: function(stats) {
+          return stats.force += 1;
+        }
+      }, {
+        name: "General Grievous",
+        id: 219,
+        unique: true,
+        slot: "Crew",
+        charge: 1,
+        faction: "Separatist Alliance",
+        points: 3
+      }, {
+        name: "K2-B4",
+        id: 220,
+        unique: true,
+        solitary: true,
+        slot: "Tactical Relay",
+        faction: "Separatist Alliance",
+        points: 5
+      }, {
+        name: "DRK-1 Probe Droids",
+        id: 221,
+        slot: "Device",
+        faction: "Separatist Alliance",
+        charge: 2,
+        points: 6,
+        applies_condition: 'DRK-1 Probe Droid'.canonicalize()
+      }, {
+        name: "Kraken",
+        id: 222,
+        unique: true,
+        slot: "Tactical Relay",
+        solitary: true,
+        faction: "Separatist Alliance",
+        points: 10,
+        modifier_func: function(stats) {
+          if (__indexOf.call(stats.actions, 'Calculate') < 0) {
+            return stats.actions.push('Calculate');
+          }
+        }
+      }, {
+        name: "TV-94",
+        id: 223,
+        unique: true,
+        solitary: true,
+        slot: "Tactical Relay",
+        faction: "Separatist Alliance",
+        points: 5
+      }, {
+        name: "Discord Missiles",
+        id: 224,
+        slot: "Missile",
+        faction: "Separatist Alliance",
+        charge: 1,
+        max_per_squad: 3,
+        points: 6,
+        applies_condition: 'Buzz Droid Swarm'.canonicalize()
+      }, {
+        name: "Clone Commander Cody",
+        id: 225,
+        unique: true,
+        slot: "Gunner",
+        faction: "Galactic Republic",
+        points: 3
+      }, {
+        name: "R4-P44",
+        id: 226,
+        unique: true,
+        faction: "Galactic Republic",
+        slot: "Astromech",
+        points: 5
+      }, {
+        name: "Seventh Fleet Gunner",
+        id: 227,
+        charge: 1,
+        slot: "Gunner",
+        faction: "Galactic Republic",
+        points: 9
+      }, {
+        name: "Treacherous",
+        id: 228,
+        charge: 1,
+        slot: "Talent",
+        faction: "Separatist Alliance",
+        points: 3
+      }, {
+        name: "Soulless One",
+        id: 229,
+        slot: "Title",
+        unique: true,
+        ship: "Belbullab-22 Starfighter",
+        faction: "Separatist Alliance",
+        points: 10,
+        modifier_func: function(stats) {
+          return stats.hull += 2;
         }
       }
     ],
@@ -7491,14 +8049,2550 @@ exportObj.basicCardData = function() {
         id: 11
       }, {
         name: 'Rattled',
-        id: 12
+        id: 12,
+        unique: true
+      }, {
+        name: 'DRK-1 Probe Droid',
+        id: 13
+      }, {
+        name: 'Buzz Droid Swarm',
+        id: 14
+      }
+    ],
+    quickbuildsById: [
+      {
+        id: 0,
+        faction: "Galactic Empire",
+        pilot: "Valen Rudor",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Elusive", "Shield Upgrade"]
+      }, {
+        id: 1,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Ace",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 2,
+        faction: "Galactic Empire",
+        pilot: "Academy Pilot",
+        ship: "TIE Fighter",
+        threat: 1
+      }, {
+        id: 3,
+        faction: "Galactic Empire",
+        pilot: "Iden Versio",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Shield Upgrade"]
+      }, {
+        id: 4,
+        faction: "Galactic Empire",
+        pilot: '"Night Beast"',
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Predator", "Hull Upgrade", "Shield Upgrade"]
+      }, {
+        id: 5,
+        faction: "Galactic Empire",
+        pilot: "Obsidian Squadron Pilot",
+        ship: "TIE Fighter",
+        threat: 1
+      }, {
+        id: 6,
+        faction: "Galactic Empire",
+        pilot: '"Scourge" Skutu',
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Predator", "Shield Upgrade"]
+      }, {
+        id: 7,
+        faction: "Galactic Empire",
+        pilot: '"Wampa"',
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Hull Upgrade", "Stealth Device"]
+      }, {
+        id: 8,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Ace",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 9,
+        faction: "Galactic Empire",
+        pilot: "Gideon Hask",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Shield Upgrade"]
+      }, {
+        id: 10,
+        faction: "Galactic Empire",
+        pilot: "Del Meeko",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Juke", "Stealth Device"]
+      }, {
+        id: 11,
+        faction: "Galactic Empire",
+        pilot: "Obsidian Squadron Pilot",
+        ship: "TIE Fighter",
+        threat: 1,
+        skip: true
+      }, {
+        id: 12,
+        faction: "Galactic Empire",
+        pilot: '"Howlrunner"',
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Juke", "Shield Upgrade"]
+      }, {
+        id: 13,
+        faction: "Galactic Empire",
+        pilot: "Seyn Marana",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Marksmanship", "Afterburners"]
+      }, {
+        id: 14,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Ace",
+        suffix: " (x2)",
+        linkedId: 14,
+        ship: "TIE Fighter",
+        threat: 3,
+        upgrades: ["Juke", "Stealth Device"]
+      }, {
+        id: 15,
+        faction: "Galactic Empire",
+        pilot: "Obsidian Squadron Pilot",
+        suffix: " (x2)",
+        linkedId: 15,
+        ship: "TIE Fighter",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Shield Upgrade"]
+      }, {
+        id: 16,
+        faction: "Galactic Empire",
+        pilot: "Academy Pilot",
+        suffix: " (x2)",
+        linkedId: 16,
+        ship: "TIE Fighter",
+        threat: 2
+      }, {
+        id: 17,
+        faction: "Galactic Empire",
+        pilot: "Academy Pilot",
+        ship: "TIE Fighter",
+        threat: 1,
+        skip: true
+      }, {
+        id: 18,
+        faction: "Galactic Empire",
+        pilot: "Darth Vader",
+        ship: "TIE Advanced",
+        threat: 4,
+        upgrades: ["Supernatural Reflexes", "Fire-Control System", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 19,
+        faction: "Galactic Empire",
+        pilot: "Maarek Stele",
+        ship: "TIE Advanced",
+        threat: 3,
+        upgrades: ["Ruthless", "Fire-Control System", "Cluster Missiles", "Shield Upgrade"]
+      }, {
+        id: 20,
+        faction: "Galactic Empire",
+        pilot: "Storm Squadron Ace",
+        ship: "TIE Advanced",
+        threat: 2,
+        upgrades: ["Fire-Control System"]
+      }, {
+        id: 21,
+        faction: "Galactic Empire",
+        pilot: "Ved Foslo",
+        ship: "TIE Advanced",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Fire-Control System", "Cluster Missiles", "Shield Upgrade"]
+      }, {
+        id: 22,
+        faction: "Galactic Empire",
+        pilot: "Zertik Strom",
+        ship: "TIE Advanced",
+        threat: 3,
+        upgrades: ["Squad Leader", "Fire-Control System", "Cluster Missiles", "Shield Upgrade"]
+      }, {
+        id: 23,
+        faction: "Galactic Empire",
+        pilot: "Tempest Squadron Pilot",
+        ship: "TIE Advanced",
+        threat: 2,
+        upgrades: ["Cluster Missiles"]
+      }, {
+        id: 24,
+        faction: "Galactic Empire",
+        pilot: "Colonel Jendon",
+        ship: "Lambda-Class Shuttle",
+        threat: 3,
+        upgrades: ["Collision Detector", "Ion Cannon", "Darth Vader", "Freelance Slicer", "ST-321"]
+      }, {
+        id: 25,
+        faction: "Galactic Empire",
+        pilot: "Captain Kagi",
+        ship: "Lambda-Class Shuttle",
+        threat: 3,
+        upgrades: ["Collision Detector", "Tractor Beam", "Emperor Palpatine", "Shield Upgrade", "Static Discharge Vanes"]
+      }, {
+        id: 26,
+        faction: "Galactic Empire",
+        pilot: "Lieutenant Sai",
+        ship: "Lambda-Class Shuttle",
+        threat: 3,
+        upgrades: ["Ciena Ree", 'GNK "Gonk" Droid', "Advanced Sensors", "Jamming Beam"]
+      }, {
+        id: 27,
+        faction: "Galactic Empire",
+        pilot: "Omicron Group Pilot",
+        ship: "Lambda-Class Shuttle",
+        threat: 2,
+        upgrades: ["Admiral Sloane", "Jamming Beam"]
+      }, {
+        id: 28,
+        faction: "Galactic Empire",
+        pilot: "Lieutenant Kestal",
+        ship: "TIE Aggressor",
+        threat: 2,
+        upgrades: ["Elusive", "Barrage Rockets", "Shield Upgrade"]
+      }, {
+        id: 29,
+        faction: "Galactic Empire",
+        pilot: "Onyx Squadron Scout",
+        ship: "TIE Aggressor",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Dorsal Turret", "Proton Rockets"]
+      }, {
+        id: 30,
+        faction: "Galactic Empire",
+        pilot: '"Double Edge"',
+        ship: "TIE Aggressor",
+        threat: 2,
+        upgrades: ["Ion Cannon Turret", "Concussion Missiles", "Hotshot Gunner"]
+      }, {
+        id: 31,
+        faction: "Galactic Empire",
+        pilot: "Sienar Specialist",
+        ship: "TIE Aggressor",
+        threat: 2,
+        upgrades: ["Ion Cannon Turret", "Homing Missiles", "Veteran Turret Gunner", "Hull Upgrade"]
+      }, {
+        id: 32,
+        faction: "Galactic Empire",
+        pilot: '"Whisper"',
+        ship: "TIE Phantom",
+        threat: 3,
+        upgrades: ["Juke", "Advanced Sensors", "Agent Kallus", "Stealth Device"]
+      }, {
+        id: 33,
+        faction: "Galactic Empire",
+        pilot: "Sigma Squadron Ace",
+        ship: "TIE Phantom",
+        threat: 3,
+        upgrades: ["Predator", "Advanced Sensors", "Grand Inquisitor"]
+      }, {
+        id: 34,
+        faction: "Galactic Empire",
+        pilot: '"Echo"',
+        ship: "TIE Phantom",
+        threat: 3,
+        upgrades: ["Lone Wolf", "Collision Detector", "Perceptive Copilot", "Stealth Device"]
+      }, {
+        id: 35,
+        faction: "Galactic Empire",
+        pilot: "Imdaar Test Pilot",
+        ship: "TIE Phantom",
+        threat: 2,
+        upgrades: ["Moff Jerjerrod"]
+      }, {
+        id: 36,
+        faction: "Galactic Empire",
+        pilot: '"Duchess"',
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Trick Shot", "Shield Upgrade"]
+      }, {
+        id: 37,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Scout",
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Skilled Bombardier", "Proximity Mines", "Hull Upgrade"]
+      }, {
+        id: 38,
+        faction: "Galactic Empire",
+        pilot: '"Countdown"',
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Shield Upgrade"]
+      }, {
+        id: 39,
+        faction: "Galactic Empire",
+        pilot: "Planetary Sentinel",
+        suffix: " x2",
+        linkedId: 39,
+        ship: "TIE Striker",
+        threat: 3,
+        upgrades: ["Conner Nets"]
+      }, {
+        id: 40,
+        faction: "Galactic Empire",
+        pilot: '"Pure Sabacc"',
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Stealth Device"]
+      }, {
+        id: 41,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Scout",
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Skilled Bombardier", "Proximity Mines", "Hull Upgrade"],
+        skip: true
+      }, {
+        id: 42,
+        faction: "Galactic Empire",
+        pilot: "Countess Ryad",
+        ship: "TIE Defender",
+        threat: 4,
+        upgrades: ["Outmaneuver", "Afterburners"]
+      }, {
+        id: 43,
+        faction: "Galactic Empire",
+        pilot: "Onyx Squadron Ace",
+        ship: "TIE Defender",
+        threat: 3
+      }, {
+        id: 44,
+        faction: "Galactic Empire",
+        pilot: "Rexler Brath",
+        ship: "TIE Defender",
+        threat: 4,
+        upgrades: ["Juke", "Collision Detector", "Cluster Missiles"]
+      }, {
+        id: 45,
+        faction: "Galactic Empire",
+        pilot: "Colonel Vessery",
+        ship: "TIE Defender",
+        threat: 4,
+        upgrades: ["Juke", "Fire-Control System", "Cluster Missiles"]
+      }, {
+        id: 46,
+        faction: "Galactic Empire",
+        pilot: "Onyx Squadron Ace",
+        ship: "TIE Defender",
+        threat: 4,
+        upgrades: ["Elusive", "Advanced Sensors", "Proton Rockets"]
+      }, {
+        id: 47,
+        faction: "Galactic Empire",
+        pilot: "Tomax Bren",
+        ship: "TIE Bomber",
+        threat: 2,
+        upgrades: ["Crack Shot", "Proton Torpedoes", "Proton Bombs"]
+      }, {
+        id: 48,
+        faction: "Galactic Empire",
+        pilot: '"Deathfire"',
+        ship: "TIE Bomber",
+        threat: 2,
+        upgrades: ["Cluster Missiles", "Skilled Bombardier", "Seismic Charges", "Proximity Mines", "Electronic Baffle"]
+      }, {
+        id: 49,
+        faction: "Galactic Empire",
+        pilot: "Major Rhymer",
+        ship: "TIE Bomber",
+        threat: 2,
+        upgrades: ["Intimidation", "Adv. Proton Torpedoes", "Cluster Missiles"]
+      }, {
+        id: 50,
+        faction: "Galactic Empire",
+        pilot: "Scimitar Squadron Pilot",
+        suffix: " x2",
+        linkedId: 50,
+        ship: "TIE Bomber",
+        threat: 3,
+        upgrades: ["Ion Missiles", "Proton Bombs"]
+      }, {
+        id: 51,
+        faction: "Galactic Empire",
+        pilot: "Captain Jonus",
+        ship: "TIE Bomber",
+        threat: 2,
+        upgrades: ["Proton Torpedoes", "Shield Upgrade"]
+      }, {
+        id: 52,
+        faction: "Galactic Empire",
+        pilot: "Gamma Squadron Ace",
+        ship: "TIE Bomber",
+        threat: 2,
+        upgrades: ["Concussion Missiles", "Skilled Bombardier", "Bomblet Generator", "Shield Upgrade"]
+      }, {
+        id: 53,
+        faction: "Galactic Empire",
+        pilot: "Grand Inquisitor",
+        ship: "TIE Advanced Prototype",
+        threat: 3,
+        upgrades: ["Supernatural Reflexes", "Concussion Missiles"]
+      }, {
+        id: 54,
+        faction: "Galactic Empire",
+        pilot: "Inquisitor",
+        ship: "TIE Advanced Prototype",
+        threat: 2,
+        upgrades: ["Instinctive Aim", "Cluster Missiles", "Munitions Failsafe"]
+      }, {
+        id: 55,
+        faction: "Galactic Empire",
+        pilot: "Seventh Sister",
+        ship: "TIE Advanced Prototype",
+        threat: 2,
+        upgrades: ["Homing Missiles"]
+      }, {
+        id: 56,
+        faction: "Galactic Empire",
+        pilot: "Baron of the Empire",
+        ship: "TIE Advanced Prototype",
+        threat: 2,
+        upgrades: ["Crack Shot", "Proton Rockets", "Stealth Device"]
+      }, {
+        id: 57,
+        faction: "Galactic Empire",
+        pilot: "Soontir Fel",
+        ship: "TIE Interceptor",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Afterburners", "Stealth Device"]
+      }, {
+        id: 58,
+        faction: "Galactic Empire",
+        pilot: "Alpha Squadron Pilot",
+        suffix: " x2",
+        linkedId: 58,
+        ship: "TIE Interceptor",
+        threat: 3,
+        upgrades: ["Ablative Plating"]
+      }, {
+        id: 59,
+        faction: "Galactic Empire",
+        pilot: "Turr Phennir",
+        ship: "TIE Interceptor",
+        threat: 2,
+        upgrades: ["Daredevil", "Electronic Baffle"]
+      }, {
+        id: 60,
+        faction: "Galactic Empire",
+        pilot: "Saber Squadron Ace",
+        ship: "TIE Interceptor",
+        threat: 2,
+        upgrades: ["Predator", "Stealth Device"]
+      }, {
+        id: 61,
+        faction: "Galactic Empire",
+        pilot: "Lieutenant Karsabi",
+        ship: "Alpha-Class Star Wing",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Heavy Laser Cannon", "Advanced SLAM", "Xg-1 Assault Configuration"]
+      }, {
+        id: 62,
+        faction: "Galactic Empire",
+        pilot: "Nu Squadron Pilot",
+        ship: "Alpha-Class Star Wing",
+        threat: 2,
+        upgrades: ["Fire-Control System", "Proton Torpedos", "Advanced SLAM", "Os-1 Arsenal Loadout"]
+      }, {
+        id: 63,
+        faction: "Galactic Empire",
+        pilot: "Major Vynder",
+        ship: "Alpha-Class Star Wing",
+        threat: 2,
+        upgrades: ["Saturation Salvo", "Barrage Rockets", "Advanced SLAM", "Os-1 Arsenal Loadout"]
+      }, {
+        id: 64,
+        faction: "Galactic Empire",
+        pilot: "Rho Squadron Pilot",
+        ship: "Alpha-Class Star Wing",
+        threat: 2,
+        upgrades: ["Fire-Control System", "Ion Cannon", "Homing Missiles", "Advanced SLAM", "Xg-1 Assault Configuration"]
+      }, {
+        id: 65,
+        faction: "Galactic Empire",
+        pilot: '"Deathrain"',
+        ship: "TIE Punisher",
+        threat: 2,
+        upgrades: ["Trajectory Simulator", "Homing Missiles", "Bomblet Generator", "Ablative Plating"]
+      }, {
+        id: 66,
+        skip: true,
+        faction: "Galactic Empire",
+        pilot: '"Deathrain"',
+        ship: "TIE Punisher",
+        threat: 2,
+        upgrades: ["Trajectory Simulator", "Homing Missiles", "Bomblet Generator", "Ablative Plating"]
+      }, {
+        id: 67,
+        faction: "Galactic Empire",
+        pilot: "Cutlass Squadron Pilot",
+        ship: "TIE Punisher",
+        threat: 2,
+        upgrades: ["Trajectory Simulator", "Ion Missiles", "Skilled Bombardier", "Proton Bombs"]
+      }, {
+        id: 68,
+        faction: "Galactic Empire",
+        pilot: '"Redline"',
+        ship: "TIE Punisher",
+        threat: 2,
+        upgrades: ["Debris Gambit", "Cluster Missiles"]
+      }, {
+        id: 69,
+        faction: "Galactic Empire",
+        pilot: "Cutlass Squadron Pilot",
+        ship: "TIE Punisher",
+        threat: 2,
+        upgrades: ["Advanced Sensors", "Proton Rockets", "Connor Nets"]
+      }, {
+        id: 70,
+        faction: "Galactic Empire",
+        pilot: "Captain Oicunn",
+        ship: "VT-49 Decimator",
+        threat: 4,
+        upgrades: ["Intimidation", "Grand Moff Tarkin", "Dauntless"]
+      }, {
+        id: 71,
+        faction: "Galactic Empire",
+        pilot: "Rear Admiral Chiraneau",
+        ship: "VT-49 Decimator",
+        threat: 4,
+        upgrades: ["Swarm Tactics", "Minister Tua", "Tactical Officer"]
+      }, {
+        id: 72,
+        faction: "Galactic Empire",
+        pilot: "Patrol Leader",
+        ship: "VT-49 Decimator",
+        threat: 4,
+        upgrades: ["Informant", "Seventh Sister", "Fifth Brother"]
+      }, {
+        id: 73,
+        faction: "Galactic Empire",
+        pilot: '"Vizier"',
+        ship: "TIE Reaper",
+        threat: 2,
+        upgrades: ["Director Krennic"]
+      }, {
+        id: 74,
+        faction: "Galactic Empire",
+        pilot: "Scarif Base Pilot",
+        ship: "TIE Reaper",
+        threat: 2,
+        upgrades: ["Death Troopers", "Shield Upgrade"]
+      }, {
+        id: 75,
+        faction: "Galactic Empire",
+        pilot: "Major Vermeil",
+        ship: "TIE Reaper",
+        threat: 2,
+        upgrades: ["Swarm Tactics", "Tactical Officer"]
+      }, {
+        id: 76,
+        faction: "Galactic Empire",
+        pilot: "Captain Feroph",
+        ship: "TIE Reaper",
+        threat: 2,
+        upgrades: ["Swarm Tactics", "ISB Slicer"]
+      }, {
+        id: 77,
+        faction: "Rebel Alliance",
+        pilot: "Luke Skywalker",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Instinctive Aim", "Proton Torpedoes", "R2-D2", "Servomotor S-Foils"]
+      }, {
+        id: 78,
+        faction: "Rebel Alliance",
+        pilot: "Red Squadron Veteran",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Predator", "R5 Astromech", "Servomotor S-Foils"]
+      }, {
+        id: 79,
+        faction: "Rebel Alliance",
+        pilot: "Jek Porkins",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Outmaneuver", "R5-D8", "Afterburners", "Hull Upgrade", "Servomotor S-Foils"]
+      }, {
+        id: 80,
+        faction: "Rebel Alliance",
+        pilot: "Blue Squadron Escort",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Proton Torpedoes", "R3 Astromech", "Servomotor S-Foils"]
+      }, {
+        id: 81,
+        faction: "Rebel Alliance",
+        pilot: "Wedge Antilles",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Proton Torpedoes", "R4 Astromech", "Shield Upgrade", "Servomotor S-Foils"]
+      }, {
+        id: 82,
+        faction: "Rebel Alliance",
+        pilot: "Biggs Darklighter",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Selfless", "Servomotor S-Foils"]
+      }, {
+        id: 83,
+        faction: "Rebel Alliance",
+        pilot: "Thane Kyrell",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Elusive", "Ion Torpedoes", "R2 Astromech", "Afterburners", "Hull Upgrade", "Servomotor S-Foils"]
+      }, {
+        id: 84,
+        faction: "Rebel Alliance",
+        pilot: "Garven Dreis (X-Wing)",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Servomotor S-Foils"]
+      }, {
+        id: 85,
+        faction: "Rebel Alliance",
+        pilot: "Norra Wexley (Y-Wing)",
+        ship: "Y-Wing",
+        threat: 3,
+        upgrades: ["Expert Handling", "Ion Cannon Turret", "Veterna Turret Gunner", "R3 Astromech"]
+      }, {
+        id: 86,
+        faction: "Rebel Alliance",
+        pilot: "Evaan Verlaine",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Expert Handling", "Ion Cannon Turret"]
+      }, {
+        id: 87,
+        faction: "Rebel Alliance",
+        pilot: "Gold Squadron Veteran",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Expert Handling", "Proton Torpedoes", "R3 Astromech"]
+      }, {
+        id: 88,
+        faction: "Rebel Alliance",
+        pilot: "Horton Salm",
+        ship: "Y-Wing",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Ion Cannon Turret", "Veteran Turret Gunner", "R5 Astromech"]
+      }, {
+        id: 89,
+        faction: "Rebel Alliance",
+        pilot: '"Dutch" Vander',
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Proton Torpedoes", "R3 Astromech"]
+      }, {
+        id: 90,
+        faction: "Rebel Alliance",
+        pilot: "Gray Squadron Bomber",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Ion Cannon Turret", "Proton Bomb", "R5 Astromech"]
+      }, {
+        id: 91,
+        faction: "Rebel Alliance",
+        pilot: "Esege Tuketu",
+        ship: "K-Wing",
+        threat: 3,
+        upgrades: ["Trajectory Simulator", "Ion Missiles", "Perceptive Copilot", "Conner Nets", "Proton Bombs", "Advanced SLAM"]
+      }, {
+        id: 92,
+        faction: "Rebel Alliance",
+        pilot: "Miranda Doni",
+        ship: "K-Wing",
+        threat: 2,
+        upgrades: ["Proton Bombs", "Advanced SLAM"]
+      }, {
+        id: 93,
+        faction: "Rebel Alliance",
+        pilot: "Warden Squadron Pilot",
+        ship: "K-Wing",
+        threat: 2,
+        upgrades: ["Barrage Rocktes", "Bomblet Generator"]
+      }, {
+        id: 94,
+        faction: "Rebel Alliance",
+        pilot: "Braylen Stramm",
+        ship: "B-Wing",
+        threat: 2,
+        upgrades: ["Trick Shot", "Jamming Beam"]
+      }, {
+        id: 95,
+        faction: "Rebel Alliance",
+        pilot: "Blade Squadron Veteran",
+        ship: "B-Wing",
+        threat: 2,
+        upgrades: ["Elusive", "Tractor Beam"]
+      }, {
+        id: 96,
+        faction: "Rebel Alliance",
+        pilot: "Ten Numb",
+        ship: "B-Wing",
+        threat: 3,
+        upgrades: ["Squad Leader", "Advanced Sensors", "Heavy Laser Cannon", "Shield Upgrade"]
+      }, {
+        id: 97,
+        faction: "Rebel Alliance",
+        pilot: "Blue Squadron Pilot",
+        ship: "B-Wing",
+        threat: 2,
+        upgrades: ["Advanced Sensors"]
+      }, {
+        id: 98,
+        faction: "Rebel Alliance",
+        pilot: "Norra Wexley",
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Expert Handling", "Seasoned Navigator", "Veteran Tail Gunner", "R3 Astromech", "Ablative Plating", "Hull Upgrade"]
+      }, {
+        id: 99,
+        faction: "Rebel Alliance",
+        pilot: "Garven Dreis",
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Expert Handling", "Proton Torpedoes", "Perceptive Copilot", "Veteran Tail Gunner"]
+      }, {
+        id: 100,
+        faction: "Rebel Alliance",
+        pilot: "Shara Bey",
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Expert Handling", "Proton Torpedoes", "Perceptive Copilot", "R3 Astromech"]
+      }, {
+        id: 101,
+        faction: "Rebel Alliance",
+        pilot: "Ibtisam",
+        ship: "ARC-170",
+        threat: 2,
+        upgrades: ["Elusive"]
+      }, {
+        id: 102,
+        faction: "Rebel Alliance",
+        pilot: "Wullffwarro",
+        ship: "Auzituck Gunship",
+        threat: 3,
+        upgrades: ["Selfless", 'GNK "Gonk" Droid', "Novice Technician", "Hull Upgrade"]
+      }, {
+        id: 103,
+        faction: "Rebel Alliance",
+        pilot: "Lowhhrick",
+        ship: "Auzituck Gunship",
+        threat: 2
+      }, {
+        id: 104,
+        faction: "Rebel Alliance",
+        pilot: "Kashyyyk Defender",
+        ship: "Auzituck Gunship",
+        threat: 2,
+        upgrades: ["Novice Technician"]
+      }, {
+        id: 105,
+        skip: true
+      }, {
+        id: 106,
+        faction: "Rebel Alliance",
+        pilot: "Corran Horn",
+        ship: "E-Wing",
+        threat: 4,
+        upgrades: ["Outmaneuver", "Fire-Control System", "Proton Torpedoes", "R2 Astromech", "Afterburners"]
+      }, {
+        id: 107,
+        faction: "Rebel Alliance",
+        pilot: "Rogue Squadron Escort",
+        ship: "E-Wing",
+        threat: 3,
+        upgrades: ["Predator", "Collision Detector", "Proton Torpedoes", "R3 Astromech"]
+      }, {
+        id: 108,
+        faction: "Rebel Alliance",
+        pilot: "Gavin Darklighter",
+        ship: "E-Wing",
+        threat: 3,
+        upgrades: ["Crack Shot", "Fire-Control System", "Ion Torpedoes", "R4 Astromech"]
+      }, {
+        id: 109,
+        faction: "Rebel Alliance",
+        pilot: "Knave Squadron Escort",
+        ship: "E-Wing",
+        threat: 2
+      }, {
+        id: 110,
+        faction: "Rebel Alliance",
+        pilot: "Jan Ors",
+        ship: "HWK-290",
+        threat: 3,
+        upgrades: ["Trick Shot", "Perceptive Copilot", "Seismic Charges", "Cloaking Device", "Engine Upgrade", "Moldy Crow"]
+      }, {
+        id: 111,
+        faction: "Rebel Alliance",
+        pilot: "Roark Garnet",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Elusive", "Seismic Charges", "Hull Upgrade", "Shield Upgrade"]
+      }, {
+        id: 112,
+        faction: "Rebel Alliance",
+        pilot: "Kyle Katarn",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Moldy Crow"]
+      }, {
+        id: 113,
+        faction: "Rebel Alliance",
+        pilot: "Rebel Scout",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Proton Bombs", "Seismic Charges", "Sabine Wren", "Engine Upgrade"]
+      }, {
+        id: 114,
+        faction: "Rebel Alliance",
+        pilot: "Arvel Crynyd",
+        ship: "A-Wing",
+        threat: 2,
+        upgrades: ["Intimidation", "Proton Rockets", "Hull Upgrade"]
+      }, {
+        id: 115,
+        faction: "Rebel Alliance",
+        pilot: "Green Squadron Pilot",
+        ship: "A-Wing",
+        threat: 2,
+        upgrades: ["Daredevil", "Concussion Missiles", "Shield Upgrade"]
+      }, {
+        id: 116,
+        faction: "Jake Farrell",
+        pilot: "Green Squadron Pilot",
+        ship: "A-Wing",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Cluster Missiles"]
+      }, {
+        id: 117,
+        faction: "Rebel Alliance",
+        pilot: "Phoenix Squadron Pilot",
+        suffix: " x2",
+        linkedId: 117,
+        ship: "A-Wing",
+        threat: 3,
+        upgrades: ["Proton Rockets"]
+      }, {
+        id: 118,
+        faction: "Rebel Alliance",
+        pilot: "Fenn Rau (Sheathipede)",
+        ship: "Sheathipede-Class Shuttle",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Seasoned Navigator", "R4 Astromech", "Stealth Device", "Phantom"]
+      }, {
+        id: 119,
+        faction: "Rebel Alliance",
+        pilot: "Ezra Bridger (Sheathipede)",
+        ship: "Sheathipede-Class Shuttle",
+        threat: 2,
+        upgrades: ["Heightened Perception", '"Chopper" (Astromech)', "Afterburners", "Phantom"]
+      }, {
+        id: 120,
+        faction: "Rebel Alliance",
+        pilot: "Captain Rex",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Elusive", "Juke", "Stealth Device"]
+      }, {
+        id: 121,
+        faction: "Rebel Alliance",
+        pilot: "Sabine Wren (TIE Fighter)",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Conner Nets", "Hull Upgrade"]
+      }, {
+        id: 122,
+        faction: "Rebel Alliance",
+        pilot: "Ezra Bridger (TIE Fighter)",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Supernatural Reflexes", '"Zeb" Orrelios', "Hull Upgrade"]
+      }, {
+        id: 123,
+        faction: "Rebel Alliance",
+        pilot: '"Zeb" Orrelios (TIE Fighter)',
+        ship: "TIE Fighter",
+        threat: 1
+      }, {
+        id: 124,
+        faction: "Rebel Alliance",
+        pilot: "Cassian Andor",
+        ship: "U-Wing",
+        threat: 3,
+        upgrades: ["Fire-Control System", "Jyn Erso", "Baze Malbus", "Pivot Wing"]
+      }, {
+        id: 125,
+        faction: "Rebel Alliance",
+        pilot: "Bodhi Rook",
+        ship: "U-Wing",
+        threat: 2,
+        upgrades: ["Cassian Andor", "Pivot Wing"]
+      }, {
+        id: 126,
+        faction: "Rebel Alliance",
+        pilot: "Heff Tobber",
+        ship: "U-Wing",
+        threat: 3,
+        upgrades: ["Fire-Control System", "Ion Cannon Turret", "Bistan", "Perceptive Copilot", "Pivot Wing"]
+      }, {
+        id: 127,
+        faction: "Rebel Alliance",
+        pilot: "Blue Squadron Scout",
+        ship: "U-Wing",
+        threat: 2,
+        upgrades: ["Advanced Sensors", "Tactical Officer", "Pivot Wing"]
+      }, {
+        id: 128,
+        faction: "Rebel Alliance",
+        pilot: "Han Solo",
+        ship: "YT-1300",
+        threat: 4,
+        upgrades: ["Lone Wolf", "Chewbacca", "Millennium Falcon"]
+      }, {
+        id: 129,
+        faction: "Rebel Alliance",
+        pilot: "Chewbacca",
+        ship: "YT-1300",
+        threat: 6,
+        upgrades: ["Predator", "C-3PO", "Leia Organa", "R2-D2", "Han Solo", "Luke Skywalker", "Engine Upgrade", "Millennium Falcon"]
+      }, {
+        id: 130,
+        faction: "Rebel Alliance",
+        pilot: "Lando Calrissian",
+        ship: "YT-1300",
+        threat: 5,
+        upgrades: ["Swarm Tactics", "Concussion Missiles", "Nien Nunb", "Engine Upgrade", "Millennium Falcon"]
+      }, {
+        id: 131,
+        faction: "Rebel Alliance",
+        pilot: "Outer Rim Smuggler",
+        ship: "YT-1300",
+        threat: 4,
+        upgrades: ["Homing Missiles", "Novice Technician", "Veteran Turret Gunner", "Feedback Array", "Static Discharge Vanes"]
+      }, {
+        id: 132,
+        faction: "Rebel Alliance",
+        pilot: "Airen Cracken",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Swarm Tactics", "Cluster Missiles", "Hull Upgrade"]
+      }, {
+        id: 133,
+        faction: "Rebel Alliance",
+        pilot: "Bandit Squadron Pilot",
+        ship: "Z-95 Headhunter",
+        threat: 1
+      }, {
+        id: 134,
+        faction: "Rebel Alliance",
+        pilot: "Lieutenant Blount",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Proton Rockets", "Shield Upgrade"]
+      }, {
+        id: 135,
+        faction: "Rebel Alliance",
+        pilot: "Tala Squadron Pilot",
+        ship: "Z-95 Headhunter",
+        threat: 1,
+        upgrades: ["Selfless"]
+      }, {
+        id: 136,
+        faction: "Rebel Alliance",
+        pilot: "Hera Syndulla",
+        ship: "Attack Shuttle",
+        threat: 2,
+        upgrades: ["Elusive", "Ion Cannon Turret", "Phantom"]
+      }, {
+        id: 137,
+        faction: "Rebel Alliance",
+        pilot: "Sabine Wren",
+        ship: "Attack Shuttle",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Dorsal Turret", "Phantom"]
+      }, {
+        id: 138,
+        faction: "Rebel Alliance",
+        pilot: "Dash Rendar",
+        ship: "YT-2400",
+        threat: 5,
+        upgrades: ["Expert Handling", "Trick Shot", "Perceptive Copilot", "Rigged Cargo Chute", "Outrider"]
+      }, {
+        id: 139,
+        faction: "Rebel Alliance",
+        pilot: '"Leebo"',
+        ship: "YT-2400",
+        threat: 4,
+        upgrades: ["Outrider", "Inertial Dampeners"]
+      }, {
+        id: 140,
+        faction: "Rebel Alliance",
+        pilot: "Wild Space Fringer",
+        ship: "YT-2400",
+        threat: 4,
+        upgrades: ["Concussion Missiles", "Veteran Turret Gunner", "Contraband Cybernetics"]
+      }, {
+        id: 141,
+        faction: "Rebel Alliance",
+        pilot: "Magva Yarro",
+        ship: "U-Wing",
+        threat: 3,
+        upgrades: ["Elusive", "Saw Gerrera", "Advanced Sensors", "Shield Upgrade", "Pivot Wing"]
+      }, {
+        id: 142,
+        faction: "Rebel Alliance",
+        pilot: "Saw Gerrera",
+        ship: "U-Wing",
+        threat: 2,
+        upgrades: ["Magva Yarro", "Pivot Wing"]
+      }, {
+        id: 143,
+        faction: "Rebel Alliance",
+        pilot: "Benthic Two Tubes",
+        ship: "U-Wing",
+        threat: 2,
+        upgrades: ["Advanced Sensors", "Pivot Wing"]
+      }, {
+        id: 144,
+        faction: "Rebel Alliance",
+        pilot: "Partisan Renegade",
+        ship: "U-Wing",
+        threat: 2,
+        upgrades: ["Advanced Sensors", "Deadman's Switch", "Pivot Wing"]
+      }, {
+        id: 145,
+        faction: "Rebel Alliance",
+        pilot: "Kullbee Sperado",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Outmaneuver", "R2 Astromech", "Deadman's Switch", "Afterburners", "Hull Upgrade", "Servomotor S-Foils"]
+      }, {
+        id: 146,
+        faction: "Rebel Alliance",
+        pilot: "Edrio Two Tubes",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Trick Shot", "R4 Astromech", "Deadman's Switch", "Servomotor S-Foils"]
+      }, {
+        id: 147,
+        faction: "Rebel Alliance",
+        pilot: "Leevan Tenza",
+        ship: "X-Wing",
+        threat: 3,
+        upgrades: ["Elusive", "R2 Astromech", "Deadman's Switch", "Afterburners", "Shield Upgrade", "Servomotor S-Foils"]
+      }, {
+        id: 148,
+        faction: "Rebel Alliance",
+        pilot: "Cavern Angels Zealot",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["R2 Astromech", "Deadman's Switch", "Servomotor S-Foils"]
+      }, {
+        id: 149,
+        faction: "Rebel Alliance",
+        pilot: "Kanan Jarrus",
+        suffix: " + Phantom",
+        linkedId: 150,
+        ship: "VCX-100",
+        threat: 6,
+        upgrades: ["Ion Cannon Turret", "Hera Syndulla", '"Chopper" (Crew)', "Ezra Bridger", "Ghost"]
+      }, {
+        id: 150,
+        faction: "Rebel Alliance",
+        pilot: '"Zeb" Orrelios',
+        suffix: " + Ghost",
+        linkedId: 149,
+        ship: "Attack Shuttle",
+        threat: 6,
+        upgrades: ["Phantom"]
+      }, {
+        id: 151,
+        faction: "Rebel Alliance",
+        pilot: "Hera Syndulla (VCX-100)",
+        suffix: " + Phantom",
+        linkedId: 152,
+        ship: "VCX-100",
+        threat: 6,
+        upgrades: ["Elusive", "Dorsal Turret", "Kanan Jarrus", "Ghost"]
+      }, {
+        id: 152,
+        faction: "Rebel Alliance",
+        pilot: "Ezra Bridger",
+        suffix: " + Ghost",
+        linkedId: 151,
+        ship: "Attack Shuttle",
+        threat: 6,
+        upgrades: ["Supernatural Reflexes", "Dorsal Turret", "Phantom"]
+      }, {
+        id: 153,
+        faction: "Rebel Alliance",
+        pilot: '"Chopper"',
+        suffix: " + Phantom",
+        linkedId: 154,
+        ship: "VCX-100",
+        threat: 6,
+        upgrades: ["Ion Cannon Turret", '"Zeb" Orrelios', "Ghost"]
+      }, {
+        id: 154,
+        faction: "Rebel Alliance",
+        pilot: "AP-5",
+        suffix: " + Ghost",
+        linkedId: 153,
+        ship: "Sheathipede-Class Shuttle",
+        threat: 6,
+        upgrades: ["R4 Astromech", "Phantom"]
+      }, {
+        id: 155,
+        faction: "Rebel Alliance",
+        pilot: "Lothal Rebel",
+        suffix: " + Phantom",
+        linkedId: 156,
+        ship: "VCX-100",
+        threat: 4,
+        upgrades: ["Dorsal Turret", "Lando Calrissian", "Ghost"]
+      }, {
+        id: 156,
+        faction: "Rebel Alliance",
+        pilot: '"Zeb" Orrelios (Sheathipede)',
+        suffix: " + Ghost",
+        linkedId: 155,
+        ship: "Sheathipede-Class Shuttle",
+        threat: 4,
+        upgrades: ["R5 Astromech", "Phantom"]
+      }, {
+        id: 157,
+        faction: "First Order",
+        pilot: '"Midnight"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Afterburners"]
+      }, {
+        id: 158,
+        faction: "First Order",
+        pilot: '"Static"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Outmaneuver"]
+      }, {
+        id: 159,
+        faction: "First Order",
+        pilot: "Omega Squadron Ace",
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Elusive", "Fanatical", "Hull Upgrade"]
+      }, {
+        id: 160,
+        faction: "First Order",
+        pilot: '"Scorch"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Fanatical", "Hull Upgrade"]
+      }, {
+        id: 161,
+        faction: "First Order",
+        pilot: '"Longshot"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Elusive", "Predator"]
+      }, {
+        id: 162,
+        faction: "First Order",
+        pilot: "Zeta Squadron Pilot",
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Advanced Optics", "Shield Upgrade"]
+      }, {
+        id: 163,
+        faction: "First Order",
+        pilot: '"Muse"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Squad Leader", "Advanced Optics"]
+      }, {
+        id: 164,
+        faction: "First Order",
+        pilot: '"Null"',
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Swarm Tactics", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 165,
+        faction: "First Order",
+        pilot: "Epsilon Squadron Cadet",
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Targeting Synchronizer", "Afterburners"]
+      }, {
+        id: 166,
+        faction: "First Order",
+        pilot: "Commander Malarus",
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Advanced Optics"]
+      }, {
+        id: 167,
+        faction: "First Order",
+        pilot: "TN-3465",
+        ship: "TIE/FO Fighter",
+        threat: 2,
+        upgrades: ["Targeting Synchronizer", "Shield Upgrade"]
+      }, {
+        id: 168,
+        faction: "First Order",
+        pilot: "Lieutenant Rivas",
+        ship: "TIE/FO Fighter",
+        threat: 1,
+        upgrades: []
+      }, {
+        id: 169,
+        faction: "First Order",
+        pilot: '"Quickdraw"',
+        ship: "TIE/SF Fighter",
+        threat: 3,
+        upgrades: ["Juke", "Collision Detector", "Hotshot Gunner", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 170,
+        faction: "First Order",
+        pilot: "Zeta Squadron Survivor",
+        ship: "TIE/SF Fighter",
+        threat: 2,
+        upgrades: ["Pattern Analyzer", "Ion Missiles", "Special Forces Gunner"]
+      }, {
+        id: 171,
+        faction: "First Order",
+        pilot: '"Backdraft"',
+        ship: "TIE/SF Fighter",
+        threat: 3,
+        upgrades: ["Pattern Analyzer", "Collision Detector", "Ion Missiles", "Special Forces Gunner", "Shield Upgrade"]
+      }, {
+        id: 172,
+        faction: "First Order",
+        pilot: "Omega Squadron Expert",
+        ship: "TIE/SF Fighter",
+        threat: 2,
+        upgrades: ["Juke", "Special Forces Gunner"]
+      }, {
+        id: 173,
+        faction: "First Order",
+        pilot: "Kylo Ren",
+        ship: "TIE/VN Silencer",
+        threat: 4,
+        upgrades: ["Hate", "Predictive Shot", "Primed Thrusters", "Adv. Proton Torpedoes"]
+      }, {
+        id: 174,
+        faction: "First Order",
+        pilot: '"Recoil"',
+        ship: "TIE/VN Silencer",
+        threat: 3,
+        upgrades: ["Predator", "Proton Torpedoes"]
+      }, {
+        id: 175,
+        faction: "First Order",
+        pilot: "First Order Test Pilot",
+        ship: "TIE/VN Silencer",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Hull Upgrade"]
+      }, {
+        id: 176,
+        faction: "First Order",
+        pilot: '"Blackout"',
+        ship: "TIE/VN Silencer",
+        threat: 3,
+        upgrades: ["Elusive", "Afterburners"]
+      }, {
+        id: 177,
+        faction: "First Order",
+        pilot: '"Avenger"',
+        ship: "TIE/VN Silencer",
+        threat: 3,
+        upgrades: ["Primed Thrusters", "Adv. Proton Torpedoes"]
+      }, {
+        id: 178,
+        faction: "First Order",
+        pilot: "Sienar-Jaemus Engineer",
+        ship: "TIE/VN Silencer",
+        threat: 2
+      }, {
+        id: 179,
+        faction: "First Order",
+        pilot: "Lieutenant Tavson",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 4,
+        upgrades: ["Advanced Sensors", "Ion Cannon", "Kylo Ren", "Supreme Leader Snoke", "Shield Upgrade"]
+      }, {
+        id: 180,
+        faction: "First Order",
+        pilot: "Lieutenant Dormitz",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 3,
+        upgrades: ["Biohexacrypt Codes", "Hyperspace Tracking Data", "Tractor Beam"]
+      }, {
+        id: 181,
+        faction: "First Order",
+        pilot: "Starkiller Base Pilot",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 2
+      }, {
+        id: 182,
+        faction: "First Order",
+        pilot: "Major Stridan",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 4,
+        upgrades: ["Biohexacrypt Codes", "Pattern Analyzer", "Tractor Beam", "Captain Phasma", "General Hux"]
+      }, {
+        id: 183,
+        faction: "First Order",
+        pilot: "Captain Cardinal",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 3,
+        upgrades: ["Ion Cannon", "Petty Officer Thanisson"]
+      }, {
+        id: 184,
+        faction: "First Order",
+        pilot: "Petty Officer Thanisson",
+        ship: "Upsilon-Class Command Shuttle",
+        threat: 3,
+        upgrades: ["Captain Phasma", "Tactical Scrambler"]
+      }, {
+        id: 185,
+        faction: "Scum and Villainy",
+        pilot: "Boba Fett",
+        ship: "Firespray-31",
+        threat: 4,
+        upgrades: ["Lone Wolf", "Perceptive Copilot", "Inertial Dampeners", "Seismic Charge", "Slave I"]
+      }, {
+        id: 186,
+        faction: "Scum and Villainy",
+        pilot: "Kath Scarlet",
+        ship: "Firespray-31",
+        threat: 3,
+        upgrades: ["Marauder"]
+      }, {
+        id: 187,
+        faction: "Scum and Villainy",
+        pilot: "Krassis Trelix",
+        ship: "Firespray-31",
+        threat: 3,
+        upgrades: ["Concussion Missiles"]
+      }, {
+        id: 188,
+        faction: "Scum and Villainy",
+        pilot: "Emon Azzameen",
+        ship: "Firespray-31",
+        threat: 4,
+        upgrades: ["Elusive", "Perceptive Copilot", "Inertial Dampeners", "Proximity Mines", "Seismic Charge", "Andrasta"]
+      }, {
+        id: 189,
+        faction: "Scum and Villainy",
+        pilot: "Koshka Frost",
+        ship: "Firespray-31",
+        threat: 3,
+        upgrades: ["Perceptive Copilot"]
+      }, {
+        id: 190,
+        faction: "Scum and Villainy",
+        pilot: "Bounty Hunter",
+        ship: "Firespray-31",
+        threat: 3,
+        upgrades: ["Perceptive Copilot", "Inertial Dampeners", "Seismic Charge"]
+      }, {
+        id: 191,
+        faction: "Scum and Villainy",
+        pilot: "Fenn Rau",
+        ship: "Fang Fighter",
+        threat: 3,
+        upgrades: ["Daredevil", "Afterburners", "Hull Upgrade"]
+      }, {
+        id: 192,
+        faction: "Scum and Villainy",
+        pilot: "Kad Solus",
+        ship: "Fang Fighter",
+        threat: 2,
+        upgrades: ["Fearless"]
+      }, {
+        id: 193,
+        faction: "Scum and Villainy",
+        pilot: "Zealous Recruit",
+        ship: "Fang Fighter",
+        threat: 2,
+        upgrades: ["Proton Torpedoes"]
+      }, {
+        id: 194,
+        faction: "Scum and Villainy",
+        pilot: "Joy Rekkoff",
+        ship: "Fang Fighter",
+        threat: 3,
+        upgrades: ["Predator", "Ion Torpedoes", "Afterburners", "Hull Upgrade"]
+      }, {
+        id: 195,
+        faction: "Scum and Villainy",
+        pilot: "Old Teroch",
+        ship: "Fang Fighter",
+        threat: 2
+      }, {
+        id: 196,
+        faction: "Scum and Villainy",
+        pilot: "Skull Squadron Pilot",
+        ship: "Fang Fighter",
+        threat: 2,
+        upgrades: ["Fearless"]
+      }, {
+        id: 197,
+        faction: "Scum and Villainy",
+        pilot: "Ahhav",
+        ship: "Mining Guild TIE Fighter",
+        threat: 2,
+        upgrades: ["Elusive", "Afterburners", "Hull Upgrade"]
+      }, {
+        id: 198,
+        faction: "Scum and Villainy",
+        pilot: "Mining Guild Surveyor",
+        ship: "Mining Guild TIE Fighter",
+        threat: 2,
+        upgrades: ["Swarm Tactics", "Trick Shot", "Shield Upgrade", "Static Discharge Vanes"]
+      }, {
+        id: 199,
+        faction: "Scum and Villainy",
+        pilot: "Overseer Yushyn",
+        ship: "Mining Guild TIE Fighter",
+        threat: 1
+      }, {
+        id: 200,
+        faction: "Scum and Villainy",
+        pilot: "Captain Seevor",
+        ship: "Mining Guild TIE Fighter",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Shield Upgrade"]
+      }, {
+        id: 201,
+        faction: "Scum and Villainy",
+        pilot: "Foreman Proach",
+        ship: "Mining Guild TIE Fighter",
+        threat: 2,
+        upgrades: ["Predator", "Swarm Tactics", "Hull Upgrade"]
+      }, {
+        id: 202,
+        faction: "Scum and Villainy",
+        pilot: "Mining Guild Sentry",
+        ship: "Mining Guild TIE Fighter",
+        threat: 1
+      }, {
+        id: 203,
+        faction: "Scum and Villainy",
+        pilot: "Ketsu Onyo",
+        ship: "Lancer-Class Pursuit Craft",
+        threat: 4,
+        upgrades: ["Outmaneuver", "Rigged Cargo Chute", "Shield Upgrade", "Shadow Caster"]
+      }, {
+        id: 204,
+        faction: "Scum and Villainy",
+        pilot: "Sabine Wren (Scum)",
+        ship: "Lancer-Class Pursuit Craft",
+        threat: 3,
+        upgrades: ["Fearless", "Ketsu Onyo", "Shadow Caster"]
+      }, {
+        id: 205,
+        faction: "Scum and Villainy",
+        pilot: "Asajj Ventress",
+        ship: "Lancer-Class Pursuit Craft",
+        threat: 4,
+        upgrades: ["Sense", "Veteran Turret Gunner", "Deadman's Switch", "Inertial Dampeners"]
+      }, {
+        id: 206,
+        faction: "Scum and Villainy",
+        pilot: "Shadowport Hunter",
+        ship: "Lancer-Class Pursuit Craft",
+        threat: 3,
+        upgrades: ["Maul", "Contraband Cybernetics"]
+      }, {
+        id: 207,
+        faction: "Scum and Villainy",
+        pilot: "Talonbane Cobra",
+        ship: "Kihraxz Fighter",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Cluster Missiles", "Inertial Dampeners", "Afterburners", "Electronic Baffle", "Shield Upgrade"]
+      }, {
+        id: 208,
+        faction: "Scum and Villainy",
+        pilot: "Viktor Hel",
+        ship: "Kihraxz Fighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Stealth Device"]
+      }, {
+        id: 209,
+        faction: "Scum and Villainy",
+        pilot: "Graz",
+        ship: "Kihraxz Fighter",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Concussion Missiles", "Contraband Cybernetics", "Afterburners"]
+      }, {
+        id: 210,
+        faction: "Scum and Villainy",
+        pilot: "Black Sun Ace",
+        ship: "Kihraxz Fighter",
+        threat: 2,
+        upgrades: ["Predator", "Shield Upgrade"]
+      }, {
+        id: 211,
+        faction: "Scum and Villainy",
+        pilot: "Captain Jostero",
+        ship: "Kihraxz Fighter",
+        threat: 3,
+        upgrades: ["Ion Missiles", "Munitions Failsafe"]
+      }, {
+        id: 212,
+        faction: "Scum and Villainy",
+        pilot: "Cartel Marauder",
+        ship: "Kihraxz Fighter",
+        threat: 2,
+        upgrades: ["Concussion Missiles", "Hull Upgrade", "Munitions Failsafe"]
+      }, {
+        id: 213,
+        faction: "Scum and Villainy",
+        pilot: "Kavil",
+        ship: "Y-Wing",
+        threat: 3,
+        upgrades: ["Expert Handling", "Dorsal Turret", '"Genius"', "Proton Bombs", "Afterburners"]
+      }, {
+        id: 214,
+        faction: "Scum and Villainy",
+        pilot: "Hired Gun",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Crack Shot", "Ion Cannon Turret", "Veteran Turret Gunner", "R3 Astromech", "Conner Nets"]
+      }, {
+        id: 215,
+        faction: "Scum and Villainy",
+        pilot: "Drea Renthal",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Expert Handling", "Ion Cannon Turret", "Hotshot Gunner"]
+      }, {
+        id: 216,
+        faction: "Scum and Villainy",
+        pilot: "Crymorah Goon",
+        ship: "Y-Wing",
+        threat: 2,
+        upgrades: ["Dorsal Turret", "Ion Torpedoes", "R3 Astromech", "Inertial Dampeners", "Proximity Mines"]
+      }, {
+        id: 217,
+        faction: "Scum and Villainy",
+        pilot: "Dace Bonearm",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Feedback Array", "Conner Nets", "Static Discharge Vanes"]
+      }, {
+        id: 218,
+        faction: "Scum and Villainy",
+        pilot: "Palob Godalhi",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Debris Gambit", "Juke", "Contraband Cybernetics", "Stealth Device"]
+      }, {
+        id: 219,
+        faction: "Scum and Villainy",
+        pilot: "Torkil Mux",
+        ship: "HWK-290",
+        threat: 2,
+        upgrades: ["Cloaking Device", "Proximity Mines"]
+      }, {
+        id: 220,
+        faction: "Scum and Villainy",
+        pilot: "Spice Runner",
+        suffix: " (x2)",
+        ship: "HWK-290",
+        threat: 3,
+        linkedId: 220,
+        upgrades: ["Deadman's Switch", "Proton Bombs", "Electronic Baffle"]
+      }, {
+        id: 221,
+        faction: "Scum and Villainy",
+        pilot: "Constable Zuvio",
+        ship: "Quadjumper",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Rigged Cargo Chute", "Conner Nets", "Shield Upgrade"]
+      }, {
+        id: 222,
+        faction: "Scum and Villainy",
+        pilot: "Jakku Gunrunner",
+        suffix: " (x2)",
+        linkedId: 222,
+        ship: "Quadjumper",
+        threat: 3,
+        upgrades: ["Novice Technician", "Proximity Mines", "Electronic Baffle"]
+      }, {
+        id: 223,
+        faction: "Scum and Villainy",
+        pilot: "Sarco Plank",
+        ship: "Quadjumper",
+        threat: 2,
+        upgrades: ["Unkar Plutt", "Feedback Array", "Seismic Charges", "Hull Upgrade", "Shield Upgrade"]
+      }, {
+        id: 224,
+        faction: "Scum and Villainy",
+        pilot: "Unkar Plutt",
+        ship: "Quadjumper",
+        threat: 2,
+        upgrades: ["Novice Technician", "Contraband Cybernetics", "Proximity Mines", "Afterburners"]
+      }, {
+        id: 225,
+        faction: "Scum and Villainy",
+        pilot: "Prince Xizor",
+        ship: "StarViper",
+        threat: 3,
+        upgrades: ["Predator", "Fire-Control System", "Shield Upgrade", "Virago"]
+      }, {
+        id: 226,
+        faction: "Scum and Villainy",
+        pilot: "Black Sun Enforcer",
+        ship: "StarViper",
+        threat: 2,
+        upgrades: ["Collision Detector"]
+      }, {
+        id: 227,
+        faction: "Scum and Villainy",
+        pilot: "Guri",
+        ship: "StarViper",
+        threat: 3,
+        upgrades: ["Daredevil", "Advanced Sensors", "Adv. Proton Torpedoes"]
+      }, {
+        id: 228,
+        faction: "Scum and Villainy",
+        pilot: "Dalan Oberos (StarViper)",
+        ship: "StarViper",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Fire-Control System", "Proton Torpedoes", "Contraband Cybernetics"]
+      }, {
+        id: 229,
+        faction: "Scum and Villainy",
+        pilot: "Black Sun Assassin",
+        ship: "StarViper",
+        threat: 2,
+        upgrades: ["Fearless"]
+      }, {
+        id: 230,
+        faction: "Scum and Villainy",
+        pilot: "Serissu",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Stealth Device"]
+      }, {
+        id: 231,
+        faction: "Scum and Villainy",
+        pilot: "Genesis Red",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Juke", "Concussion Missiles", "Munitions Failsafe"]
+      }, {
+        id: 232,
+        faction: "Scum and Villainy",
+        pilot: "Quinn Jast",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Crack Shot", "Adv. Proton Torpedoes", "Afterburners"]
+      }, {
+        id: 233,
+        faction: "Scum and Villainy",
+        pilot: "Laetin A'shera",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Juke", "Cluster Missiles", "Munitions Failsafe", "Stealth Device"]
+      }, {
+        id: 234,
+        faction: "Scum and Villainy",
+        pilot: "Inaldra",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Ion Cannon", "Hull Upgrade", "Shield Upgrade"]
+      }, {
+        id: 235,
+        faction: "Scum and Villainy",
+        pilot: "Tansarii Point Veteran",
+        suffix: " (x2)",
+        linkedId: 235,
+        ship: "M3-A Interceptor",
+        threat: 3,
+        upgrades: ["Crack Shot", "Heavy Laser Cannon"]
+      }, {
+        id: 236,
+        faction: "Scum and Villainy",
+        pilot: "Sunny Bounder",
+        ship: "M3-A Interceptor",
+        threat: 2,
+        upgrades: ["Predator", "Cluster Missiles", "Afterburners"]
+      }, {
+        id: 237,
+        faction: "Scum and Villainy",
+        pilot: "Cartel Spacer",
+        suffix: " (x2)",
+        linkedId: 237,
+        ship: "M3-A Interceptor",
+        threat: 3,
+        upgrades: ["Ion Torpedoes", "Munitions Failsafe"]
+      }, {
+        id: 238,
+        faction: "Scum and Villainy",
+        pilot: "Tel Trevura",
+        ship: "JumpMaster 5000",
+        threat: 3,
+        upgrades: ["Expert Handling", 'GNK "Gonk" Droid', "Proton Torpedoes", "Deadman's Switch"]
+      }, {
+        id: 239,
+        faction: "Scum and Villainy",
+        pilot: "Contracted Scout",
+        ship: "JumpMaster 5000",
+        threat: 2,
+        upgrades: ["Ion Torpedoes", "Inertial Dampeners"]
+      }, {
+        id: 240,
+        faction: "Scum and Villainy",
+        pilot: "Dengar",
+        ship: "JumpMaster 5000",
+        threat: 3,
+        upgrades: ["Expert Handling", "Proton Torpedoes", "R4 Astromech", "Contraband Cybernetics", "Punishing One"]
+      }, {
+        id: 241,
+        faction: "Scum and Villainy",
+        pilot: "Manaroo",
+        ship: "JumpMaster 5000",
+        threat: 3,
+        upgrades: ["Intimidation", "Perceptive Copilot", "Proton Torpedoes", "Feedback Array", "Static Discharge Vanes"]
+      }, {
+        id: 242,
+        faction: "Scum and Villainy",
+        pilot: "N'dru Suhlak",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Lone Wolf", "Homing Missiles", "Cloaking Device", "Hull Upgrade"]
+      }, {
+        id: 243,
+        faction: "Scum and Villainy",
+        pilot: "Black Sun Soldier",
+        suffix: " (x2)",
+        linkedId: 243,
+        ship: "Z-95 Headhunter",
+        threat: 3,
+        upgrades: ["Expert Handling", "Concussion Missiles", "Deadman's Switch", "Hull Upgrade"]
+      }, {
+        id: 244,
+        faction: "Scum and Villainy",
+        pilot: "Kaa'to Leeachos",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Expert Handling", "Concussion Missiles", "Contraband Cybernetics", "Afterburners"]
+      }, {
+        id: 245,
+        faction: "Scum and Villainy",
+        pilot: "Binayre Pirate",
+        ship: "Z-95 Headhunter",
+        threat: 1
+      }, {
+        id: 246,
+        faction: "Scum and Villainy",
+        pilot: "4-LOM",
+        ship: "G-1A Starfighter",
+        threat: 3,
+        upgrades: ["Elusive", "Advanced Sensors", "0-0-0", "Zuckus", "BT-1", "Mist Hunter"]
+      }, {
+        id: 247,
+        faction: "Scum and Villainy",
+        pilot: "Zuckuss",
+        ship: "G-1A Starfighter",
+        threat: 2,
+        upgrades: ["Lone Wolf", "Tractor Beam", "4-LOM", "Mist Hunter"]
+      }, {
+        id: 248,
+        faction: "Scum and Villainy",
+        pilot: "Gand Findsman",
+        ship: "G-1A Starfighter",
+        threat: 2,
+        upgrades: ["Fire-Control System", "Freelancer Slicer", "Deadman's Switch", "Electronic Baffle"]
+      }, {
+        id: 249,
+        faction: "Scum and Villainy",
+        pilot: "Moralo Eval",
+        ship: "YV-666",
+        threat: 4,
+        upgrades: ["Outmaneuver", "Cluster Missiles", "Latts Razzi", "Dengar", "Contraband Cybernetics"]
+      }, {
+        id: 250,
+        faction: "Scum and Villainy",
+        pilot: "Latts Razzi",
+        ship: "YV-666",
+        threat: 3,
+        upgrades: ["Boba Fett", "Bossk", "Dengar", "Feedback Array", "Static Discharge Vanes"]
+      }, {
+        id: 251,
+        faction: "Scum and Villainy",
+        pilot: "Trandoshan Slaver",
+        ship: "YV-666",
+        threat: 3,
+        upgrades: ["Hotshot Gunner", "Jabba the Hutt", "Contraband Cybernetics", "Rigged Cargo Chute"]
+      }, {
+        id: 252,
+        faction: "Scum and Villainy",
+        pilot: "Bossk",
+        suffix: " + Nashtah Pup",
+        linkedId: 253,
+        ship: "YV-666",
+        threat: 3,
+        upgrades: ["Marksmanship", "Greedo", "Hound's Tooth"]
+      }, {
+        id: 253,
+        faction: "Scum and Villainy",
+        pilot: "Nashtah Pup",
+        suffix: " + Bossk",
+        linkedId: 252,
+        ship: "Z-95 Headhunter",
+        threat: 3
+      }, {
+        id: 254,
+        faction: "Scum and Villainy",
+        pilot: "Trandoshan Slaver",
+        suffix: " + Nashtah Pup",
+        linkedId: 255,
+        ship: "YV-666",
+        threat: 3,
+        upgrades: ["Deadman's Switch", "Hound's Tooth"]
+      }, {
+        id: 255,
+        faction: "Scum and Villainy",
+        pilot: "Nashtah Pup",
+        suffix: " + Trandoshan Slaver",
+        linkedId: 254,
+        ship: "Z-95 Headhunter",
+        threat: 3,
+        upgrades: ["Proton Rockets"]
+      }, {
+        id: 256,
+        faction: "Scum and Villainy",
+        pilot: "Torani Kulda",
+        ship: "M12-L Kimogila Fighter",
+        threat: 3,
+        upgrades: ["Saturation Salvo", "Proton Torpedoes", "Cluster Missiles", "R4 Astromech", "Inertial Dampeners", "Shield Upgrade"]
+      }, {
+        id: 257,
+        faction: "Scum and Villainy",
+        pilot: "Dalan Oberos",
+        ship: "M12-L Kimogila Fighter",
+        threat: 2,
+        upgrades: ["Expert Handling", "R5-TK", "Inertial Dampeners"]
+      }, {
+        id: 258,
+        faction: "Scum and Villainy",
+        pilot: "Cartel Executioner",
+        ship: "M12-L Kimogila Fighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "R5-P8", "Contraband Cybernetics"]
+      }, {
+        id: 259,
+        skip: true,
+        faction: "Scum and Villainy",
+        pilot: "Dalan Oberos",
+        ship: "M12-L Kimogila Fighter",
+        threat: 2,
+        upgrades: ["Expert Handling", "R5-TK", "Inertial Dampeners"]
+      }, {
+        id: 260,
+        faction: "Scum and Villainy",
+        pilot: "Captain Nym",
+        ship: "Scurrg H-6 Bomber",
+        threat: 3,
+        upgrades: ["Squad Leader", "Trajectory Simulator", "R4 Astromech", "Bomblet Generator", "Havoc"]
+      }, {
+        id: 261,
+        faction: "Scum and Villainy",
+        pilot: "Sol Sixxa",
+        ship: "Scurrg H-6 Bomber",
+        threat: 3,
+        upgrades: ["Ion Cannon Turret", "Skilled Bombardier", "Conner Nets", "Proximity Mines"]
+      }, {
+        id: 262,
+        faction: "Scum and Villainy",
+        pilot: "Lok Revenant",
+        ship: "Scurrg H-6 Bomber",
+        threat: 2,
+        upgrades: ["Dorsal Turret", "Bomblet Generator"]
+      }, {
+        id: 263,
+        faction: "Scum and Villainy",
+        pilot: "IG-88A",
+        suffix: " + IG-88D",
+        linkedId: 264,
+        ship: "Aggressor",
+        threat: 6,
+        upgrades: ["Advanced Sensors", "IG-2000"]
+      }, {
+        id: 264,
+        faction: "Scum and Villainy",
+        pilot: "IG-88D",
+        suffix: " + IG-88A",
+        linkedId: 263,
+        ship: "Aggressor",
+        threat: 6,
+        upgrades: ["Advanced Sensors", "IG-2000"]
+      }, {
+        id: 265,
+        faction: "Scum and Villainy",
+        pilot: "IG-88B",
+        suffix: " + IG-88C",
+        linkedId: 266,
+        ship: "Aggressor",
+        threat: 6,
+        upgrades: ["Fire-Control System", "Ion Cannon", "IG-2000"]
+      }, {
+        id: 266,
+        faction: "Scum and Villainy",
+        pilot: "IG-88C",
+        suffix: " + IG-88B",
+        linkedId: 265,
+        ship: "Aggressor",
+        threat: 6,
+        upgrades: ["Fire-Control System", "Ion Cannon", "IG-2000"]
+      }, {
+        id: 267,
+        faction: "Resistance",
+        pilot: "L'ulo L'ampar",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Primed Thrusters", "Homing Missiles"]
+      }, {
+        id: 268,
+        faction: "Resistance",
+        pilot: "Greer Sonnel",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Elusive", "Afterburners"]
+      }, {
+        id: 269,
+        faction: "Resistance",
+        pilot: "Green Squadron Expert",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Heroic", "Primed Thursters", "Hull Upgrade"]
+      }, {
+        id: 270,
+        faction: "Resistance",
+        pilot: "Tallissan Lintra",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Predator", "Ferrosphere Paint"]
+      }, {
+        id: 271,
+        faction: "Resistance",
+        pilot: "Zari Bangel",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Outmaneuver", "Proton Rockets"]
+      }, {
+        id: 272,
+        faction: "Resistance",
+        pilot: "Blue Squadron Recruit",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Primed Thrusters", "Homing Missiles", "Shield Upgrade"]
+      }, {
+        id: 273,
+        faction: "Resistance",
+        pilot: "Poe Dameron",
+        ship: "T-70 X-Wing",
+        threat: 4,
+        upgrades: ["Proton Torpedoes", "BB-8", "Black One", "Integrated S-Foils", "Afterburners"]
+      }, {
+        id: 274,
+        faction: "Resistance",
+        pilot: "Jessika Pava",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["R5 Astromech", "Integrated S-Foils", "Hull Upgrade"]
+      }, {
+        id: 275,
+        faction: "Resistance",
+        pilot: "Black Squadron Ace (T-70)",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Proton Torpedoes", "M9-G8", "Integrated S-Foils"]
+      }, {
+        id: 276,
+        faction: "Resistance",
+        pilot: "Ello Asty",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Elusive", "Integrated S-Foils", "Afterburners"]
+      }, {
+        id: 277,
+        faction: "Resistance",
+        pilot: "Joph Seastriker",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["R2 Astromech", "Integrated S-Foils", "Shield Upgrade"]
+      }, {
+        id: 278,
+        faction: "Resistance",
+        pilot: "Jaycris Tubbs",
+        ship: "T-70 X-Wing",
+        threat: 2
+      }, {
+        id: 279,
+        faction: "Resistance",
+        pilot: "Nien Nunb",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Elusive", "Integrated S-Foils", "Afterburners"]
+      }, {
+        id: 280,
+        faction: "Resistance",
+        pilot: "Lieutenant Bastian",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Targeting Synchronizer", "Proton Torpedoes", "R3 Astromech", "Integrated S-Foils"]
+      }, {
+        id: 281,
+        faction: "Resistance",
+        pilot: "Red Squadron Expert",
+        ship: "T-70 X-Wing",
+        threat: 2
+      }, {
+        id: 282,
+        faction: "Resistance",
+        pilot: "Temmin Wexley",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Proton Torpedoes", "Integrated S-Foils"]
+      }, {
+        id: 283,
+        faction: "Resistance",
+        pilot: "Kare Kun",
+        ship: "T-70 X-Wing",
+        threat: 3,
+        upgrades: ["Predator", "Integrated S-Foils", "Afterburners"]
+      }, {
+        id: 284,
+        faction: "Resistance",
+        pilot: "Blue Squadron Rookie",
+        ship: "T-70 X-Wing",
+        threat: 2,
+        upgrades: ["BB Astromech"]
+      }, {
+        id: 285,
+        faction: "Resistance",
+        pilot: "Finch Dallow",
+        ship: "MG-100 StarFortress",
+        threat: 4,
+        upgrades: ["Advanced Optics", "Paige Tico", "Proton Bombs", "Ablative Plating", "Hull Upgrade"]
+      }, {
+        id: 286,
+        faction: "Resistance",
+        pilot: "Cat",
+        ship: "MG-100 StarFortress",
+        threat: 3,
+        upgrades: ["Skilled Bombardier", "Conner Nets", "Electronic Baffle"]
+      }, {
+        id: 287,
+        faction: "Resistance",
+        pilot: "Cobalt Squadron Bomber",
+        ship: "MG-100 StarFortress",
+        threat: 3,
+        upgrades: ["Trajectory Simulator", "Proton Bombs", "Ablative Plating"]
+      }, {
+        id: 288,
+        faction: "Resistance",
+        pilot: "Edon Kappehl",
+        ship: "MG-100 StarFortress",
+        threat: 4,
+        upgrades: ["Pattern Analyzer", "Seasoned Navigator", "Skilled Bombardier", "Conner Nets", "Proton Bombs"]
+      }, {
+        id: 289,
+        faction: "Resistance",
+        pilot: "Vennie",
+        ship: "MG-100 StarFortress",
+        threat: 4,
+        upgrades: ["Advanced Optics", "Rose Tico", "Finn", "Shield Upgrade"]
+      }, {
+        id: 290,
+        faction: "Resistance",
+        pilot: "Ben Teene",
+        ship: "MG-100 StarFortress",
+        threat: 3,
+        upgrades: ["Conner Nets", "Proton Bombs"]
+      }, {
+        id: 291,
+        faction: "Resistance",
+        pilot: "Han Solo (Resistance)",
+        ship: "Scavenged YT-1300",
+        threat: 3,
+        upgrades: ["Chewbacca"]
+      }, {
+        id: 292,
+        faction: "Resistance",
+        pilot: "Rey",
+        ship: "Scavenged YT-1300",
+        threat: 5,
+        upgrades: ["Finn", "BB-8", "Inertial Dampeners", "Engine Upgrade", "Rey's Millennium Falcon"]
+      }, {
+        id: 293,
+        faction: "Resistance",
+        pilot: "Chewbacca (Resistance)",
+        ship: "Scavenged YT-1300",
+        threat: 4,
+        upgrades: ["Rey", "Engine Upgrade", "Rey's Millennium Falcon"]
+      }, {
+        id: 294,
+        faction: "Resistance",
+        pilot: "Resistance Sympathizer",
+        ship: "Scavenged YT-1300",
+        threat: 4,
+        upgrades: ["Debris Gambit", "C-3PO", "Chewbacca", "Han Solo"]
+      }, {
+        id: 295,
+        faction: "Rebel Alliance",
+        pilot: "Thane Kyrell",
+        ship: "X-Wing",
+        threat: 2,
+        upgrades: ["Stealth Device", "Outmaneuver"]
+      }, {
+        id: 296,
+        faction: "Galactic Empire",
+        pilot: "Iden Versio",
+        ship: "TIE Fighter",
+        threat: 2,
+        upgrades: ["Proton Torpedoes", "Lone Wolf"]
+      }, {
+        id: 297,
+        faction: "Scum and Villainy",
+        pilot: "Skull Squadron Pilot",
+        ship: "Fang Fighter",
+        threat: 3,
+        upgrades: ["Marksmanship", "Adv. Proton Torpedoes", "Afterburners"]
+      }, {
+        id: 298,
+        faction: "Scum and Villainy",
+        pilot: "Foreman Proach",
+        ship: "Mining Guild TIE Fighter",
+        threat: 2,
+        upgrades: ["Fearless", "Crack Shot"]
+      }, {
+        id: 299,
+        faction: "First Order",
+        pilot: '"Blackout"',
+        ship: "TIE/VN Silencer",
+        threat: 3,
+        upgrades: ["Trick Shot"]
+      }, {
+        id: 300,
+        faction: "Resistance",
+        pilot: "Greer Sonnel",
+        ship: "RZ-2 A-Wing",
+        threat: 2,
+        upgrades: ["Marksmanship", "Primed Thrusters"]
+      }, {
+        id: 301,
+        faction: "Scum and Villainy",
+        pilot: "Han Solo (Scum)",
+        ship: "Customized YT-1300",
+        linkedId: 302,
+        suffix: " + Escape craft",
+        threat: 5,
+        upgrades: ["Elusive", "Chewbacca", "Lando's Millennium Falcon", "Agile Gunner", "Tactical Scrambler", "Rigged Cargo Chute"]
+      }, {
+        id: 302,
+        faction: "Scum and Villainy",
+        pilot: "Outer Rim Pioneer",
+        ship: "Escape Craft",
+        linkedId: 301,
+        suffix: " + Han Solo",
+        threat: 5,
+        upgrades: ["Tobias Beckett"]
+      }, {
+        id: 303,
+        faction: "Scum and Villainy",
+        pilot: "Lando Calrissian (Scum)",
+        ship: "Customized YT-1300",
+        linkedId: 304,
+        suffix: " + L3-37",
+        threat: 4,
+        upgrades: ["Han Solo (Scum)", "Qi'ra", "Lando's Millennium Falcon"]
+      }, {
+        id: 304,
+        faction: "Scum and Villainy",
+        pilot: "L3-37 (Escape Craft)",
+        ship: "Escape Craft",
+        linkedId: 303,
+        suffix: " + Lando Calrissian",
+        threat: 4,
+        upgrades: []
+      }, {
+        id: 305,
+        faction: "Scum and Villainy",
+        pilot: "L3-37",
+        ship: "Customized YT-1300",
+        linkedId: 306,
+        suffix: " + Lando Calrissian",
+        threat: 5,
+        upgrades: ["Han Solo (Scum)", "Qi'ra", "Hull Upgrade", "Outmaneuver"]
+      }, {
+        id: 306,
+        faction: "Scum and Villainy",
+        pilot: "Lando Calrissian (Scum) (Escape Craft)",
+        ship: "Escape Craft",
+        linkedId: 305,
+        suffix: " + L3-37",
+        threat: 5,
+        upgrades: ["Elusive", "Shield Upgrade"]
+      }, {
+        id: 307,
+        faction: "Scum and Villainy",
+        pilot: "Freighter Captain",
+        ship: "Customized YT-1300",
+        linkedId: 308,
+        suffix: " + Autopilot drone",
+        threat: 3,
+        upgrades: ["Lando's Millennium Falcon"]
+      }, {
+        id: 308,
+        faction: "Scum and Villainy",
+        pilot: "Autopilot Drone",
+        ship: "Escape Craft",
+        linkedId: 307,
+        suffix: " + YT-1300",
+        threat: 3,
+        upgrades: ["Afterburners"]
+      }, {
+        id: 309,
+        faction: "Galactic Republic",
+        pilot: "Obi-Wan Kenobi",
+        ship: "Delta-7 Aethersprite",
+        threat: 3,
+        upgrades: ["Predictive Shot", "R4-P17", "Spare Parts Canisters", "Calibrated Laser Targeting"]
+      }, {
+        id: 310,
+        faction: "Galactic Republic",
+        pilot: "Saesee Tiin",
+        ship: "Delta-7 Aethersprite",
+        threat: 3,
+        upgrades: ["Supernatural Reflexes", "R4-P Astromech", "Delta-7B"]
+      }, {
+        id: 311,
+        faction: "Galactic Republic",
+        pilot: "Mace Windu",
+        ship: "Delta-7 Aethersprite",
+        threat: 4,
+        upgrades: ["Supernatural Reflexes", "R2 Astromech", "Delta-7B", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 312,
+        faction: "Galactic Republic",
+        pilot: "Plo Koon",
+        ship: "Delta-7 Aethersprite",
+        threat: 3,
+        upgrades: ["Battle Meditation", "Sense", "R4-P Astromech", "Shield Upgrade"]
+      }, {
+        id: 313,
+        faction: "Galactic Republic",
+        pilot: "Jedi Knight",
+        ship: "Delta-7 Aethersprite",
+        threat: 2,
+        upgrades: ["Delta-7B"]
+      }, {
+        id: 314,
+        faction: "Galactic Republic",
+        pilot: '"Tucker"',
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Concussion Missiles", "Munitions Failsafe"]
+      }, {
+        id: 315,
+        faction: "Galactic Republic",
+        pilot: "Gold Squadron Trooper",
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Cluster Missiles", "Afterburners"]
+      }, {
+        id: 316,
+        faction: "Galactic Republic",
+        pilot: '"Swoop"',
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Composure", "Synchronized Console", "Proton Rockets"]
+      }, {
+        id: 317,
+        faction: "Galactic Republic",
+        pilot: "Blue Squadron Protector",
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Dedicated", "Synchronized Console"]
+      }, {
+        id: 318,
+        faction: "Galactic Republic",
+        pilot: '"Odd Ball"',
+        ship: "V-19 Torrent",
+        threat: 3,
+        upgrades: ["Saturation Salvo", "Cluster Missiles", "Afterburners", "Munitions Failsafe"]
+      }, {
+        id: 319,
+        faction: "Galactic Republic",
+        pilot: '"Kickback"',
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Crack Shot", "Synchronized Console"]
+      }, {
+        id: 320,
+        faction: "Galactic Republic",
+        pilot: '"Axe"',
+        ship: "V-19 Torrent",
+        threat: 2,
+        upgrades: ["Juke", "Homing Missiles"]
+      }, {
+        id: 321,
+        faction: "Galactic Republic",
+        pilot: '"Wolffe"',
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Outmaneuver", "R4-P44", "Veteran Tail Gunner", "Perceptive Copilot"]
+      }, {
+        id: 322,
+        faction: "Galactic Republic",
+        pilot: '"Sinker"',
+        ship: "ARC-170",
+        threat: 2,
+        upgrades: ["Expert Handling"]
+      }, {
+        id: 323,
+        faction: "Galactic Republic",
+        pilot: "104th Battalion Pilot",
+        ship: "ARC-170",
+        threat: 2,
+        upgrades: ["Dedicated", "R4-P Astromech"]
+      }, {
+        id: 324,
+        faction: "Galactic Republic",
+        pilot: '"Odd Ball" (ARC-170)',
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Elusive", "Seasoned Navigator", "Clone Commander Cody", "Afterburners"]
+      }, {
+        id: 325,
+        faction: "Galactic Republic",
+        pilot: '"Jag"',
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Predator", "Ion Torpedoes", "R2 Astromech", "Seventh Fleet Gunner", "Shield Upgrade"]
+      }, {
+        id: 326,
+        faction: "Galactic Republic",
+        pilot: "Squad Seven Veteran",
+        ship: "ARC-170",
+        threat: 3,
+        upgrades: ["Expert Handling", "Proton Torpedoes", "R4-P Astromech", "Novice Technician", "Seventh Fleet Gunner"]
+      }, {
+        id: 327,
+        faction: "Scum and Villainy",
+        pilot: "Black Sun Soldier",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Cluster Missiles", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 328,
+        faction: "Scum and Villainy",
+        pilot: "Binayre Pirate",
+        ship: "Z-95 Headhunter",
+        threat: 1,
+        upgrades: ["Deadman's Switch"]
+      }, {
+        id: 329,
+        faction: "Scum and Villainy",
+        pilot: "N'dru Suhlak",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Outmaneuver", "Hull Upgrade", "Stealth Device"]
+      }, {
+        id: 330,
+        faction: "Scum and Villainy",
+        pilot: "Kaa'to Leeachos",
+        ship: "Z-95 Headhunter",
+        threat: 2,
+        upgrades: ["Saturation Salvo", "Cluster Missiles", "Concussion Missiles", "Deadman's Switch", "Munitions Failsafe"]
+      }, {
+        id: 331,
+        faction: "Galactic Empire",
+        pilot: "Black Squadron Scout",
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Predator", "Conner Nets"]
+      }, {
+        id: 332,
+        faction: "Galactic Empire",
+        pilot: "Planetary Sentinel",
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Proton Bombs", "Skilled Bombardier", "Hull Upgrade"]
+      }, {
+        id: 333,
+        faction: "Galactic Empire",
+        pilot: '"Duchess"',
+        ship: "TIE Striker",
+        threat: 3,
+        upgrades: ["Outmaneuver", "Conner Nets", "Afterburners", "Hull Upgrade"]
+      }, {
+        id: 334,
+        faction: "Galactic Empire",
+        pilot: '"Countdown"',
+        ship: "TIE Striker",
+        threat: 3,
+        upgrades: ["Elusive", "Proton Bombs", "Skilled Bombardier", "Shield Upgrade"]
+      }, {
+        id: 335,
+        faction: "Galactic Empire",
+        pilot: '"Pure Sabacc"',
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Trick Shot", "Shield Upgrade"]
+      }, {
+        id: 336,
+        skip: true,
+        faction: "Galactic Empire",
+        pilot: "Planetary Sentinel",
+        ship: "TIE Striker",
+        threat: 2,
+        upgrades: ["Proton Bombs", "Skilled Bombardier", "Hull Upgrade"]
+      }, {
+        id: 337,
+        faction: "Separatist Alliance",
+        pilot: "0-66",
+        ship: "Sith Infiltrator",
+        threat: 3,
+        upgrades: ["Chancellor Palpatine", "Shield Upgrade", "Scimitar"]
+      }, {
+        id: 338,
+        faction: "Separatist Alliance",
+        pilot: "Dark Courier",
+        ship: "Sith Infiltrator",
+        threat: 3,
+        upgrades: ["Count Dooku", "General Grievous", "K2-B4", "Scimitar"]
+      }, {
+        id: 339,
+        faction: "Separatist Alliance",
+        pilot: "Darth Maul",
+        ship: "Sith Infiltrator",
+        threat: 4,
+        upgrades: ["Hate", "Heavy Laser Cannon", "Perceptive Copilot", "DRK-1 Probe Droids", "Shield Upgrade", "Scimitar"]
+      }, {
+        id: 340,
+        faction: "Separatist Alliance",
+        pilot: "Count Dooku",
+        ship: "Sith Infiltrator",
+        threat: 4,
+        upgrades: ["Brilliant Evasion", "Predictive Shot", "Ion Torpedoes", "General Grievous", "Hull Upgrade", "Scimitar"]
+      }, {
+        id: 341,
+        faction: "Separatist Alliance",
+        pilot: "DFS-311",
+        ship: "Vulture-class Droid Fighter",
+        threat: 1,
+        upgrades: ["Grappling Struts"]
+      }, {
+        id: 342,
+        faction: "Separatist Alliance",
+        pilot: "Precise Hunter",
+        ship: "Vulture-class Droid Fighter",
+        threat: 2,
+        upgrades: ["Concussion Missiles", "Afterburners", "Shield Upgrade"]
+      }, {
+        id: 343,
+        faction: "Separatist Alliance",
+        pilot: "Separatist Drone",
+        ship: "Vulture-class Droid Fighter",
+        threat: 2,
+        upgrades: ["Energy-Shell Charges", "Grappling Struts", "Shield Upgrade"]
+      }, {
+        id: 344,
+        faction: "Separatist Alliance",
+        pilot: "Haor Chall Prototype",
+        ship: "Vulture-class Droid Fighter",
+        threat: 2,
+        upgrades: ["Discord Missiles", "Energy-Shell Charges", "Stealth Device"]
+      }, {
+        id: 345,
+        faction: "Separatist Alliance",
+        pilot: "Trade Federation Drone",
+        ship: "Vulture-class Droid Fighter",
+        threat: 1,
+        upgrades: ["Energy-Shell Charges"]
+      }, {
+        id: 346,
+        faction: "Separatist Alliance",
+        pilot: "DFS-081",
+        ship: "Vulture-class Droid Fighter",
+        threat: 2,
+        upgrades: ["Proton Rockets", "Grappling Struts", "Hull Upgrade"]
+      }, {
+        id: 347,
+        faction: "Separatist Alliance",
+        pilot: "Haor Chall Prototype",
+        ship: "Vulture-class Droid Fighter",
+        threat: 2,
+        upgrades: ["Energy-Shell Charges", "Stealth Device", "Afterburners"]
+      }, {
+        id: 348,
+        faction: "Separatist Alliance",
+        pilot: "General Grievous",
+        ship: "Belbullab-22 Starfighter",
+        threat: 3,
+        upgrades: ["Treacherous", "Impervium Plating", "Soulless One", "TV-94"]
+      }, {
+        id: 349,
+        faction: "Separatist Alliance",
+        pilot: "Wat Tambor",
+        ship: "Belbullab-22 Starfighter",
+        threat: 3,
+        upgrades: ["Intimidation", "Kraken", "Shield Upgrade"]
+      }, {
+        id: 350,
+        faction: "Separatist Alliance",
+        pilot: "Skakoan Ace",
+        ship: "Belbullab-22 Starfighter",
+        threat: 2,
+        upgrades: ["Crack Shot", "Afterburners"]
+      }, {
+        id: 351,
+        faction: "Separatist Alliance",
+        pilot: "Captain Sear",
+        ship: "Belbullab-22 Starfighter",
+        threat: 3,
+        upgrades: ["Daredevil", "Impervium Plating", "Kraken", "Stealth Device"]
+      }, {
+        id: 352,
+        faction: "Separatist Alliance",
+        pilot: "Feethan Ottraw Autopilot",
+        ship: "Belbullab-22 Starfighter",
+        threat: 2,
+        upgrades: ["Impervium Plating", "TV-94"]
       }
     ]
   };
 };
 
 exportObj.setupCommonCardData = function(basic_cards) {
-  var card, cards, condition, condition_data, condition_name, e, expansion, i, name, pilot, pilot_data, pilot_name, ship_data, ship_name, source, upgrade, upgrade_data, upgrade_name, _base, _base1, _base2, _base3, _base4, _base5, _base6, _base7, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _len6, _len7, _len8, _len9, _m, _n, _name, _name1, _name2, _name3, _name4, _name5, _name6, _name7, _o, _p, _q, _r, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+  var card, cards, condition, condition_data, condition_name, e, expansion, i, name, pilot, pilot_data, pilot_name, quickbuild_count, quickbuild_data, ship_data, ship_name, source, upgrade, upgrade_data, upgrade_name, _base, _base1, _base2, _base3, _base4, _base5, _base6, _base7, _i, _j, _k, _l, _len, _len1, _len10, _len11, _len2, _len3, _len4, _len5, _len6, _len7, _len8, _len9, _m, _n, _name, _name1, _name2, _name3, _name4, _name5, _name6, _name7, _o, _p, _q, _r, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9, _s, _t;
   _ref = basic_cards.pilotsById;
   for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
     pilot_data = _ref[i];
@@ -7520,10 +10614,17 @@ exportObj.setupCommonCardData = function(basic_cards) {
       throw new Error("ID mismatch: condition at index " + i + " has ID " + condition_data.id);
     }
   }
+  _ref3 = basic_cards.quickbuildsById;
+  for (i = _l = 0, _len3 = _ref3.length; _l < _len3; i = ++_l) {
+    quickbuild_data = _ref3[i];
+    if (quickbuild_data.id !== i) {
+      throw new Error("ID mismatch: quickbuild  at index " + i + " has ID " + quickbuild_data.id);
+    }
+  }
   exportObj.pilots = {};
-  _ref3 = basic_cards.pilotsById;
-  for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
-    pilot_data = _ref3[_l];
+  _ref4 = basic_cards.pilotsById;
+  for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
+    pilot_data = _ref4[_m];
     if (pilot_data.skip == null) {
       pilot_data.sources = [];
       if (pilot_data.canonical_name == null) {
@@ -7533,9 +10634,9 @@ exportObj.setupCommonCardData = function(basic_cards) {
     }
   }
   exportObj.upgrades = {};
-  _ref4 = basic_cards.upgradesById;
-  for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
-    upgrade_data = _ref4[_m];
+  _ref5 = basic_cards.upgradesById;
+  for (_n = 0, _len5 = _ref5.length; _n < _len5; _n++) {
+    upgrade_data = _ref5[_n];
     if (upgrade_data.skip == null) {
       upgrade_data.sources = [];
       if (upgrade_data.canonical_name == null) {
@@ -7545,9 +10646,9 @@ exportObj.setupCommonCardData = function(basic_cards) {
     }
   }
   exportObj.conditions = {};
-  _ref5 = basic_cards.conditionsById;
-  for (_n = 0, _len5 = _ref5.length; _n < _len5; _n++) {
-    condition_data = _ref5[_n];
+  _ref6 = basic_cards.conditionsById;
+  for (_o = 0, _len6 = _ref6.length; _o < _len6; _o++) {
+    condition_data = _ref6[_o];
     if (condition_data.skip == null) {
       condition_data.sources = [];
       if (condition_data.canonical_name == null) {
@@ -7556,19 +10657,35 @@ exportObj.setupCommonCardData = function(basic_cards) {
       exportObj.conditions[condition_data.name] = condition_data;
     }
   }
-  _ref6 = basic_cards.ships;
-  for (ship_name in _ref6) {
-    ship_data = _ref6[ship_name];
+  exportObj.quickbuildsById = {};
+  quickbuild_count = 0;
+  _ref7 = basic_cards.quickbuildsById;
+  for (_p = 0, _len7 = _ref7.length; _p < _len7; _p++) {
+    quickbuild_data = _ref7[_p];
+    if (quickbuild_data.skip == null) {
+      quickbuild_count += 1;
+      if (quickbuild_data.suffix == null) {
+        quickbuild_data.suffix = "";
+      }
+      exportObj.quickbuildsById[quickbuild_data.id] = quickbuild_data;
+    }
+  }
+  if (Object.keys(exportObj.quickbuildsById).length !== quickbuild_count) {
+    throw new Error("At least one quickbuild shares an ID with another");
+  }
+  _ref8 = basic_cards.ships;
+  for (ship_name in _ref8) {
+    ship_data = _ref8[ship_name];
     if (ship_data.canonical_name == null) {
       ship_data.canonical_name = ship_data.name.canonicalize();
     }
     ship_data.sources = [];
   }
-  _ref7 = exportObj.manifestByExpansion;
-  for (expansion in _ref7) {
-    cards = _ref7[expansion];
-    for (_o = 0, _len6 = cards.length; _o < _len6; _o++) {
-      card = cards[_o];
+  _ref9 = exportObj.manifestByExpansion;
+  for (expansion in _ref9) {
+    cards = _ref9[expansion];
+    for (_q = 0, _len8 = cards.length; _q < _len8; _q++) {
+      card = cards[_q];
       if (card.skipForSource) {
         continue;
       }
@@ -7593,26 +10710,26 @@ exportObj.setupCommonCardData = function(basic_cards) {
       }
     }
   }
-  _ref8 = exportObj.pilots;
-  for (name in _ref8) {
-    card = _ref8[name];
+  _ref10 = exportObj.pilots;
+  for (name in _ref10) {
+    card = _ref10[name];
     card.sources = card.sources.sort();
   }
-  _ref9 = exportObj.upgrades;
-  for (name in _ref9) {
-    card = _ref9[name];
+  _ref11 = exportObj.upgrades;
+  for (name in _ref11) {
+    card = _ref11[name];
     card.sources = card.sources.sort();
   }
   exportObj.expansions = {};
   exportObj.pilotsById = {};
-  _ref10 = exportObj.pilots;
-  for (pilot_name in _ref10) {
-    pilot = _ref10[pilot_name];
+  _ref12 = exportObj.pilots;
+  for (pilot_name in _ref12) {
+    pilot = _ref12[pilot_name];
     exportObj.fixIcons(pilot);
     exportObj.pilotsById[pilot.id] = pilot;
-    _ref11 = pilot.sources;
-    for (_p = 0, _len7 = _ref11.length; _p < _len7; _p++) {
-      source = _ref11[_p];
+    _ref13 = pilot.sources;
+    for (_r = 0, _len9 = _ref13.length; _r < _len9; _r++) {
+      source = _ref13[_r];
       if (!(source in exportObj.expansions)) {
         exportObj.expansions[source] = 1;
       }
@@ -7623,27 +10740,27 @@ exportObj.setupCommonCardData = function(basic_cards) {
   }
   exportObj.pilotsByFactionCanonicalName = {};
   exportObj.pilotsByUniqueName = {};
-  _ref12 = exportObj.pilots;
-  for (pilot_name in _ref12) {
-    pilot = _ref12[pilot_name];
+  _ref14 = exportObj.pilots;
+  for (pilot_name in _ref14) {
+    pilot = _ref14[pilot_name];
     ((_base = ((_base1 = exportObj.pilotsByFactionCanonicalName)[_name1 = pilot.faction] != null ? _base1[_name1] : _base1[_name1] = {}))[_name = pilot.canonical_name] != null ? _base[_name] : _base[_name] = []).push(pilot);
     ((_base2 = exportObj.pilotsByUniqueName)[_name2 = pilot.canonical_name.getXWSBaseName()] != null ? _base2[_name2] : _base2[_name2] = []).push(pilot);
   }
   exportObj.pilotsByFactionXWS = {};
-  _ref13 = exportObj.pilots;
-  for (pilot_name in _ref13) {
-    pilot = _ref13[pilot_name];
+  _ref15 = exportObj.pilots;
+  for (pilot_name in _ref15) {
+    pilot = _ref15[pilot_name];
     ((_base3 = ((_base4 = exportObj.pilotsByFactionXWS)[_name4 = pilot.faction] != null ? _base4[_name4] : _base4[_name4] = {}))[_name3 = pilot.xws] != null ? _base3[_name3] : _base3[_name3] = []).push(pilot);
   }
   exportObj.upgradesById = {};
-  _ref14 = exportObj.upgrades;
-  for (upgrade_name in _ref14) {
-    upgrade = _ref14[upgrade_name];
+  _ref16 = exportObj.upgrades;
+  for (upgrade_name in _ref16) {
+    upgrade = _ref16[upgrade_name];
     exportObj.fixIcons(upgrade);
     exportObj.upgradesById[upgrade.id] = upgrade;
-    _ref15 = upgrade.sources;
-    for (_q = 0, _len8 = _ref15.length; _q < _len8; _q++) {
-      source = _ref15[_q];
+    _ref17 = upgrade.sources;
+    for (_s = 0, _len10 = _ref17.length; _s < _len10; _s++) {
+      source = _ref17[_s];
       if (!(source in exportObj.expansions)) {
         exportObj.expansions[source] = 1;
       }
@@ -7655,22 +10772,22 @@ exportObj.setupCommonCardData = function(basic_cards) {
   exportObj.upgradesBySlotCanonicalName = {};
   exportObj.upgradesBySlotXWSName = {};
   exportObj.upgradesBySlotUniqueName = {};
-  _ref16 = exportObj.upgrades;
-  for (upgrade_name in _ref16) {
-    upgrade = _ref16[upgrade_name];
+  _ref18 = exportObj.upgrades;
+  for (upgrade_name in _ref18) {
+    upgrade = _ref18[upgrade_name];
     ((_base5 = exportObj.upgradesBySlotCanonicalName)[_name5 = upgrade.slot] != null ? _base5[_name5] : _base5[_name5] = {})[upgrade.canonical_name] = upgrade;
     ((_base6 = exportObj.upgradesBySlotXWSName)[_name6 = upgrade.slot] != null ? _base6[_name6] : _base6[_name6] = {})[upgrade.xws] = upgrade;
     ((_base7 = exportObj.upgradesBySlotUniqueName)[_name7 = upgrade.slot] != null ? _base7[_name7] : _base7[_name7] = {})[upgrade.canonical_name.getXWSBaseName()] = upgrade;
   }
   exportObj.conditionsById = {};
-  _ref17 = exportObj.conditions;
-  for (condition_name in _ref17) {
-    condition = _ref17[condition_name];
+  _ref19 = exportObj.conditions;
+  for (condition_name in _ref19) {
+    condition = _ref19[condition_name];
     exportObj.fixIcons(condition);
     exportObj.conditionsById[condition.id] = condition;
-    _ref18 = condition.sources;
-    for (_r = 0, _len9 = _ref18.length; _r < _len9; _r++) {
-      source = _ref18[_r];
+    _ref20 = condition.sources;
+    for (_t = 0, _len11 = _ref20.length; _t < _len11; _t++) {
+      source = _ref20[_t];
       if (!(source in exportObj.expansions)) {
         exportObj.expansions[source] = 1;
       }
@@ -7680,9 +10797,9 @@ exportObj.setupCommonCardData = function(basic_cards) {
     throw new Error("At least one condition shares an ID with another");
   }
   exportObj.conditionsByCanonicalName = {};
-  _ref19 = exportObj.conditions;
-  for (condition_name in _ref19) {
-    condition = _ref19[condition_name];
+  _ref21 = exportObj.conditions;
+  for (condition_name in _ref21) {
+    condition = _ref21[condition_name];
     (exportObj.conditionsByCanonicalName != null ? exportObj.conditionsByCanonicalName : exportObj.conditionsByCanonicalName = {})[condition.canonical_name] = condition;
   }
   return exportObj.expansions = Object.keys(exportObj.expansions).sort();
@@ -7743,7 +10860,7 @@ exportObj.setupTranslationCardData = function(pilot_translations, upgrade_transl
 
 exportObj.fixIcons = function(data) {
   if (data.text != null) {
-    return data.text = data.text.replace(/%ASTROMECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-astromech"></i>').replace(/%BULLSEYEARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bullseyearc"></i>').replace(/%GUNNER%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-gunner"></i>').replace(/%SINGLETURRETARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-singleturretarc"></i>').replace(/%FRONTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-frontarc"></i>').replace(/%REARARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reararc"></i>').replace(/%LEFTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-leftarc"></i>').replace(/%RIGHTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-rightarc"></i>').replace(/%ROTATEARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-rotatearc"></i>').replace(/%FULLFRONTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-fullfrontarc"></i>').replace(/%FULLREARARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-fullreararc"></i>').replace(/%DEVICE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-device"></i>').replace(/%MODIFICATION%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-modification"></i>').replace(/%RELOAD%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reload"></i>').replace(/%CONFIG%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-config"></i>').replace(/%TALENT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-talent"></i>').replace(/%FORCE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-forcecharge"></i>').replace(/%CHARGE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-charge"></i>').replace(/%CALCULATE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-calculate"></i>').replace(/%BANKLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bankleft"></i>').replace(/%BANKRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bankright"></i>').replace(/%BARRELROLL%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-barrelroll"></i>').replace(/%BOMB%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bomb"></i>').replace(/%BOOST%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-boost"></i>').replace(/%CANNON%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cannon"></i>').replace(/%CARGO%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cargo"></i>').replace(/%CLOAK%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cloak"></i>').replace(/%COORDINATE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-coordinate"></i>').replace(/%CRIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-crit"></i>').replace(/%CREW%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-crew"></i>').replace(/%DUALCARD%/g, '<span class="card-restriction">Dual card.</span>').replace(/%ELITE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-elite"></i>').replace(/%EVADE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-evade"></i>').replace(/%FOCUS%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-focus"></i>').replace(/%HARDPOINT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-hardpoint"></i>').replace(/%HIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-hit"></i>').replace(/%ILLICIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-illicit"></i>').replace(/%JAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-jam"></i>').replace(/%KTURN%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-kturn"></i>').replace(/%MISSILE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-missile"></i>').replace(/%RECOVER%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-recover"></i>').replace(/%REINFORCE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reinforce"></i>').replace(/%SALVAGEDASTROMECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-salvagedastromech"></i>').replace(/%SLAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-slam"></i>').replace(/%SLOOPLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sloopleft"></i>').replace(/%SLOOPRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sloopright"></i>').replace(/%STRAIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-straight"></i>').replace(/%STOP%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-stop"></i>').replace(/%SENSOR%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sensor"></i>').replace(/%LOCK%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-lock"></i>').replace(/%TEAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-team"></i>').replace(/%TECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-tech"></i>').replace(/%TORPEDO%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-torpedo"></i>').replace(/%TROLLLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-trollleft"></i>').replace(/%TROLLRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-trollright"></i>').replace(/%TURNLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turnleft"></i>').replace(/%TURNRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turnright"></i>').replace(/%TURRET%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turret"></i>').replace(/%UTURN%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-kturn"></i>').replace(/%LARGESHIPONLY%/g, '<span class="card-restriction">Large ship only.</span>').replace(/%SMALLSHIPONLY%/g, '<span class="card-restriction">Small ship only.</span>').replace(/%REBELONLY%/g, '<span class="card-restriction">Rebel only.</span>').replace(/%IMPERIALONLY%/g, '<span class="card-restriction">Imperial only.</span>').replace(/%SCUMONLY%/g, '<span class="card-restriction">Scum only.</span>').replace(/%LIMITED%/g, '<span class="card-restriction">Limited.</span>').replace(/%LINEBREAK%/g, '<br /><br />');
+    return data.text = data.text.replace(/%ASTROMECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-astromech"></i>').replace(/%BULLSEYEARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bullseyearc"></i>').replace(/%GUNNER%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-gunner"></i>').replace(/%SINGLETURRETARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-singleturretarc"></i>').replace(/%FRONTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-frontarc"></i>').replace(/%REARARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reararc"></i>').replace(/%LEFTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-leftarc"></i>').replace(/%RIGHTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-rightarc"></i>').replace(/%ROTATEARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-rotatearc"></i>').replace(/%FULLFRONTARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-fullfrontarc"></i>').replace(/%FULLREARARC%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-fullreararc"></i>').replace(/%DEVICE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-device"></i>').replace(/%MODIFICATION%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-modification"></i>').replace(/%RELOAD%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reload"></i>').replace(/%CONFIG%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-config"></i>').replace(/%TALENT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-talent"></i>').replace(/%FORCE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-forcecharge"></i>').replace(/%CHARGE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-charge"></i>').replace(/%CALCULATE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-calculate"></i>').replace(/%BANKLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bankleft"></i>').replace(/%BANKRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bankright"></i>').replace(/%BARRELROLL%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-barrelroll"></i>').replace(/%BOMB%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-bomb"></i>').replace(/%BOOST%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-boost"></i>').replace(/%CANNON%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cannon"></i>').replace(/%CARGO%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cargo"></i>').replace(/%CLOAK%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-cloak"></i>').replace(/%COORDINATE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-coordinate"></i>').replace(/%CRIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-crit"></i>').replace(/%CREW%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-crew"></i>').replace(/%DUALCARD%/g, '<span class="card-restriction">Dual card.</span>').replace(/%ELITE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-elite"></i>').replace(/%TACTICALRELAY%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-tacticalrelay"></i>').replace(/%EVADE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-evade"></i>').replace(/%FOCUS%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-focus"></i>').replace(/%HARDPOINT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-hardpoint"></i>').replace(/%HIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-hit"></i>').replace(/%ILLICIT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-illicit"></i>').replace(/%JAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-jam"></i>').replace(/%KTURN%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-kturn"></i>').replace(/%MISSILE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-missile"></i>').replace(/%RECOVER%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-recover"></i>').replace(/%REINFORCE%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-reinforce"></i>').replace(/%SALVAGEDASTROMECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-salvagedastromech"></i>').replace(/%SLAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-slam"></i>').replace(/%SLOOPLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sloopleft"></i>').replace(/%SLOOPRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sloopright"></i>').replace(/%STRAIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-straight"></i>').replace(/%STOP%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-stop"></i>').replace(/%SENSOR%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-sensor"></i>').replace(/%LOCK%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-lock"></i>').replace(/%TEAM%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-team"></i>').replace(/%TECH%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-tech"></i>').replace(/%TORPEDO%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-torpedo"></i>').replace(/%TROLLLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-trollleft"></i>').replace(/%TROLLRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-trollright"></i>').replace(/%TURNLEFT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turnleft"></i>').replace(/%TURNRIGHT%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turnright"></i>').replace(/%TURRET%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-turret"></i>').replace(/%UTURN%/g, '<i class="xwing-miniatures-font xwing-miniatures-font-kturn"></i>').replace(/%LARGESHIPONLY%/g, '<span class="card-restriction">Large ship only.</span>').replace(/%SMALLSHIPONLY%/g, '<span class="card-restriction">Small ship only.</span>').replace(/%REBELONLY%/g, '<span class="card-restriction">Rebel only.</span>').replace(/%IMPERIALONLY%/g, '<span class="card-restriction">Imperial only.</span>').replace(/%SCUMONLY%/g, '<span class="card-restriction">Scum only.</span>').replace(/%LIMITED%/g, '<span class="card-restriction">Limited.</span>').replace(/%LINEBREAK%/g, '<br /><br />');
   }
 };
 
@@ -7776,6 +10893,12 @@ exportObj.hyperspaceShipInclusions = [
     name: 'YT-1300',
     faction: 'Rebel Alliance'
   }, {
+    name: 'B-Wing',
+    faction: 'Rebel Alliance'
+  }, {
+    name: 'A-Wing',
+    faction: 'Rebel Alliance'
+  }, {
     name: 'Y-Wing',
     faction: 'Rebel Alliance'
   }, {
@@ -7783,6 +10906,12 @@ exportObj.hyperspaceShipInclusions = [
     faction: 'Rebel Alliance'
   }, {
     name: 'TIE Advanced',
+    faction: 'Galactic Empire'
+  }, {
+    name: 'TIE Interceptor',
+    faction: 'Galactic Empire'
+  }, {
+    name: 'TIE Bomber',
     faction: 'Galactic Empire'
   }, {
     name: 'TIE Fighter',
@@ -7797,6 +10926,12 @@ exportObj.hyperspaceShipInclusions = [
     name: 'Firespray-31',
     faction: 'Scum and Villainy'
   }, {
+    name: 'Z-95 Headhunter',
+    faction: 'Scum and Villainy'
+  }, {
+    name: 'StarViper',
+    faction: 'Scum and Villainy'
+  }, {
     name: 'Escape Craft',
     faction: 'Scum and Villainy'
   }, {
@@ -7807,9 +10942,6 @@ exportObj.hyperspaceShipInclusions = [
     faction: 'Scum and Villainy'
   }, {
     name: 'Customized YT-1300',
-    faction: 'Scum and Villainy'
-  }, {
-    name: 'TIE Fighter',
     faction: 'Scum and Villainy'
   }, {
     name: 'Scavenged YT-1300',
@@ -7835,12 +10967,30 @@ exportObj.hyperspaceShipInclusions = [
   }, {
     name: 'Upsilon-Class Command Shuttle',
     faction: 'First Order'
+  }, {
+    name: 'Delta-7 Aethersprite',
+    faction: 'Galactic Republic'
+  }, {
+    name: 'ARC-170',
+    faction: 'Galactic Republic'
+  }, {
+    name: 'V-19 Torrent',
+    faction: 'Galactic Republic'
+  }, {
+    name: 'Vulture-class Droid Fighter',
+    faction: 'Separatist Alliance'
+  }, {
+    name: 'Sith Infiltrator',
+    faction: 'Separatist Alliance'
+  }, {
+    name: 'Belbullab-22 Starfighter',
+    faction: 'Separatist Alliance'
   }
 ];
 
-exportObj.hyperspacePilotExclusions = ['Bodhi Rook', 'Cassian Andor', 'Heff Tobber', 'Blue Squadron Scout'];
+exportObj.hyperspacePilotExclusions = ['Nashtah Pup'];
 
-exportObj.hyperspaceUpgradeExclusions = ['Ion Cannon', 'Jamming Beam', 'Tractor Beam', 'Freelance Slicer', 'GNK "Gonk" Droid', 'Novice Technician', 'Bomblet Generator', 'Cloaking Device', 'Contraband Cybernetics', 'Feedback Array', 'Barrage Rockets', 'Ablative Plating', 'Advanced SLAM', 'Electronic Baffle', 'Tactical Scrambler', 'Debris Gambit', 'Saturation Salvo', 'Adv. Proton Torpedoes', 'Dorsal Turret', '"Chopper" (Astromech)', '"Zeb" Orrelios', '"Chopper" (Crew)', 'Baze Malbus', 'C-3PO', 'Cassian Andor', 'Hera Syndulla', 'Jyn Erso', 'Kanan Jarrus', 'Sabine Wren', 'Bistan', 'Ezra Bridger', 'Admiral Sloane', 'Agent Kallus', 'Ciena Ree', 'Darth Vader', 'Grand Inquisitor', 'Grand Moff Tarkin', 'Minister Tua', 'Moff Jerjerrod', 'Seventh Sister', 'Emperor Palpatine', 'Fifth Brother', '"Genius"', 'R5-TK', 'R5-P8', '0-0-0', '4-LOM', 'Cad Bane', 'Cikatro Vizago', 'IG-88D', 'Ketsu Onyo', 'Latts Razzi', 'Maul', 'Unkar Plutt', 'Zuckuss', 'Jabba the Hutt', 'Bossk', 'BT-1', 'Dengar', 'Greedo', 'Biohexacrypt Codes'];
+exportObj.hyperspaceUpgradeExclusions = ['Ion Cannon', 'Freelance Slicer', 'GNK "Gonk" Droid', 'Novice Technician', 'Bomblet Generator', 'Cloaking Device', 'Contraband Cybernetics', 'Feedback Array', 'Ablative Plating', 'Advanced SLAM', 'Electronic Baffle', 'Tactical Scrambler', 'Debris Gambit', 'Saturation Salvo', 'Adv. Proton Torpedoes', 'Dorsal Turret', '"Chopper" (Astromech)', '"Zeb" Orrelios', '"Chopper" (Crew)', 'Hera Syndulla', 'Jyn Erso', 'Kanan Jarrus', 'Sabine Wren', 'Bistan', 'Ezra Bridger', 'Admiral Sloane', 'Agent Kallus', 'Grand Inquisitor', 'Grand Moff Tarkin', 'Minister Tua', 'Moff Jerjerrod', 'Seventh Sister', 'Emperor Palpatine', 'Fifth Brother', '"Genius"', 'R5-TK', 'R5-P8', '0-0-0', '4-LOM', 'Cad Bane', 'Cikatro Vizago', 'IG-88D', 'Ketsu Onyo', 'Latts Razzi', 'Maul', 'Unkar Plutt', 'Zuckuss', 'Jabba the Hutt', 'Bossk', 'BT-1', 'Greedo'];
 
 exportObj.hyperspaceCheck = function(data, faction, shipCheck) {
   var ship, _i, _len, _ref, _ref1, _ref2;
@@ -7941,7 +11091,9 @@ exportObj.translations.Deutsch = {
   },
   byCSSSelector: {
     '.unreleased-content-used .translated': 'Diese Staffel verwendet nicht veröffentlicheten Inhalt!',
+    '.loading-failed-container .translated': 'Du scheinst einem defekten Link gefolgt zu sein. Es konnte kein Squad geladen werden!',
     '.collection-invalid .translated': 'Du kannst diese Staffel nicht mit deiner Sammlung aufstellen!',
+    '.ship-number-invalid-container .translated': 'Eine turnierlegale Staffel muss aus  2-8 Schiffen bestehen!',
     '.game-type-selector option[value="standard"]': 'Standard',
     '.game-type-selector option[value="hyperspace"]': 'Hyperspace',
     '.game-type-selector option[value="custom"]': 'Benutzerdefiniert',
@@ -7957,6 +11109,7 @@ exportObj.translations.Deutsch = {
     '.info-well .info-actions td.info-header': 'Aktionen',
     '.info-well .info-upgrades td.info-header': 'Aufwertungskarten',
     '.info-well .info-range td.info-header': 'Reichweite',
+    '.info-well .info-sources.info-header': 'Enthalten&nbsp;in',
     '.clear-squad': 'Neue Staffel',
     '.save-list': '<i class="fa fa-floppy-o"></i>&nbsp;Speichern',
     '.save-list-as': '<i class="fa fa-files-o"></i>&nbsp;Speichern unter…',
@@ -7973,8 +11126,8 @@ exportObj.translations.Deutsch = {
     '.randomize-options': 'Zufallsgenerator Optionen',
     '.notes-container > span': 'Staffel Notizen',
     '.choose-obstacles': 'Hindernisse wählen',
-    '.from-xws': 'Importieren aus XWS-Datei (Beta)',
-    '.to-xws': 'Exporitieren als XWS-Datei (Beta)',
+    '.from-xws': 'Importieren aus XWS-Datei',
+    '.to-xws': 'Exportieren als XWS-Datei',
     '.discard': 'Änderungen verwerfen',
     '.login-help': 'Was ist OAuth?',
     '.oauth-explanation': "<p><a href=\"http://de.wikipedia.org/wiki/OAuth\" target=\"_blank\">OAuth</a> ist ein Authentifizierungsservice, der es dir erlaubt dich auf Webseiten anzumelden, ohne einen Nutzerkonto anlegen zu müssen. Stattdessen wählst du einen Anbieter, bei dem du bereits eine Nutzerkonto hast (z.B. Google oder Facebook), und dieser bestätigt deine Identität. Auf diese Weise kann YASB dich beim nächsten Besuch wiedererkennen. </p>\n<p>Das beste hieran ist, dass du dir nicht ständig neue Nutzernamen und Passwörter überlegen musst. Keine Sorge, YASB sammelt keine persönlichen Daten von diesen Anbietern über dich. Teilweise kann ich nicht verhindern, dass ein Minimum an persönlichen Daten übertragen wird, diese werden ignoriert. Alles was gespeichert wird ist eine Identifikationsnummer, anhand der du beim nächsten Besuch wiedererkannt wirst - und die zu dieser ID gehörenden Staffellisten natürlich.</p>\n<p>Um mehr zu erfahren, schau dir <a href=\"http://hueniverse.com/oauth/guide/intro/\" target=\"_blank\">diese Einführung in OAuth (englisch)</a> an.</p>",
@@ -8088,7 +11241,19 @@ exportObj.cardLoaders.Deutsch = function() {
   exportObj.renameShip("MG-100 StarFortress", "MG-100-SternenFestung");
   exportObj.renameShip("Mining Guild TIE Fighter", "Modifizierter TIE/ln-Jäger");
   exportObj.renameShip("Scavenged YT-1300", "YT-1300 vom Schrottplatz");
+  exportObj.renameShip("V-19 Torrent", "V-19-Torrent-Sternenjäger");
+  exportObj.renameShip("Belbullab-22 Starfighter", "Bellbullab-22 Sternenjäger");
+  exportObj.renameShip("Vulture-class Droid Fighter", "Droidenjäger der Vulture-Klasse");
+  exportObj.renameShip("Sith Infiltrator", "Sith-Infiltrator");
   pilot_translations = {
+    "0-66": {
+      display_name: "0-66",
+      text: "Nachdem du verteidigt hast, darfst du 1 Berechnungsmarker ausgeben, um eine Aktion durchzuführen."
+    },
+    "104th Battalion Pilot": {
+      display_name: "Pilot des 104. Bataillons",
+      text: "<i class = flavor_text>Der ARC-170 ist ein überragender schwerer Begleitjäger, ausgestattet mit Bug- und Heckgeschützen, Sprengkörpern sowie einem Astromechdroiden zur Navigation. Wo auch immer diese mächtigen Schiffe zum Einsatz kommen, stärken sie die Präsenz der Republikanischen Flotte.</i>"
+    },
     "4-LOM": {
       display_name: "4-LOM",
       text: "Nachdem du ein rotes Manöver vollständig ausgeführt hast, erhalte 1 Berechnungsmarker.%LINEBREAK%Zu Beginn der Endphase darfst du 1 Schiff in Reichweite 0-1 wählen. Falls du das tust, transferiere 1 deiner Stressmarker auf jenes Schiff."
@@ -8109,6 +11274,10 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Ahhav",
       text: "Solange du verteidigst oder einen Angriff durchführst, falls das feindliche Schiff eine größere Größenkategorie hat als du, wirf 1 zusätzlichen Würfel.%LINEBREAK%<strong>Stabilisatorkerbe:</strong> Solange du dich bewegst, ignorierst du Asteroiden."
     },
+    "Ahsoka Tano": {
+      display_name: "Ahsoka Tano",
+      text: "Nachdem du ein Manöver vollständig ausgeführt hast, darfst du ein befreundetes Schiff in Reichweite 0-1 wählen und 1  %FORCE% ausgeben. Jenes Schiff darf eine Aktion durchführen, auch falls es gestresst ist. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%Aktion durchzuführen."
+    },
     "Airen Cracken": {
       display_name: "Airen Cracken",
       text: "Nachdem du einen Angriff durchgeführt hast, darfst du 1 befreundetes Schiff in Reichweite 1 wählen. Jenes Schiff darf eine Aktion durchführen, die es als rot behandelt."
@@ -8117,17 +11286,21 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Pilot der Alpha-Staffel",
       text: "<i class = flavor_text>Sienar Flottensysteme konzipierte den TIE-Abfangjäger mit vier Laserkanonen an den Tragflächenspitzen. Dadurch ist er seinen Vorgängermodellen waffentechnisch weit überlegen.</i>%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
     },
+    "Anakin Skywalker": {
+      display_name: "Anakin Skywalker",
+      text: "Nachdem du ein Manöver vollständig ausgeführt hast, falls ein feindliches Schiff in deinem %FRONTARC% in Reichweite 0-1 oder in deinem %BULLSEYEARC% ist, darfst du 1 %FORCE% ausgeben, um 1 Stressmarker zu entfernen.%LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1 %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
+    },
     "Arvel Crynyd": {
       display_name: "Arvel Crynyd",
       text: "Du kannst Primärangriffe in Reichweite 0 durchführen.%LINEBREAK%Falls du durch Überschneidung mit einem anderen Schiff an einer %BOOST%-Aktion scheitern würdest, handle sie stattdessen so ab, als würdest du ein Manöver teilweise ausführen.%LINEBREAK%<strong>Schwenkbare Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%-Aktion durchführen."
     },
     "Asajj Ventress": {
       display_name: "Asajj Ventress",
-      text: "Zu Beginn der Kampfphase darfst du 1 feindliches Schiff in deinem %SINGLETURRETARC%&nbsp;in Reichweite 0-2 wählen und 1&nbsp;%FORCE%&nbsp;ausgeben. Falls du das tust, erhält jenes Schiff 1 Stressmarker, es sei denn, es entfernt 1 grünen Marker."
+      text: "Zu Beginn der Kampfphase darfst du 1 feindliches Schiff in deinem %SINGLETURRETARC% in Reichweite 0-2 wählen und 1 %FORCE% ausgeben. Falls du das tust, erhält jenes Schiff 1 Stressmarker, es sei denn, es entfernt 1 grünen Marker."
     },
     "Autopilot Drone": {
       display_name: "Autopilot-Drone",
-      text: "<i class = flavor_text>Manchmal sind Herstellerwarnungen dazu gemacht, um sie zu ignorieren.</i>%LINEBREAK%<strong>Manipulierte Energiezellen:</strong> Während der Systemphase, falls du nicht angedockt bist, verliere 1&nbsp;%CHARGE%. Am Ende der Aktivierungsphase, falls du 0 %CHARGE% hast, wirst du zerstört. Bevor du entfernt wirst, erleidet jedes Schiff in Reichweite 0-1 1&nbsp;%CRIT%-Schaden."
+      text: "<i class = flavor_text>Manchmal sind Herstellerwarnungen dazu gemacht, um sie zu ignorieren.</i>%LINEBREAK%<strong>Manipulierte Energiezellen:</strong> Während der Systemphase, falls du nicht angedockt bist, verliere 1 %CHARGE%. Am Ende der Aktivierungsphase, falls du 0 %CHARGE% hast, wirst du zerstört. Bevor du entfernt wirst, erleidet jedes Schiff in Reichweite 0-1 1 %CRIT%-Schaden."
     },
     "Bandit Squadron Pilot": {
       display_name: "Pilot der Banditen-Staffel",
@@ -8137,17 +11310,21 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Imperialer Baron",
       text: "<i class = flavor_text>Sienars TIE-v1-Turbojäger war eine bahnbrechende Entwicklung auf dem Gebiet der Sternenjäger-Technologie. Er verfügt über stärkere Triebwerke, einen Raketenwerfer sowie klappbare S-Flügel.</i>"
     },
+    "Barriss Offee": {
+      display_name: "Barriss Offee",
+      text: "Solange ein befreundetes Schiff in Reichweite 0-2 einen Angriff durchführt, falls der Verteidiger in seinem %BULLSEYEARC% ist, darfst du 1  %FORCE% ausgeben, um 1  %FOCUS%-Ergebnis in ein %HIT%-Ergebnis oder 1  %HIT%-Ergebnis in ein %CRIT%-Ergebnis zu ändern. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1 %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
+    },
     "Ben Teene": {
       display_name: "Ben Teene",
       text: "Nachdem du einen Angriff durchgeführt hast, falls der Verteidiger in deinem %SINGLETURRETARC% ist, ordne dem Verteidiger den Zustand <strong>Aus der Fassung</strong> zu."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Two Tubes",
       text: "Nachdem du eine %FOCUS%-Aktion durchgeführt hast, darfst du 1 deiner Fokusmarker auf ein befreundetes Schiff in Reichweite 1-2 transferieren."
     },
     "Biggs Darklighter": {
       display_name: "Biggs Darklighter",
-      text: "Solange ein anderes befreundetes Schiff in Reichweite 0-1 verteidigt, vor dem Schritt „Ergebnisse neutralisieren“, falls du im Angriffswinkel bist, darfst du 1&nbsp;%HIT%- oder %CRIT%-Schaden erleiden, um 1&nbsp;passendes Ergebnis zu negieren. "
+      text: "Solange ein anderes befreundetes Schiff in Reichweite 0-1 verteidigt, vor dem Schritt „Ergebnisse neutralisieren“, falls du im Angriffswinkel bist, darfst du 1 %HIT%- oder %CRIT%-Schaden erleiden, um 1 passendes Ergebnis zu negieren. "
     },
     "Binayre Pirate": {
       display_name: "Binayre-Pirat",
@@ -8163,7 +11340,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Black Squadron Scout": {
       display_name: "Aufklärer der schwarzen Staffel",
-      text: "<i class = flavor_text>Schwenkbare Tragflächen verleihen dem schwerbewaffneten Atmosphärenflieger zusätzliche Geschwindigkeit und Manövrierbarkeit.</i>%LINEBREAK% <strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "<i class = flavor_text>Schwenkbare Tragflächen verleihen dem schwerbewaffneten Atmosphärenflieger zusätzliche Geschwindigkeit und Manövrierbarkeit.</i>%LINEBREAK% <strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     "Black Sun Ace": {
       display_name: "Fliegerass der Schwarzen Sonne",
@@ -8193,13 +11370,17 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Pilot der blauen Staffel",
       text: "<i class = flavor_text>Seine schweren Waffensysteme und unverwüstlichen Schilde machen den B-Flügler zu einer der innovativsten Jagdmaschinen der Allianz.</i>"
     },
+    "Blue Squadron Protector": {
+      display_name: "Beschützer der blauen Staffel",
+      text: "<i class = flavor_text>Die Elitepiloten der blauen Staffel sind Klone, speziell ausgebildet, um ihre V-19 im perfekten Einklang mit ihren Jedi-Kommandanten zu fliegen. Oft unterstützen sie berühmte Persönlichkeiten wie Anakin Skywalker oder Ahsoka Tano.</i>"
+    },
     "Blue Squadron Recruit": {
       display_name: "Rekrut der blauen Staffel",
       text: "<i class = flavor_text>Überall in der Galaxis wachsen junge Leute mit Geschichten über die Helden des Galaktischen Bürgerkriegs auf. Viele lernen das Fliegen in den Cockpits, in denen ihre Eltern einst das Imperium bekämpften.</i>%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Blue Squadron Rookie": {
       display_name: "Anfängerpilot der blauen Staffel",
-      text: "<i class = flavor_text>Incom-FreiTek setzte bei der Entwicklung des T-70-X-Flüglers auf eine Verbesserung der taktischen Flexibilität des altehrwürdigen T-65-Modells. Sein moderner Droidenport ist mit fast allen gängigen Astromechs kompatibel, und dank seiner modularen Waffenkapseln kann er für jeden Einsatz mit maßgeschneiderter Bewaffnung ausgestattet werden.</i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "<i class = flavor_text>Incom-FreiTek setzte bei der Entwicklung des T-70-X-Flüglers auf eine Verbesserung der taktischen Flexibilität des altehrwürdigen T-65-Modells. Sein moderner Droidenport ist mit fast allen gängigen Astromechs kompatibel, und dank seiner modularen Waffenkapseln kann er für jeden Einsatz mit maßgeschneiderter Bewaffnung ausgestattet werden.</i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Blue Squadron Scout": {
       display_name: "Aufklärer der blauen Staffel",
@@ -8215,7 +11396,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Bossk": {
       display_name: "Bossk",
-      text: "Solange du einen Primärangriff durchführst, nach dem Schritt „Ergebnisse neutralisieren“, darfst du 1&nbsp;%CRIT%-Ergebnis ausgeben, um 2&nbsp;%HIT%-Ergebnisse hinzuzufügen."
+      text: "Solange du einen Primärangriff durchführst, nach dem Schritt „Ergebnisse neutralisieren“, darfst du 1 %CRIT%-Ergebnis ausgeben, um 2 %HIT%-Ergebnisse hinzuzufügen."
     },
     "Bounty Hunter": {
       display_name: "Kopfgeldjäger",
@@ -8223,19 +11404,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Braylen Stramm": {
       display_name: "Braylen Stramm",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du bis zu 2&nbsp;deiner Würfel neu werfen."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du bis zu 2 deiner Würfel neu werfen."
     },
     "Captain Cardinal": {
       display_name: "Captain Cardinal",
-      text: "Solange ein befreundetes Schiff in Reichweite 1-2 mit niedrigerer Initiative als du verteidigt oder einen Angriff durchführt, falls du mindestens 1&nbsp;%CHARGE% hast, darf jenes Schiff 1&nbsp;%FOCUS%-Ergebnis neu werfen.%LINEBREAK%Nachdem ein feindliches Schiff in Reichweite 0-3 zerstört worden ist, verliere 1&nbsp;%CHARGE%.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
+      text: "Solange ein befreundetes Schiff in Reichweite 1-2 mit niedrigerer Initiative als du verteidigt oder einen Angriff durchführt, falls du mindestens 1 %CHARGE% hast, darf jenes Schiff 1 %FOCUS%-Ergebnis neu werfen.%LINEBREAK%Nachdem ein feindliches Schiff in Reichweite 0-3 zerstört worden ist, verliere 1 %CHARGE%.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Captain Feroph": {
       display_name: "Captain Feroph",
-      text: "Solange du verteidigst, falls der Angreifer keine grünen Marker hat, darfst du 1 deiner Leerseiten- oder %FOCUS%-Ergebnisse in ein %EVADE%-Ergebnis ändern.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Solange du verteidigst, falls der Angreifer keine grünen Marker hat, darfst du 1 deiner Leerseiten- oder %FOCUS%-Ergebnisse in ein %EVADE%-Ergebnis ändern.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     "Captain Jonus": {
       display_name: "Captain Jonus",
-      text: "Solange ein befreundetes Schiff in Reichweite 0-1 einen %TORPEDO%- oder %MISSILE%-Angriff durchführt, darf jenes Schiff bis zu 2&nbsp;Angriffswürfel neu werfen. %LINEBREAK%<strong>Wendiger Bomber:</strong> Falls du unter Verwendung einer %STRAIGHT%-Schablone ein Gerät abwerfen würdest, darfst du stattdessen eine %BANKLEFT%- oder %BANKRIGHT%-Schablone derselben Geschwindigkeit verwenden."
+      text: "Solange ein befreundetes Schiff in Reichweite 0-1 einen %TORPEDO%- oder %MISSILE%-Angriff durchführt, darf jenes Schiff bis zu 2 Angriffswürfel neu werfen. %LINEBREAK%<strong>Wendiger Bomber:</strong> Falls du unter Verwendung einer %STRAIGHT%-Schablone ein Gerät abwerfen würdest, darfst du stattdessen eine %BANKLEFT%- oder %BANKRIGHT%-Schablone derselben Geschwindigkeit verwenden."
     },
     "Captain Jostero": {
       display_name: "Captain Jostero",
@@ -8247,19 +11428,23 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Captain Nym": {
       display_name: "Captain Nym",
-      text: "Bevor eine befreundete Bombe oder Mine detonieren würde, darfst du 1&nbsp;%CHARGE% ausgeben, um die Detonation zu verhindern.%LINEBREAK% Solange du gegen einen Angriff verteidigst, der durch eine Bombe oder Mine versperrt ist, wirf 1&nbsp;zusätzlichen Verteidigungswürfel."
+      text: "Bevor eine befreundete Bombe oder Mine detonieren würde, darfst du 1 %CHARGE% ausgeben, um die Detonation zu verhindern.%LINEBREAK% Solange du gegen einen Angriff verteidigst, der durch eine Bombe oder Mine versperrt ist, wirf 1 zusätzlichen Verteidigungswürfel."
     },
     "Captain Oicunn": {
       display_name: "Captain Oicunn",
-      text: "Du kannst Primärangriffe in Reichweite&nbsp;0 durchführen."
+      text: "Du kannst Primärangriffe in Reichweite 0 durchführen."
     },
     "Captain Rex": {
       display_name: "Captain Rex",
       text: "Nachdem du einen Angriff durchgeführt hast, ordne dem Verteidiger den Zustand <strong>Sperrfeuer</strong> zu."
     },
+    "Captain Sear": {
+      display_name: "Captain Sear",
+      text: "Solange ein befreundetes Schiff in Reichweite 0-3 einen Primärangriff durchführt, falls der Verteidiger in seinem %BULLSEYEARC% ist, darf das befreundete Schiff vor dem Schritt „Ergebnisse neutralisieren“ 1 Berechnungsmarker ausgeben, um 1 %EVADE%-Ergebnis zu negieren."
+    },
     "Captain Seevor": {
       display_name: "Captain Seevor",
-      text: "Solange du verteidigst oder einen Angriff durchführst, bevor die Angriffswürfel geworfen werden, falls du nicht im %BULLSEYEARC% des feindlichen Schiffes bist, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, erhält das feindliche Schiff 1 Störsignalmarker.%LINEBREAK%<strong>Stabilisatorkerbe:</strong> Solange du dich bewegst, ignorierst du Asteroiden."
+      text: "Solange du verteidigst oder einen Angriff durchführst, bevor die Angriffswürfel geworfen werden, falls du nicht im %BULLSEYEARC% des feindlichen Schiffes bist, darfst du 1 %CHARGE% ausgeben. Falls du das tust, erhält das feindliche Schiff 1 Störsignalmarker.%LINEBREAK%<strong>Stabilisatorkerbe:</strong> Solange du dich bewegst, ignorierst du Asteroiden."
     },
     "Cartel Executioner": {
       display_name: "Killer des Kartells",
@@ -8271,7 +11456,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Cartel Spacer": {
       display_name: "Raumfahrer des Kartells",
-      text: "<i class = flavor_text>Der M3-A-„Scyk“-Abfangjäger von MandalMotors wurde in großer Stückzahl vom Hutt-Kartell und den Car’das-Schmugglern angeschafft. Grund dafür waren der günstige Einstiegspreis und die vielen Ausstattungsoptionen des Jägers. </i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "<i class = flavor_text>Der M3-A-„Scyk“-Abfangjäger von MandalMotors wurde in großer Stückzahl vom Hutt-Kartell und den Car’das-Schmugglern angeschafft. Grund dafür waren der günstige Einstiegspreis und die vielen Ausstattungsoptionen des Jägers. </i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Cassian Andor": {
       display_name: "Cassian Andor",
@@ -8279,7 +11464,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Cat": {
       display_name: "Cat",
-      text: "While you perform a primary attack, if the defender is at range 0-1 of at least 1&nbsp;friendly device, roll 1 additional die."
+      text: "While you perform a primary attack, if the defender is at range 0-1 of at least 1 friendly device, roll 1 additional die."
     },
     "Cavern Angels Zealot": {
       display_name: "Fanatiker der Sturmengel",
@@ -8287,7 +11472,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Chewbacca": {
       display_name: "Chewbacca",
-      text: "Bevor dir eine offene Schadenskarte zugeteilt werden würde, darfst du 1&nbsp;%CHARGE% ausgeben, um die Karte stattdessen verdeckt zugeteilt zu bekommen."
+      text: "Bevor dir eine offene Schadenskarte zugeteilt werden würde, darfst du 1 %CHARGE% ausgeben, um die Karte stattdessen verdeckt zugeteilt zu bekommen."
     },
     "Chewbacca (Resistance)": {
       display_name: "Chewbacca (Resistance)",
@@ -8299,7 +11484,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Colonel Jendon": {
       display_name: "Colonel Jendon",
-      text: "Zu Beginn der Aktivierungsphase darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, <b>müssen</b> befreundete Schiffe, solange sie in dieser Runde Ziele erfassen, Ziele jenseits von Reichweite 3 erfassen, anstatt in Reichweite 0-3."
+      text: "Zu Beginn der Aktivierungsphase darfst du 1 %CHARGE% ausgeben. Falls du das tust, <b>müssen</b> befreundete Schiffe, solange sie in dieser Runde Ziele erfassen, Ziele jenseits von Reichweite 3 erfassen, anstatt in Reichweite 0-3."
     },
     "Colonel Vessery": {
       display_name: "Colonel Vessery",
@@ -8307,11 +11492,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Commander Malarus": {
       display_name: "Commander Malarus",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;%CHARGE% ausgeben und 1 Stressmarker erhalten. Falls du das tust, darfst du bis zum Ende der Runde, solange du verteidigst oder einen Angriff durchführst, alle deine %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse ändern."
+      text: "Zu Beginn der Kampfphase darfst du 1 %CHARGE% ausgeben und 1 Stressmarker erhalten. Falls du das tust, darfst du bis zum Ende der Runde, solange du verteidigst oder einen Angriff durchführst, alle deine %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse ändern."
     },
     "Constable Zuvio": {
       display_name: "Constable Zuvio",
-      text: "Falls du ein Gerät abwerfen würdest, darfst du es stattdessen unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone starten.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2&nbsp;Fangstrahlmarker, falls es in deinem %BULLSEYEARC%&nbsp;in Reichweite 1 ist."
+      text: "Falls du ein Gerät abwerfen würdest, darfst du es stattdessen unter Verwendung der [1 %STRAIGHT%]-Schablone starten.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2 Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
     },
     "Contracted Scout": {
       display_name: "Angeheuerter Kundschafter",
@@ -8320,6 +11505,10 @@ exportObj.cardLoaders.Deutsch = function() {
     "Corran Horn": {
       display_name: "Corran Horn",
       text: "Bei Initiative 0 darfst du einen Bonus-Primärangriff gegen ein feindliches Schiff in deinem %BULLSEYEARC% durchführen. Falls du das tust, erhalte zu Beginn der nächsten Planungsphase 1 Entwaffnet-Marker.%LINEBREAK%<strong>Experimentelle Scanner:</strong> Du kannst Ziele jenseits von Reichweite 3 erfassen. Du kannst keine Ziele in Reichweite 1 erfassen."
+    },
+    "Count Dooku": {
+      display_name: "Count Dooku",
+      text: "Nachdem du verteidigt hast, falls der Angreifer in deinem Feuerwinkel ist, darfst du 1 %FORCE% ausgeben, um 1 deiner blauen oder roten Marker zu entfernen.%LINEBREAK%Nachdem du einen Angriff durchgeführt hast, der getroffen hat, darfst du 1 %FORCE% ausgeben, um eine Aktion durchzuführen."
     },
     "Countess Ryad": {
       display_name: "Gräfin Ryad",
@@ -8333,21 +11522,37 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Pilot der Entermesser-Staffel",
       text: "<i class = flavor_text>Das Konzept des TIE-Vergelters basiert auf dem erfolgreichen TIE-Bomber und ergänzt ihn um Schilde, einen zweiten Bombenabwurfschacht sowie drei weitere Munitionskapseln, die jeweils mit einem Zwillings-Ionenantrieb ausgerüstet sind.</i>"
     },
+    "DFS-081": {
+      display_name: "DFS-081",
+      text: "Solange ein befreundetes Schiff in Reichweite  0-1 verteidigt, darf es 1 Berechnungsmarker ausgeben, um alle %CRIT%-Ergebnisse in %HIT%-Ergebnisse zu ändern.%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite 0-1 ausgeben, um 1  %FOCUS%-Ergebnis in ein %EVADE%-oder %HIT%-Ergebnis zu ändern."
+    },
+    "DFS-311": {
+      display_name: "DFS-311",
+      text: "Zu Beginn der Kampfphase darfst du 1 deiner Berechnungsmarker auf ein anderes befreundetes Schiff in Reichweite 0-3 transferieren.%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite+E3250-1 ausgeben, um 1  %FOCUS%-Ergebnis in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
+    },
     "Dace Bonearm": {
       display_name: "Dace Bonearm",
-      text: "Nachdem ein feindliches Schiff in Reichweite 0-3 mindestens 1 Ionenmarker bekommen hat, darfst du 3&nbsp;%CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff 2&nbsp;zusätzliche Ionenmarker."
+      text: "Nachdem ein feindliches Schiff in Reichweite 0-3 mindestens 1 Ionenmarker bekommen hat, darfst du 3 %CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff 2 zusätzliche Ionenmarker."
     },
     "Dalan Oberos (StarViper)": {
       display_name: "Dalan Oberos (StarViper)",
-      text: "Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1&nbsp;Stressmarker erhalten, um dein Schiff um 90° zu drehen.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%- oder %BANKRIGHT%-Schablone anstatt der %STRAIGHT%-Schablone verwenden."
+      text: "Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1 Stressmarker erhalten, um dein Schiff um 90° zu drehen.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%- oder %BANKRIGHT%-Schablone anstatt der %STRAIGHT%-Schablone verwenden."
     },
     "Dalan Oberos": {
       display_name: "Dalan Oberos",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;Schiff, das Schilde hat, in deinem %BULLSEYEARC%&nbsp;wählen und 1&nbsp;%CHARGE% ausgeben. Falls du das tust, verliert jenes Schiff 1 Schild und du stellst 1&nbsp;Schild wieder her.%LINEBREAK%<strong>Todsicherer Treffer:</strong> Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, können Verteidigungswürfel nicht unter Verwendung von grünen Markern modifiziert werden."
+      text: "Zu Beginn der Kampfphase darfst du 1 Schiff, das Schilde hat, in deinem %BULLSEYEARC% wählen und 1 %CHARGE% ausgeben. Falls du das tust, verliert jenes Schiff 1 Schild und du stellst 1 Schild wieder her.%LINEBREAK%<strong>Todsicherer Treffer:</strong> Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, können Verteidigungswürfel nicht unter Verwendung von grünen Markern modifiziert werden."
+    },
+    "Dark Courier": {
+      display_name: "Dunkler Bote",
+      text: "<i class = flavor_text>Die Scimitar war ein stark modifiziertes Raumschiff, ausgestattet mit Tarntechnologie und modernen Überwachungsgeräten für Infiltrations und Personenbeseitigungseinsätze.</i>"
+    },
+    "Darth Maul": {
+      display_name: "Darth Maul",
+      text: "Nachdem du einen Angriff durchgeführt hast, darfst du 2 %FORCE% ausgeben, um einen Bonus-Primärangriff gegen ein anderes Ziel durchzuführen. Falls dein Angriff verfehlt hat, darfst du jenen Bonus- Primärangriff stattdessen gegen dasselbe Ziel durchführen."
     },
     "Darth Vader": {
       display_name: "Darth Vader",
-      text: "Nachdem du eine Aktion durchgeführt hast, darfst du 1&nbsp;%FORCE% ausgeben, um eine Aktion durchzuführen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1&nbsp;zusätzlichen Angriffswürfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "Nachdem du eine Aktion durchgeführt hast, darfst du 1 %FORCE% ausgeben, um eine Aktion durchzuführen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Dash Rendar": {
       display_name: "Dash Rendar",
@@ -8355,7 +11560,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Del Meeko": {
       display_name: "Del Meeko",
-      text: "Solange ein befreundetes Schiff in Reichweite 0-2 gegen einen beschädigten Angreifer verteidigt, darf der Verteidiger 1&nbsp;Verteidigungswürfel neu werfen."
+      text: "Solange ein befreundetes Schiff in Reichweite 0-2 gegen einen beschädigten Angreifer verteidigt, darf der Verteidiger 1 Verteidigungswürfel neu werfen."
     },
     "Delta Squadron Pilot": {
       display_name: "Pilot der Delta-Staffel",
@@ -8363,7 +11568,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Dengar": {
       display_name: "Dengar",
-      text: "Nachdem du verteidigt hast, falls der Angreifer in deinem %FRONTARC% ist, darfst du 1&nbsp;%CHARGE% ausgeben, um einen Bonusangriff gegen den Angreifer durchzuführen."
+      text: "Nachdem du verteidigt hast, falls der Angreifer in deinem %FRONTARC% ist, darfst du 1 %CHARGE% ausgeben, um einen Bonusangriff gegen den Angreifer durchzuführen."
     },
     "Drea Renthal": {
       display_name: "Drea Renthal",
@@ -8373,17 +11578,17 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Edon Kappehl",
       text: "Nachdem du ein blaues oder weißes Manöver vollständig ausgeführt hast, falls du in dieser Runde noch kein Gerät abgeworfen oder gestartet hast, darfst du 1 Gerät abwerfen."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Two Tubes",
       text: "Bevor du aktiviert wirst, falls du fokussiert bist, darfst du eine Aktion durchführen."
     },
     "Ello Asty": {
       display_name: "Ello Asty",
-      text: "Nachdem du ein rotes Tallon-Rolle-Manöver [<lefttalon> oder <righttalon>] aufgedeckt hast, falls du 2 oder weniger Stressmarker hast, behandle jenes Manöver, als wäre es weiß.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du ein rotes Tallon-Rolle-Manöver [%TROLLLEFT% oder %TROLLRIGHT%] aufgedeckt hast, falls du 2 oder weniger Stressmarker hast, behandle jenes Manöver, als wäre es weiß.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Emon Azzameen": {
       display_name: "Emon Azzameen",
-      text: "Falls du unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone ein Gerät abwerfen würdest, darfst du stattdessen die [3&nbsp;%TURNLEFT%]-, [3&nbsp;%STRAIGHT%]-&nbsp;oder [3&nbsp;%TURNRIGHT%]-Schablone verwenden."
+      text: "Falls du unter Verwendung der [1 %STRAIGHT%]-Schablone ein Gerät abwerfen würdest, darfst du stattdessen die [3 %TURNLEFT%]-, [3 %STRAIGHT%]- oder [3 %TURNRIGHT%]-Schablone verwenden."
     },
     "Epsilon Squadron Cadet": {
       display_name: "Kadett der Epsilon-Staffel",
@@ -8395,19 +11600,23 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Evaan Verlaine": {
       display_name: "Evaan Verlaine",
-      text: "Zu Beginn der Kampfphase darfst du 1 Fokusmarker ausgeben, um ein befreundetes Schiff in Reichweite 0-1 zu wählen. Falls du das tust, wirft jenes Schiff bis zum Ende der Runde 1&nbsp;zusätzlichen Verteidigungswürfel, solange es verteidigt."
+      text: "Zu Beginn der Kampfphase darfst du 1 Fokusmarker ausgeben, um ein befreundetes Schiff in Reichweite 0-1 zu wählen. Falls du das tust, wirft jenes Schiff bis zum Ende der Runde 1 zusätzlichen Verteidigungswürfel, solange es verteidigt."
     },
     "Ezra Bridger": {
       display_name: "Ezra Bridger",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1&nbsp;%FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern.%LINEBREAK%<strong>Geladen und entsichert:</strong> Solange du angedockt bist, nachdem dein Trägerschiff einen %FRONTARC%-Primärangriff oder %TURRET%-Angriff durchgeführt hat, darf es einen Bonus-%REARARC%-Primärangriff durchführen."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1 %FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern.%LINEBREAK%<strong>Geladen und entsichert:</strong> Solange du angedockt bist, nachdem dein Trägerschiff einen %FRONTARC%-Primärangriff oder %TURRET%-Angriff durchgeführt hat, darf es einen Bonus-%REARARC%-Primärangriff durchführen."
     },
     "Ezra Bridger (Sheathipede)": {
       display_name: "Ezra Bridger (Sheathipede)",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1&nbsp;%FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern. %LINEBREAK%<strong>Kommunikationsantennen:</strong> Solange du angedockt bist, erhält dein Trägerschiff %COORDINATE%. Bevor dein Trägerschiff aktiviert wird, darf es eine %COORDINATE%-Aktion durchführen."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1 %FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern. %LINEBREAK%<strong>Kommunikationsantennen:</strong> Solange du angedockt bist, erhält dein Trägerschiff %COORDINATE%. Bevor dein Trägerschiff aktiviert wird, darf es eine %COORDINATE%-Aktion durchführen."
     },
     "Ezra Bridger (TIE Fighter)": {
       display_name: "Ezra Bridger (TIE Fighter)",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1&nbsp;%FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls du gestresst bist, darfst du 1 %FORCE% ausgeben, um bis zu 2 deiner %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern."
+    },
+    "Feethan Ottraw Autopilot": {
+      display_name: "Autopilot von Feethan Ottraw",
+      text: "<i class = flavor_text>Feethan Ottraw Fertigbau beliefert die Separatisten nicht nur mit günstigen Wegwerfjägern, sondern entwickelte auch den Belbullab-22, der mit einer soliden Mischung aus Feuerkraft, Robustheit und Schubkraft aufwarten kann.</i>"
     },
     "Fenn Rau (Sheathipede)": {
       display_name: "Fenn Rau (Sheathipede)",
@@ -8415,7 +11624,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Fenn Rau": {
       display_name: "Fenn Rau",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls die Angriffsreichweite 1 ist, darfst du 1&nbsp;zusätzlichen Würfel werfen.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im%FRONTARC%&nbsp;des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls die Angriffsreichweite 1 ist, darfst du 1 zusätzlichen Würfel werfen.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im%FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Finch Dallow": {
       display_name: "Finch Dallow",
@@ -8443,23 +11652,31 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Garven Dreis (X-Wing)": {
       display_name: "Garven Dreis (X-Wing)",
-      text: "Nachdem du einen Fokusmarker ausgegeben hast, darfst du 1&nbsp;befreundetes Schiff in Reichweite 1-3 wählen. Jenes Schiff erhält 1 Fokusmarker."
+      text: "Nachdem du einen Fokusmarker ausgegeben hast, darfst du 1 befreundetes Schiff in Reichweite 1-3 wählen. Jenes Schiff erhält 1 Fokusmarker."
     },
     "Garven Dreis": {
       display_name: "Garven Dreis",
-      text: "Nachdem du einen Fokusmarker ausgegeben hast, darfst du 1&nbsp;befreundetes Schiff in Reichweite 1-3 wählen. Jenes Schiff erhält 1 Fokusmarker."
+      text: "Nachdem du einen Fokusmarker ausgegeben hast, darfst du 1 befreundetes Schiff in Reichweite 1-3 wählen. Jenes Schiff erhält 1 Fokusmarker."
     },
     "Gavin Darklighter": {
       display_name: "Gavin Darklighter",
-      text: "Solange ein befreundetes Schiff einen Angriff durchführt, falls der Verteidiger in deinem %FRONTARC% ist, darf der Angreifer 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern.%LINEBREAK%<strong>Experimentelle Scanner:</strong> Du kannst Ziele jenseits von Reichweite 3 erfassen. Du kannst keine Ziele in Reichweite 1 erfassen."
+      text: "Solange ein befreundetes Schiff einen Angriff durchführt, falls der Verteidiger in deinem %FRONTARC% ist, darf der Angreifer 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern.%LINEBREAK%<strong>Experimentelle Scanner:</strong> Du kannst Ziele jenseits von Reichweite 3 erfassen. Du kannst keine Ziele in Reichweite 1 erfassen."
+    },
+    "General Grievous": {
+      display_name: "General Grievous",
+      text: "Solange du einen Primärangriff durchführst, falls du nicht im Feuerwinkel des Verteidigers bist, darfst du bis zu 2 Angriffswürfel neu werfen."
     },
     "Genesis Red": {
       display_name: "Genesis Red",
-      text: "Nachdem du ein Ziel erfasst hast, musst du alle deine Fokus- und Ausweichmarker entfernen. Dann erhalte dieselbe Anzahl an Fokus- und Ausweichmarkern, die das erfasste Schiff hat.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du ein Ziel erfasst hast, musst du alle deine Fokus- und Ausweichmarker entfernen. Dann erhalte dieselbe Anzahl an Fokus- und Ausweichmarkern, die das erfasste Schiff hat.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Gideon Hask": {
       display_name: "Gideon Hask",
       text: "Solange du einen Angriff gegen einen beschädigten Verteidiger durchführst, wirf 1 zusätzlichen Angriffswürfel."
+    },
+    "Gold Squadron Trooper": {
+      display_name: "Truppler der Gold-Staffel",
+      text: "<i class = flavor_text>Der V-19-Torrent-Sternenjäger wurde als leichter Begleitflieger für den grazilen Delta-7-Abfangjäger der Jedi-Ritter konzipiert und hat ein außergewöhnliches Flugprofil, das dieser Rolle gerecht wird.</i>"
     },
     "Gold Squadron Veteran": {
       display_name: "Veteran der Gold-Staffel",
@@ -8467,7 +11684,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Grand Inquisitor": {
       display_name: "Großinquisitor",
-      text: "Solange du in Angriffsreichweite 1 verteidigst, darfst du 1&nbsp;%FORCE% ausgeben, um den Bonus für Reichweite 1 zu verhindern.%LINEBREAK%Solange du einen Angriff gegen einen Verteidiger in Angriffsreichweite 2-3 durchführst, darfst du 1&nbsp;%FORCE% ausgeben, um den Bonus für Reichweite 1 anzuwenden."
+      text: "Solange du in Angriffsreichweite 1 verteidigst, darfst du 1 %FORCE% ausgeben, um den Bonus für Reichweite 1 zu verhindern.%LINEBREAK%Solange du einen Angriff gegen einen Verteidiger in Angriffsreichweite 2-3 durchführst, darfst du 1 %FORCE% ausgeben, um den Bonus für Reichweite 1 anzuwenden."
     },
     "Gray Squadron Bomber": {
       display_name: "Bomber der grauen Staffel",
@@ -8475,11 +11692,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Graz": {
       display_name: "Graz",
-      text: "Solange du verteidigst, falls du hinter dem Angreifer bist, wirf 1&nbsp;zusätzlichen Verteidigungswürfel.%LINEBREAK%Solange du einen Angriff durchführst, falls du hinter dem Angreifer bist, wirf 1&nbsp;zusätzlichen Angriffswürfel."
+      text: "Solange du verteidigst, falls du hinter dem Angreifer bist, wirf 1 zusätzlichen Verteidigungswürfel.%LINEBREAK%Solange du einen Angriff durchführst, falls du hinter dem Angreifer bist, wirf 1 zusätzlichen Angriffswürfel."
     },
     "Green Squadron Expert": {
       display_name: "Elitepilot der grünen Staffel",
-      text: "<i class = flavor_text>Viele langjährig bewährte Modifikationen wurden in die Serienausstattung des RZ-2 übernommen. Für waghalsige Piloten ist die höhere Stabilität des Jägers nur ein Anreiz, noch weiter an seine Grenzen zu gehen.</i>%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote <rotate>-Aktion durchführen."
+      text: "<i class = flavor_text>Viele langjährig bewährte Modifikationen wurden in die Serienausstattung des RZ-2 übernommen. Für waghalsige Piloten ist die höhere Stabilität des Jägers nur ein Anreiz, noch weiter an seine Grenzen zu gehen.</i>%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Green Squadron Pilot": {
       display_name: "Pilot der grünen Staffel",
@@ -8487,11 +11704,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Greer Sonnel": {
       display_name: "Greer Sonnel",
-      text: "Nachdem du ein Manöver vollständig ausgeführt hast, darfst du deinen %SINGLETURRETARC% rotieren.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote <rotate>-Aktion durchführen."
+      text: "Nachdem du ein Manöver vollständig ausgeführt hast, darfst du deinen %SINGLETURRETARC% rotieren.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Guri": {
       display_name: "Guri",
-      text: "Zu Beginn der Kampfphase, falls mindestens 1 feindliches Schiff in Reichweite 0-1 ist, darfst du 1&nbsp;Fokusmarker erhalten.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%- oder %BANKRIGHT%-Schablone anstatt der %STRAIGHT%-Schablone verwenden."
+      text: "Zu Beginn der Kampfphase, falls mindestens 1 feindliches Schiff in Reichweite 0-1 ist, darfst du 1 Fokusmarker erhalten.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%- oder %BANKRIGHT%-Schablone anstatt der %STRAIGHT%-Schablone verwenden."
     },
     "Han Solo": {
       display_name: "Han Solo",
@@ -8527,7 +11744,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "IG-88A": {
       display_name: "IG-88A",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;befreundetes Schiff mit %CALCULATE% in seiner Aufwertungsleiste in Reichweite 1-3 wählen. Falls du das tust, transferiere 1&nbsp;deiner Berechnungsmarker auf es. %LINEBREAK%<strong>Hochentwickeltes Droidengehirn:</strong> Nachdem du eine %CALCULATE%-Aktion durchgeführt hast, erhalte 1 Berechnungsmarker."
+      text: "Zu Beginn der Kampfphase darfst du 1 befreundetes Schiff mit %CALCULATE% in seiner Aufwertungsleiste in Reichweite 1-3 wählen. Falls du das tust, transferiere 1 deiner Berechnungsmarker auf es. %LINEBREAK%<strong>Hochentwickeltes Droidengehirn:</strong> Nachdem du eine %CALCULATE%-Aktion durchgeführt hast, erhalte 1 Berechnungsmarker."
     },
     "IG-88B": {
       display_name: "IG-88B",
@@ -8543,11 +11760,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Ibtisam": {
       display_name: "Ibtisam",
-      text: "Nachdem du ein Manöver vollständig ausgeführt hast, falls du gestresst bist, darfst du 1 Angriffswürfel werfen. Bei einem %HIT%- oder %CRIT%-Ergebnis entferne 1&nbsp;Stressmarker."
+      text: "Nachdem du ein Manöver vollständig ausgeführt hast, falls du gestresst bist, darfst du 1 Angriffswürfel werfen. Bei einem %HIT%- oder %CRIT%-Ergebnis entferne 1 Stressmarker."
     },
     "Iden Versio": {
       display_name: "Iden Versio",
-      text: "Bevor ein befreundeter TIE/ln-Jäger in Reichweite 0-1 1 oder mehr Schaden erleiden würde, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, verhindere jenen Schaden."
+      text: "Bevor ein befreundeter TIE/ln-Jäger in Reichweite 0-1 1 oder mehr Schaden erleiden würde, darfst du 1 %CHARGE% ausgeben. Falls du das tust, verhindere jenen Schaden."
     },
     "Imdaar Test Pilot": {
       display_name: "Testpilot von Imdaar",
@@ -8555,7 +11772,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Inaldra": {
       display_name: "Inaldra",
-      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1&nbsp;%HIT%-Schaden erleiden, um beliebig viele deiner Würfel neu zu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1 %HIT%-Schaden erleiden, um beliebig viele deiner Würfel neu zu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Inquisitor": {
       display_name: "Inquisitor",
@@ -8567,47 +11784,51 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Jakku Gunrunner": {
       display_name: "Waffenschmuggler von Jakku",
-      text: "<i class = flavor_text>Der Quadrijet-Transferschlepper, im Volksmund „Quadjumper“ genannt, ist gleichermaßen behände in Weltall und Atmosphäre, was ihn zu einem beliebten Schmuggler- und Entdeckerschiff macht. </i>%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2&nbsp;Fangstrahlmarker, falls es in deinem %BULLSEYEARC%&nbsp;in Reichweite 1 ist."
+      text: "<i class = flavor_text>Der Quadrijet-Transferschlepper, im Volksmund „Quadjumper“ genannt, ist gleichermaßen behände in Weltall und Atmosphäre, was ihn zu einem beliebten Schmuggler- und Entdeckerschiff macht. </i>%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2 Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
     },
     "Jan Ors": {
       display_name: "Jan Ors",
-      text: "Solange ein befreundetes Schiff in deinem Feuerwinkel einen Primärangriff durchführt, falls du nicht gestresst bist, darfst du 1&nbsp;Stressmarker erhalten. Falls du das tust, darf jenes Schiff 1&nbsp;zusätzlichen Angriffswürfel werfen."
+      text: "Solange ein befreundetes Schiff in deinem Feuerwinkel einen Primärangriff durchführt, falls du nicht gestresst bist, darfst du 1 Stressmarker erhalten. Falls du das tust, darf jenes Schiff 1 zusätzlichen Angriffswürfel werfen."
     },
     "Jaycris Tubbs": {
       display_name: "Jaycris Tubbs",
-      text: "Nachdem du ein blaues Manöver vollständig ausgeführt hast, darfst du ein befreundetes Schiff in Reichweite 0-1 wählen. Falls du das tust, entfernt jenes Schiff 1 Stressmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du ein blaues Manöver vollständig ausgeführt hast, darfst du ein befreundetes Schiff in Reichweite 0-1 wählen. Falls du das tust, entfernt jenes Schiff 1 Stressmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+    },
+    "Jedi Knight": {
+      display_name: "Jedi-Ritter",
+      text: "<i class = flavor_text>Nach Ausbruch der Klonkriege gelobten die Jedi-Ritter die Republik zu bewahren und übernahmen das Kommando über eine Legion von Klontruppen, die sie seither in die Schlacht führen.</i>%LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
     },
     "Jek Porkins": {
       display_name: "Jek Porkins",
-      text: "Nachdem du einen Stressmarker bekommen hast, darfst du 1&nbsp;Angriffswürfel werfen, um ihn zu entfernen. Bei einem %HIT%-Ergebnis erleide 1&nbsp;%HIT%-Schaden."
+      text: "Nachdem du einen Stressmarker bekommen hast, darfst du 1 Angriffswürfel werfen, um ihn zu entfernen. Bei einem %HIT%-Ergebnis erleide 1 %HIT%-Schaden."
     },
     "Jessika Pava": {
       display_name: "Jessika Pava",
-      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1&nbsp;%CHARGE% oder 1 nicht-wiederkehrende&nbsp;%CHARGE% von deiner ausgerüsteten %ASTROMECH%-Aufwertung ausgeben, um für jedes andere befreundete Schiff in Reichweite 0-1 bis zu 1&nbsp;deiner Würfel neu zu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1 %CHARGE% oder 1 nicht-wiederkehrende %CHARGE% von deiner ausgerüsteten %ASTROMECH%-Aufwertung ausgeben, um für jedes andere befreundete Schiff in Reichweite 0-1 bis zu 1 deiner Würfel neu zu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Joph Seastriker": {
       display_name: "Joph Seastriker",
-      text: "Nachdem du 1 Schild verloren hast, erhalte 1 Ausweichmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du 1 Schild verloren hast, erhalte 1 Ausweichmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Joy Rekkoff": {
       display_name: "Joy Rekkoff",
-      text: "Solange du einen Angriff durchführst, darfst du 1&nbsp;%CHARGE% von einer ausgerüsteten %TORPEDO%-Aufwertung ausgeben. Falls du das tust, wirft der Verteidiger 1&nbsp;Verteidigungswürfel weniger.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "Solange du einen Angriff durchführst, darfst du 1 %CHARGE% von einer ausgerüsteten %TORPEDO%-Aufwertung ausgeben. Falls du das tust, wirft der Verteidiger 1 Verteidigungswürfel weniger.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Kaa'to Leeachos": {
       display_name: "Kaa’to Leeachos",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;befreundetes Schiff in Reichweite 0-2 wählen. Falls du das tust, transferiere 1&nbsp;Fokus- oder Ausweichmarker von jenem Schiff auf dich selbst."
+      text: "Zu Beginn der Kampfphase darfst du 1 befreundetes Schiff in Reichweite 0-2 wählen. Falls du das tust, transferiere 1 Fokus- oder Ausweichmarker von jenem Schiff auf dich selbst."
     },
     "Kad Solus": {
       display_name: "Kad Solus",
-      text: "Nachdem du ein rotes Manöver vollständig ausgeführt hast, erhalte 2 Fokusmarker.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "Nachdem du ein rotes Manöver vollständig ausgeführt hast, erhalte 2 Fokusmarker.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Kanan Jarrus": {
       display_name: "Kanan Jarrus",
-      text: "Solange ein befreundetes Schiff in deinem Feuerwinkel verteidigt, darfst du 1&nbsp;%FORCE% ausgeben. Falls du das tust, wirft der Angreifer 1 Angriffswürfel weniger.%LINEBREAK%<strong>Heckgeschütz:</strong> Solange du ein angedocktes Schiff hast, hast du eine %REARARC%-Primärwaffe mit einem Angriffswert in Höhe des Angriffswertes der %FRONTARC%-Primärwaffe deines angedockten Schiffes."
+      text: "Solange ein befreundetes Schiff in deinem Feuerwinkel verteidigt, darfst du 1 %FORCE% ausgeben. Falls du das tust, wirft der Angreifer 1 Angriffswürfel weniger.%LINEBREAK%<strong>Heckgeschütz:</strong> Solange du ein angedocktes Schiff hast, hast du eine %REARARC%-Primärwaffe mit einem Angriffswert in Höhe des Angriffswertes der %FRONTARC%-Primärwaffe deines angedockten Schiffes."
     },
     "Kare Kun": {
       display_name: "Kare Kun",
-      text: "Solange du Schub gibst, darfst du stattdessen die [1 %TURNLEFT%]- oder [1 %TURNRIGHT%]-Schablone verwenden.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Solange du Schub gibst, darfst du stattdessen die [1 %TURNLEFT%]- oder [1 %TURNRIGHT%]-Schablone verwenden.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Kashyyyk Defender": {
       display_name: "Verteidiger von Kashyyyk",
@@ -8615,15 +11836,15 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Kath Scarlet": {
       display_name: "Kath Scarlet",
-      text: "Solange du einen Primärangriff durchführst, falls mindestens 1&nbsp;befreundetes nicht-limitiertes Schiff in Reichweite 0 des Verteidigers ist, wirf 1&nbsp;zusätzlichen Angriffswürfel."
+      text: "Solange du einen Primärangriff durchführst, falls mindestens 1 befreundetes nicht-limitiertes Schiff in Reichweite 0 des Verteidigers ist, wirf 1 zusätzlichen Angriffswürfel."
     },
     "Kavil": {
       display_name: "Kavil",
-      text: "Solange du einen Nicht-%FRONTARC%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Angriffswürfel."
+      text: "Solange du einen Nicht-%FRONTARC%-Angriff durchführst, wirf 1 zusätzlichen Angriffswürfel."
     },
     "Ketsu Onyo": {
       display_name: "Ketsu Onyo",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;Schiff wählen, das sowohl in deinem %FRONTARC%&nbsp;als auch in deinem %SINGLETURRETARC% und in Reichweite 0-1 ist. Falls du das tust, erhält jenes Schiff 1 Fangstrahlmarker."
+      text: "Zu Beginn der Kampfphase darfst du 1 Schiff wählen, das sowohl in deinem %FRONTARC% als auch in deinem %SINGLETURRETARC% und in Reichweite 0-1 ist. Falls du das tust, erhält jenes Schiff 1 Fangstrahlmarker."
     },
     "Knave Squadron Escort": {
       display_name: "Eskorte der Schurken-Staffel",
@@ -8643,11 +11864,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Kyle Katarn": {
       display_name: "Kyle Katarn",
-      text: "Zu Beginn der Kampfphase darfst du 1 deiner Fokusmarker auf ein&nbsp;befreundetes Schiff in deinem Feuerwinkel transferieren."
+      text: "Zu Beginn der Kampfphase darfst du 1 deiner Fokusmarker auf ein befreundetes Schiff in deinem Feuerwinkel transferieren."
     },
     "Kylo Ren": {
       display_name: "Kylo Ren",
-      text: "Nachdem du verteidigt hast, darfst du 1&nbsp;%FORCE% ausgeben, um dem Angreifer den Zustand <strong>Ich zeige dir die dunkle Seite</strong> zuzuordnen.%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
+      text: "Nachdem du verteidigt hast, darfst du 1 %FORCE% ausgeben, um dem Angreifer den Zustand <strong>Ich zeige dir die dunkle Seite</strong> zuzuordnen.%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
     },
     "L3-37": {
       display_name: "L3-37",
@@ -8659,7 +11880,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Laetin A'shera": {
       display_name: "Laetin A’shera",
-      text: "Nachdem du verteidigt oder einen Angriff durchgeführt hast, falls der Angriff verfehlt hat, erhalte 1 Ausweichmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du verteidigt oder einen Angriff durchgeführt hast, falls der Angriff verfehlt hat, erhalte 1 Ausweichmarker.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Lando Calrissian": {
       display_name: "Lando Calrissian",
@@ -8683,7 +11904,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Lieutenant Bastian": {
       display_name: "Lieutenant Bastian",
-      text: "Nachdem einem Schiff in Reichweite 1-2 eine Schadenskarte zugeteilt worden ist, darfst du jenes Schiff als Ziel erfassen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem einem Schiff in Reichweite 1-2 eine Schadenskarte zugeteilt worden ist, darfst du jenes Schiff als Ziel erfassen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Lieutenant Blount": {
       display_name: "Lieutenant Blount",
@@ -8691,7 +11912,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Lieutenant Dormitz": {
       display_name: "Lieutenant Dormitz",
-      text: "<strong>Aufbau</strong>: Nachdem du platziert worden bist, können andere befreundete Schiffe irgendwo auf der Spielfläche in Reichweite 0-2 von dir platziert werden.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "<strong>Aufbau</strong>: Nachdem du platziert worden bist, können andere befreundete Schiffe irgendwo auf der Spielfläche in Reichweite 0-2 von dir platziert werden.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Lieutenant Karsabi": {
       display_name: "Lieutenant Karsabi",
@@ -8699,7 +11920,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Lieutenant Kestal": {
       display_name: "Lieutenant Kestal",
-      text: "Solange du einen Angriff durchführst, nachdem der Verteidiger Verteidigungswürfel geworfen hat, darfst du 1&nbsp;Fokusmarker ausgeben, um alle Leerseiten/%FOCUS%-Ergebnisse des Verteidigers zu negieren."
+      text: "Solange du einen Angriff durchführst, nachdem der Verteidiger Verteidigungswürfel geworfen hat, darfst du 1 Fokusmarker ausgeben, um alle Leerseiten/%FOCUS%-Ergebnisse des Verteidigers zu negieren."
     },
     "Lieutenant Rivas": {
       display_name: "Lieutenant Rivas",
@@ -8711,7 +11932,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Lieutenant Tavson": {
       display_name: "Lieutenant Tavson",
-      text: "Nachdem du Schaden erlitten hast, darfst du 1&nbsp;%CHARGE% ausgeben, um eine Aktion durchzuführen.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "Nachdem du Schaden erlitten hast, darfst du 1 %CHARGE% ausgeben, um eine Aktion durchzuführen.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Lok Revenant": {
       display_name: "Lok-Pirat",
@@ -8727,19 +11948,27 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Luke Skywalker": {
       display_name: "Luke Skywalker",
-      text: "Nachdem du zum Verteidiger geworden bist (bevor Würfel geworfen werden), darfst du 1&nbsp;%FORCE% wiederherstellen."
+      text: "Nachdem du zum Verteidiger geworden bist (bevor Würfel geworfen werden), darfst du 1 %FORCE% wiederherstellen."
+    },
+    "Luminara Unduli": {
+      display_name: "Luminara Unduli",
+      text: "Solange ein befreundetes Schiff in Reichweite 0-2 verteidigt, falls es nicht im %BULLSEYEARC% des Angreifers ist, darfst du 1 %FORCE% ausgeben. Falls du das tust, ändere 1  %CRIT%-Ergebnis in ein %HIT%-Ergebnis oder 1%HIT%-Ergebnis in ein %FOCUS%-Ergebnis. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
     },
     "L'ulo L'ampar": {
       display_name: "L’ulo L’ampar",
-      text: "Solange du verteidigst oder einen Primärangriff durchführst, falls du gestresst bist, <b>musst</b> du 1&nbsp;Verteidigungswürfel weniger oder 1&nbsp;zusätzlichen Angriffswürfel werfen.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote <rotate>-Aktion durchführen."
+      text: "Solange du verteidigst oder einen Primärangriff durchführst, falls du gestresst bist, <b>musst</b> du 1 Verteidigungswürfel weniger oder 1 zusätzlichen Angriffswürfel werfen.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Maarek Stele": {
       display_name: "Maarek Stele",
-      text: "Solange du einen Angriff durchführst, falls dem Verteidiger eine offene Scha­dens­karte zugeteilt werden würde, ziehe stattdessen 3 Schadenskarten, wähle 1&nbsp;und lege die übrigen ab.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Ver­tei­diger durchführst, den du als Ziel erfasst hast, wirf 1&nbsp;zusätzlichen An­griffs­würfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "Solange du einen Angriff durchführst, falls dem Verteidiger eine offene Scha­dens­karte zugeteilt werden würde, ziehe stattdessen 3 Schadenskarten, wähle 1 und lege die übrigen ab.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Ver­tei­diger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen An­griffs­würfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+    },
+    "Mace Windu": {
+      display_name: "Mace Windu",
+      text: "Nachdem du ein rotes Manöver vollständig ausgeführt hast, stelle 1  %FORCE% wieder her. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
     },
     "Magva Yarro": {
       display_name: "Magva Yarro",
-      text: "Solange ein befreundetes Schiff in Reichweite 0-2 verteidigt, kann der Angreifer nicht mehr als 1&nbsp;Angriffswürfel neu werfen."
+      text: "Solange ein befreundetes Schiff in Reichweite 0-2 verteidigt, kann der Angreifer nicht mehr als 1 Angriffswürfel neu werfen."
     },
     "Major Rhymer": {
       display_name: "Major Rhymer",
@@ -8747,15 +11976,15 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Major Stridan": {
       display_name: "Major Stridan",
-      text: "Solange du koordinierst oder den Effekt 1&nbsp;deiner Aufwertungen abhandelst, darfst du befreundete Schiffe in Reichweite 2-3 behandeln, als wären sie in Reichweite 0 oder Reichweite 1.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "Solange du koordinierst oder den Effekt 1 deiner Aufwertungen abhandelst, darfst du befreundete Schiffe in Reichweite 2-3 behandeln, als wären sie in Reichweite 0 oder Reichweite 1.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Major Vermeil": {
       display_name: "Major Vermeil",
-      text: "Solange du einen Angriff durchführst, falls der Verteidiger keine grünen Marker hat, darfst du 1 deiner Leerseiten- oder %FOCUS%-Ergebnisse in ein %HIT%-Ergebnis ändern. %LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Solange du einen Angriff durchführst, falls der Verteidiger keine grünen Marker hat, darfst du 1 deiner Leerseiten- oder %FOCUS%-Ergebnisse in ein %HIT%-Ergebnis ändern. %LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     "Major Vynder": {
       display_name: "Major Vynder",
-      text: "Solange du verteidigst, falls du entwaffnet bist, wirf 1&nbsp;zusätzlichen Verteidigungswürfel."
+      text: "Solange du verteidigst, falls du entwaffnet bist, wirf 1 zusätzlichen Verteidigungswürfel."
     },
     "Manaroo": {
       display_name: "Manaroo",
@@ -8771,23 +12000,23 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Miranda Doni": {
       display_name: "Miranda Doni",
-      text: "Solange du einen Primärangriff durchführst, darfst du entweder 1&nbsp;Schild ausgeben, um 1 zusätzlichen Angriffswürfel zu werfen, oder, falls du keine Schilde hast, du darfst 1&nbsp;Angriffswürfel weniger werfen, um 1&nbsp;Schild wiederherzustellen."
+      text: "Solange du einen Primärangriff durchführst, darfst du entweder 1 Schild ausgeben, um 1 zusätzlichen Angriffswürfel zu werfen, oder, falls du keine Schilde hast, du darfst 1 Angriffswürfel weniger werfen, um 1 Schild wiederherzustellen."
     },
     "Moralo Eval": {
       display_name: "Moralo Eval",
-      text: "Falls du fliehen würdest, darfst du 1&nbsp;%CHARGE%&nbsp;ausgeben. Falls du das tust, platziere dich selbst stattdessen in der Reserve. Zu Beginn der nächsten Planungsphase platziere dich selbst innerhalb von Reichweite 1 des Spielflächenrandes, über den du geflohen bist."
+      text: "Falls du fliehen würdest, darfst du 1 %CHARGE% ausgeben. Falls du das tust, platziere dich selbst stattdessen in der Reserve. Zu Beginn der nächsten Planungsphase platziere dich selbst innerhalb von Reichweite 1 des Spielflächenrandes, über den du geflohen bist."
     },
     "Nien Nunb": {
       display_name: "Nien Nunb",
-      text: "Nachdem du einen Stressmarker erhalten hast, falls ein feindliches Schiff in deinem %FRONTARC% in Reichweite 0-1 ist, darfst du jenen Stressmarker entfernen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du einen Stressmarker erhalten hast, falls ein feindliches Schiff in deinem %FRONTARC% in Reichweite 0-1 ist, darfst du jenen Stressmarker entfernen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Norra Wexley (Y-Wing)": {
       display_name: "Norra Wexley (Y-Wing)",
-      text: "Solange du verteidigst, falls ein feindliches Schiff in Reichweite 0-1 ist, füge 1&nbsp;%EVADE%-Ergebnis zu deinen Würfelergebnissen hinzu."
+      text: "Solange du verteidigst, falls ein feindliches Schiff in Reichweite 0-1 ist, füge 1 %EVADE%-Ergebnis zu deinen Würfelergebnissen hinzu."
     },
     "Norra Wexley": {
       display_name: "Norra Wexley",
-      text: "Solange du verteidigst, falls ein feindliches Schiff in Reichweite 0-1 ist, füge 1&nbsp;%EVADE%-Ergebnis zu deinen Würfelergebnissen hinzu."
+      text: "Solange du verteidigst, falls ein feindliches Schiff in Reichweite 0-1 ist, füge 1 %EVADE%-Ergebnis zu deinen Würfelergebnissen hinzu."
     },
     "Nu Squadron Pilot": {
       display_name: "Pilot der Nu-Staffel",
@@ -8797,13 +12026,17 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "N’dru Suhlak",
       text: "Solange du einen Primärangriff durchführst, falls keine anderen befreundeten Schiffe in Reichweite 0-2 sind, wirf 1 zusätzlichen Angriffswürfel."
     },
+    "Obi-Wan Kenobi": {
+      display_name: "Obi-Wan Kenobi",
+      text: "Nachdem ein befreundetes Schiff in Reichweite 0-2 einen Fokusmarker ausgegeben hat, darfst du 1  %FORCE% ausgeben. Falls du das tust, erhält jenes Schiff 1 Fokusmarker. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
+    },
     "Obsidian Squadron Pilot": {
       display_name: "Pilot der Obsidian-Staffel",
       text: "<i class = flavor_text>Der Zwillingsionenantrieb des TIE-Jägers war auf Geschwindigkeit optimiert und machte den TIE/ln zu einem der wendigsten Raumschiffe, die je in Massen produziert wurden.</i>"
     },
     "Old Teroch": {
       display_name: "Der alte Teroch",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;feindliches Schiff in Reichweite 1 wählen. Falls du das tust und du in seinem %FRONTARC% bist, entfernt es alle seine grünen Marker.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "Zu Beginn der Kampfphase darfst du 1 feindliches Schiff in Reichweite 1 wählen. Falls du das tust und du in seinem %FRONTARC% bist, entfernt es alle seine grünen Marker.%LINEBREAK%<strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Omega Squadron Ace": {
       display_name: "Fliegerass der Omega-Staffel",
@@ -8835,7 +12068,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Overseer Yushyn": {
       display_name: "Raffineriebetreiber Yushyn",
-      text: "Bevor ein befreundetes Schiff in Reichweite 1 einen Entwaffnet-Marker erhalten würde, falls jenes Schiff nicht gestresst ist, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff stattdessen 1 Stressmarker.%LINEBREAK%<strong>Stabilisatorkerbe:</strong> Solange du dich bewegst, ignorierst du Asteroiden."
+      text: "Bevor ein befreundetes Schiff in Reichweite 1 einen Entwaffnet-Marker erhalten würde, falls jenes Schiff nicht gestresst ist, darfst du 1 %CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff stattdessen 1 Stressmarker.%LINEBREAK%<strong>Stabilisatorkerbe:</strong> Solange du dich bewegst, ignorierst du Asteroiden."
     },
     "Palob Godalhi": {
       display_name: "Palob Godalhi",
@@ -8851,7 +12084,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Petty Officer Thanisson": {
       display_name: "Unteroffizier Thanisson",
-      text: "Während der Aktivierungs- oder Kampfphase, nachdem ein Schiff in deinem %FRONTARC% in Reichweite 0-2 1 Stressmarker erhalten hat, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff 1 Fangstrahlmarker.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "Während der Aktivierungs- oder Kampfphase, nachdem ein Schiff in deinem %FRONTARC% in Reichweite 0-2 1 Stressmarker erhalten hat, darfst du 1 %CHARGE% ausgeben. Falls du das tust, erhält jenes Schiff 1 Fangstrahlmarker.%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Phoenix Squadron Pilot": {
       display_name: "Pilot der Phönix-Staffel",
@@ -8859,19 +12092,23 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Planetary Sentinel": {
       display_name: "Planetarer Wachposten",
-      text: "<i class = flavor_text>Zum Schutz seiner vielen militärischen Einrichtungen benötigt das Imperium eine mobile und wachsame Verteidigungsstreitmacht.</i>%LINEBREAK% <strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "<i class = flavor_text>Zum Schutz seiner vielen militärischen Einrichtungen benötigt das Imperium eine mobile und wachsame Verteidigungsstreitmacht.</i>%LINEBREAK% <strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
+    },
+    "Plo Koon": {
+      display_name: "Plo Koon",
+      text: "Zu Beginn der Kampfphase darfst du 1 %FORCE% ausgeben und ein anderes befreundetes Schiff in Reichweite 0-2 wählen. Falls du das tust, darfst du 1 grünen Marker auf es transferieren oder 1 orangefarbenen Marker von ihm auf dich transferieren. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
     },
     "Poe Dameron": {
       display_name: "Poe Dameron",
-      text: "Nachdem du eine Aktion durchgeführt hast, darfst du 1&nbsp;%CHARGE% ausgeben, um eine weiße Aktion durchzuführen, wobei du sie behandelst, als wäre sie rot.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du eine Aktion durchgeführt hast, darfst du 1 %CHARGE% ausgeben, um eine weiße Aktion durchzuführen, wobei du sie behandelst, als wäre sie rot.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Prince Xizor": {
       display_name: "Prinz Xizor",
-      text: "Solange du verteidigst, nach dem Schritt „Ergebnisse neutralisieren“, darf ein anderes befreundetes Schiff in Reichweite 0-1 und im Angriffswinkel 1&nbsp;%HIT%- oder %CRIT%-Schaden erleiden. Falls es das tut, negiere 1&nbsp;passendes Ergebnis.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%-oder %BANKRIGHT%-Schablone  anstatt der %STRAIGHT%-Schablone verwenden."
+      text: "Solange du verteidigst, nach dem Schritt „Ergebnisse neutralisieren“, darf ein anderes befreundetes Schiff in Reichweite 0-1 und im Angriffswinkel 1 %HIT%- oder %CRIT%-Schaden erleiden. Falls es das tut, negiere 1 passendes Ergebnis.%LINEBREAK%<strong>Mikrodüsen:</strong> Solange du eine Fassrolle durchführst, <b>musst</b> du die %BANKLEFT%-oder %BANKRIGHT%-Schablone  anstatt der %STRAIGHT%-Schablone verwenden."
     },
     "Quinn Jast": {
       display_name: "Quinn Jast",
-      text: "Zu Beginn der Kampfphase darfst du 1 Entwaffnet-Marker erhalten, um 1&nbsp;%CHARGE% von 1 deiner ausgerüsteten Aufwertungen wiederherzustellen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Zu Beginn der Kampfphase darfst du 1 Entwaffnet-Marker erhalten, um 1 %CHARGE% von 1 deiner ausgerüsteten Aufwertungen wiederherzustellen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Rear Admiral Chiraneau": {
       display_name: "Konteradmiral Chiraneau",
@@ -8883,7 +12120,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Red Squadron Expert": {
       display_name: "Elitepilot der roten Staffel",
-      text: "<i class = flavor_text>Hauptsächlich besteht das Sternenjägerkorps des Widerstands aus jungen Bürgern der Neuen Republik. Verstärkt werden sie von Veteranen des Galaktischen Bürgerkriegs, die fest entschlossen sind, zu beenden, was damals begonnen wurde.</i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "<i class = flavor_text>Hauptsächlich besteht das Sternenjägerkorps des Widerstands aus jungen Bürgern der Neuen Republik. Verstärkt werden sie von Veteranen des Galaktischen Bürgerkriegs, die fest entschlossen sind, zu beenden, was damals begonnen wurde.</i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Red Squadron Veteran": {
       display_name: "Veteran der roten Staffel",
@@ -8899,7 +12136,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Rey": {
       display_name: "Rey",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls das feindliche Schiff in deinem %FRONTARC% ist, darfst du 1&nbsp;%FORCE% ausgeben, um 1 deiner Leerseiten-Ergebnisse in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls das feindliche Schiff in deinem %FRONTARC% ist, darfst du 1 %FORCE% ausgeben, um 1 deiner Leerseiten-Ergebnisse in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
     },
     "Rho Squadron Pilot": {
       display_name: "Pilot der Rho-Staffel",
@@ -8927,35 +12164,43 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Sabine Wren (Scum)": {
       display_name: "Sabine Wren (Scum)",
-      text: "Solange du verteidigst, falls der Angreifer in deinem %SINGLETURRETARC% in Reichweite 0-2 ist, darfst du 1&nbsp;%FOCUS%-Ergebnis zu deinen Würfelergebnissen hinzufügen."
+      text: "Solange du verteidigst, falls der Angreifer in deinem %SINGLETURRETARC% in Reichweite 0-2 ist, darfst du 1 %FOCUS%-Ergebnis zu deinen Würfelergebnissen hinzufügen."
+    },
+    "Saesee Tiin": {
+      display_name: "Saesee Tiin",
+      text: "Nachdem ein befreundetes Schiff in Reichweite 0-2 sein Rad aufgedeckt hat, darfst du 1 %FORCE% ausgeben. Falls du das tust, stelle sein Rad auf ein anderes Manöver derselben Geschwindigkeit und Schwierigkeit ein. %LINEBREAK%<strong>Präzisionssteuerung:</strong> Nachdem du ein Manöver vollständig ausgeführt hast, darfst du 1  %FORCE% ausgeben, um eine %BOOST%- oder %BARRELROLL%-Aktion durchzuführen."
     },
     "Sarco Plank": {
       display_name: "Sarco Plank",
-      text: "Solange du verteidigst, darfst du deinen Wendigkeitswert so behandeln, als würde er der Geschwindigkeit des Manövers entsprechen, das du in dieser Runde ausgeführt hast.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1&nbsp;Fangstrahlmarker oder 2 Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
+      text: "Solange du verteidigst, darfst du deinen Wendigkeitswert so behandeln, als würde er der Geschwindigkeit des Manövers entsprechen, das du in dieser Runde ausgeführt hast.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2 Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
     },
     "Saw Gerrera": {
       display_name: "Saw Gerrera",
-      text: "Solange ein beschädigtes befreundetes Schiff in Reichweite 0-3 einen Angriff durchführt, darf es 1&nbsp;Angriffswürfel neu werfen."
+      text: "Solange ein beschädigtes befreundetes Schiff in Reichweite 0-3 einen Angriff durchführt, darf es 1 Angriffswürfel neu werfen."
     },
     "Scarif Base Pilot": {
       display_name: "Pilot der Scarif-Basis",
-      text: "<i class = flavor_text>Der TIE-Schnitter war für den Transport von Elitetruppen in besonders hart umkämpfte Gefechtszonen konzipiert. Berühmt wurde er in der Schlacht von Scarif, wo er Direktor Krennics gefürchtete Todestruppen transportierte.</i>%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "<i class = flavor_text>Der TIE-Schnitter war für den Transport von Elitetruppen in besonders hart umkämpfte Gefechtszonen konzipiert. Berühmt wurde er in der Schlacht von Scarif, wo er Direktor Krennics gefürchtete Todestruppen transportierte.</i>%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     "Scimitar Squadron Pilot": {
       display_name: "Pilot der Scimitar-Staffel",
       text: "<i class = flavor_text>Der TIE/sa ist außergewöhnlich wendig für einen Bomber und kann sein Ziel mit absoluter Präzision anvisieren, um den Kollateralschaden zu minimieren. </i>%LINEBREAK%<strong>Wendiger Bomber:</strong> Falls du unter Verwendung einer %STRAIGHT%-Schablone ein Gerät abwerfen würdest, darfst du stattdessen eine %BANKLEFT%- oder %BANKRIGHT%-Schablone derselben Geschwindigkeit verwenden."
     },
+    "Separatist Drone": {
+      display_name: "Separatistendrohne",
+      text: "<i class = flavor_text>Je weiter die Klonkriege eskalieren, desto mehr setzen die Separatisten auf die Entwicklung neuartiger Droidenjäger und Taktikdroiden, die sie steuern.</i>%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite 0-1 ausgeben, um 1  %FOCUS%-Ergebnis in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
+    },
     "Serissu": {
       display_name: "Serissu",
-      text: "Solange ein befreundetes Schiff in Reichweite 0-1 verteidigt, darf es 1&nbsp;seiner Würfel neu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Solange ein befreundetes Schiff in Reichweite 0-1 verteidigt, darf es 1 seiner Würfel neu werfen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Seventh Sister": {
       display_name: "Siebte Schwester",
-      text: "Solange du einen Primärangriff durchführst, vor dem Schritt „Ergebnisse neutralisieren“, darfst du 2&nbsp;%FORCE% ausgeben, um 1&nbsp;%EVADE%-Ergebnis zu negieren."
+      text: "Solange du einen Primärangriff durchführst, vor dem Schritt „Ergebnisse neutralisieren“, darfst du 2 %FORCE% ausgeben, um 1 %EVADE%-Ergebnis zu negieren."
     },
     "Seyn Marana": {
       display_name: "Seyn Marana",
-      text: "Solange du einen Angriff durchführst, darfst du 1&nbsp;%CRIT%-Ergebnis ausgeben. Falls du das tust, teile dem Verteidiger 1&nbsp;verdeckte Schadenskarte zu, dann negiere deine übrigen Ergebnisse."
+      text: "Solange du einen Angriff durchführst, darfst du 1 %CRIT%-Ergebnis ausgeben. Falls du das tust, teile dem Verteidiger 1 verdeckte Schadenskarte zu, dann negiere deine übrigen Ergebnisse."
     },
     "Shadowport Hunter": {
       display_name: "Schattenhafen-Jäger",
@@ -8963,7 +12208,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Shara Bey": {
       display_name: "Shara Bey",
-      text: "Solange du verteidigst oder einen Primärangriff durchführst, darfst du 1 Zielerfassung, die du auf dem feindlichen Schiff hast, ausgeben, um 1&nbsp;%FOCUS%-Ergebnis zu deinen Würfelergebnissen hinzuzufügen."
+      text: "Solange du verteidigst oder einen Primärangriff durchführst, darfst du 1 Zielerfassung, die du auf dem feindlichen Schiff hast, ausgeben, um 1 %FOCUS%-Ergebnis zu deinen Würfelergebnissen hinzuzufügen."
     },
     "Sienar Specialist": {
       display_name: "Experte von Sienar",
@@ -8977,13 +12222,17 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Fliegerass der Sigma-Staffel",
       text: "<i class = flavor_text>Der TIE-Phantom ist nicht nur mit Schilden und einem Hyperantrieb, sondern auch mit fünf Laserkanonen ausgestattet, was ihn zu einem der schlagkräftigsten Jäger des Imperiums macht.</i>%LINEBREAK%<strong>Stygium-Gitter:</strong> Nachdem du dich enttarnt hast, darfst du eine %EVADE%-Aktion durchführen. Zu Beginn der Endphase darfst du 1 Ausweichmarker ausgeben, um 1 Tarnungsmarker zu erhalten."
     },
+    "Skakoan Ace": {
+      display_name: "Skakoanisches Fliegerass",
+      text: "<i class = flavor_text>Mit seinen leistungsstarken Triebwerken, verheerenden Drillingslasern und vielen Anpassungsmöglichkeiten ist der Belbullab-22 der bevorzugte Jäger der Elitepiloten der Separatisten. Auch der berüchtigte General Grievous nennt einen solchen Sternenjäger sein Eigen.</i>"
+    },
     "Skull Squadron Pilot": {
       display_name: "Pilot der Skull-Staffel",
-      text: "<i class = flavor_text>Die Fliegerasse der Skull-Staffel bevorzugen eine aggressive Kampftaktik und vertrauen dabei auf die schwenkbaren Tragflächen ihrer Schiffe, um ihre Beute mit unübertroffener Agilität zur Strecke zu bringen. </i>%LINEBREAK% <strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "<i class = flavor_text>Die Fliegerasse der Skull-Staffel bevorzugen eine aggressive Kampftaktik und vertrauen dabei auf die schwenkbaren Tragflächen ihrer Schiffe, um ihre Beute mit unübertroffener Agilität zur Strecke zu bringen. </i>%LINEBREAK% <strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Sol Sixxa": {
       display_name: "Sol Sixxa",
-      text: "Falls du ein Gerät unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone abwerfen würdest, darfst du es stattdessen unter Verwendung einer beliebigen anderen Schablone mit Geschwindigkeit 1 abwerfen."
+      text: "Falls du ein Gerät unter Verwendung der [1 %STRAIGHT%]-Schablone abwerfen würdest, darfst du es stattdessen unter Verwendung einer beliebigen anderen Schablone mit Geschwindigkeit 1 abwerfen."
     },
     "Soontir Fel": {
       display_name: "Soontir Fel",
@@ -8993,21 +12242,25 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Spiceschmuggler",
       text: "<i class = flavor_text>Trotz seines vergleichsweise kleinen Laderaums ist der HWK-290 ein beliebtes Modell unter Schmugglern, die sich auf den diskreten Transport von hochwertigen Gütern spezialisiert haben.</i>"
     },
+    "Squad Seven Veteran": {
+      display_name: "Veteran von Trupp Sieben",
+      text: "<i class = flavor_text>Klontrupp Sieben ist eine Spezialeinheit der Doppelbogen-Flotte, die unter dem Kommando legendärer Jedi-Generäle wie Plo Koon und Obi-Wan Kenobi in den Schlachten von Coruscant und Cato Neimoidia großen Ruhm erlangte.</i>"
+    },
     "Starkiller Base Pilot": {
       display_name: "Pilot der Starkiller-Basis",
-      text: "<i class = flavor_text>Das Kommandoshuttle der Ypsilon-Klasse dient als mobile Einsatzbasis für viele leitende Offiziere und Agenten der Ersten Ordnung. Sie nutzen seine leistungsstarken Sensoren und Kommunikationsanlagen, um die Verbreitung von Angst und Schrecken in der Galaxis zu koordinieren.</i>%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "<i class = flavor_text>Das Kommandoshuttle der Ypsilon-Klasse dient als mobile Einsatzbasis für viele leitende Offiziere und Agenten der Ersten Ordnung. Sie nutzen seine leistungsstarken Sensoren und Kommunikationsanlagen, um die Verbreitung von Angst und Schrecken in der Galaxis zu koordinieren.</i>%LINEBREAK%<strong>Gekoppelte Geschützbatterie:</strong> Solange du einen %CANNON%-Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Storm Squadron Ace": {
       display_name: "Fliegerass der Storm-Staffel",
-      text: "<i class = flavor_text>Der TIE-x1-Turbojäger wurde nur in geringer Stückzahl produziert, dafür wurden viele seiner Innovationen bei der Entwicklung von Sienars nächstem TIE-Modell, dem TIE-Abfangjäger, übernommen.</i>%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "<i class = flavor_text>Der TIE-x1-Turbojäger wurde nur in geringer Stückzahl produziert, dafür wurden viele seiner Innovationen bei der Entwicklung von Sienars nächstem TIE-Modell, dem TIE-Abfangjäger, übernommen.</i>%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Sunny Bounder": {
       display_name: "Sunny Bounder",
-      text: "Solange du verteidigst oder einen Angriff durchführst, nachdem du deine Würfel geworfen oder neu geworfen hast, falls du auf jedem deiner Würfel dasselbe Ergebnis hast, darfst du 1&nbsp;passendes Ergebnis hinzufügen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Solange du verteidigst oder einen Angriff durchführst, nachdem du deine Würfel geworfen oder neu geworfen hast, falls du auf jedem deiner Würfel dasselbe Ergebnis hast, darfst du 1 passendes Ergebnis hinzufügen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "TN-3465": {
       display_name: "TN-3465",
-      text: "Solange ein anderes befreundetes Schiff einen Angriff durchführt, falls du in Reichweite 0-1 des Verteidigers bist, darfst du 1&nbsp;%CRIT%-Schaden erleiden, um 1 der Ergebnisse des Angreifers in ein %CRIT%-Ergebnis zu ändern."
+      text: "Solange ein anderes befreundetes Schiff einen Angriff durchführt, falls du in Reichweite 0-1 des Verteidigers bist, darfst du 1 %CRIT%-Schaden erleiden, um 1 der Ergebnisse des Angreifers in ein %CRIT%-Ergebnis zu ändern."
     },
     "Tala Squadron Pilot": {
       display_name: "Pilot der Tala-Staffel",
@@ -9015,47 +12268,51 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Tallissan Lintra": {
       display_name: "Tallissan Lintra",
-      text: "Solange ein feindliches Schiff in deinem %BULLSEYEARC% einen Angriff durchführt, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, wirft der Verteidiger 1 zusätzlichen Würfel.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote <rotate>-Aktion durchführen."
+      text: "Solange ein feindliches Schiff in deinem %BULLSEYEARC% einen Angriff durchführt, darfst du 1 %CHARGE% ausgeben. Falls du das tust, wirft der Verteidiger 1 zusätzlichen Würfel.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Talonbane Cobra": {
       display_name: "Talonbane Cobra",
-      text: "Solange du in Angriffsreichweite 3 verteidigst oder in Angriffsreichweite&nbsp;1 einen Angriff durchführst, wirf 1&nbsp;zusätzlichen Würfel."
+      text: "Solange du in Angriffsreichweite 3 verteidigst oder in Angriffsreichweite 1 einen Angriff durchführst, wirf 1 zusätzlichen Würfel."
     },
     "Tansarii Point Veteran": {
       display_name: "Veteran von Tansarii ",
-      text: "<i class = flavor_text>Mit dem Abschuss von Talonbane Cobra, einem Spitzenpiloten der Schwarzen Sonne, entschieden die Car’das-Schmuggler die Schlacht um Tansarii Point für sich. Bis heute sind die Veteranen dieses Scharmützels im ganzen Sektor hochangesehen. </i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-,&nbsp;%TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "<i class = flavor_text>Mit dem Abschuss von Talonbane Cobra, einem Spitzenpiloten der Schwarzen Sonne, entschieden die Car’das-Schmuggler die Schlacht um Tansarii Point für sich. Bis heute sind die Veteranen dieses Scharmützels im ganzen Sektor hochangesehen. </i>%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Tel Trevura": {
       display_name: "Tel Trevura",
-      text: "Falls du zerstört werden würdest, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, lege stattdessen alle deine Schadenskarten ab, erleide 5&nbsp;%HIT%-Schaden und platziere dich selbst in der Reserve. Zu Beginn der nächsten Planungsphase platziere dich selbst innerhalb von Reichweite 1 deines Spielflächenrandes."
+      text: "Falls du zerstört werden würdest, darfst du 1 %CHARGE% ausgeben. Falls du das tust, lege stattdessen alle deine Schadenskarten ab, erleide 5 %HIT%-Schaden und platziere dich selbst in der Reserve. Zu Beginn der nächsten Planungsphase platziere dich selbst innerhalb von Reichweite 1 deines Spielflächenrandes."
     },
     "Temmin Wexley": {
       display_name: "Temmin Wexley",
-      text: "Nachdem du ein Manöver mit Geschwindigkeit 2-4 vollständig ausgeführt hast, darfst du eine %BOOST%-Aktion durchführen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1&nbsp;%CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
+      text: "Nachdem du ein Manöver mit Geschwindigkeit 2-4 vollständig ausgeführt hast, darfst du eine %BOOST%-Aktion durchführen.%LINEBREAK%<strong>Waffenaufhängung:</strong> Du kannst 1 %CANNON%-, %TORPEDO%- oder %MISSILE%-Aufwertung ausrüsten."
     },
     "Tempest Squadron Pilot": {
       display_name: "Pilot der Tornado-Staffel",
-      text: "<i class = flavor_text>Der TIE-Turbojäger war eine Weiterentwicklung der erfolgreichen TIE/ln-Baureihe, zusätzlich ausgestattet mit Deflektorschilden, besseren Waffen, geknickten Solarzellen und einem Hyperantrieb.</i>%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "<i class = flavor_text>Der TIE-Turbojäger war eine Weiterentwicklung der erfolgreichen TIE/ln-Baureihe, zusätzlich ausgestattet mit Deflektorschilden, besseren Waffen, geknickten Solarzellen und einem Hyperantrieb.</i>%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Ten Numb": {
       display_name: "Ten Numb",
-      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1&nbsp;Stressmarker ausgeben, um alle deine %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern."
+      text: "Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Stressmarker ausgeben, um alle deine %FOCUS%-Ergebnisse in %EVADE%- oder %HIT%-Ergebnisse zu ändern."
     },
     "Thane Kyrell": {
       display_name: "Thane Kyrell",
-      text: "Solange du einen Angriff durchführst, darfst du 1&nbsp;%FOCUS%-, %HIT%- oder %CRIT%-Ergebnis ausgeben, um dir die verdeckten Schadenskarten des Verteidigers anzusehen, 1 zu wählen und sie offenzulegen."
+      text: "Solange du einen Angriff durchführst, darfst du 1 %FOCUS%-, %HIT%- oder %CRIT%-Ergebnis ausgeben, um dir die verdeckten Schadenskarten des Verteidigers anzusehen, 1 zu wählen und sie offenzulegen."
     },
     "Tomax Bren": {
       display_name: "Tomax Bren",
-      text: "Nachdem du eine %RELOAD%-Aktion durchgeführt hast, darfst du 1&nbsp;%CHARGE% von 1 deiner ausgerüsteten %TALENT%-Aufwertungskarten wiederherstellen. %LINEBREAK%<strong>Wendiger Bomber:</strong> Falls du unter Verwendung einer %STRAIGHT%-Schablone ein Gerät abwerfen würdest, darfst du stattdessen eine %BANKLEFT%- oder %BANKRIGHT%-Schablone derselben Geschwindigkeit verwenden."
+      text: "Nachdem du eine %RELOAD%-Aktion durchgeführt hast, darfst du 1 %CHARGE% von 1 deiner ausgerüsteten %TALENT%-Aufwertungskarten wiederherstellen. %LINEBREAK%<strong>Wendiger Bomber:</strong> Falls du unter Verwendung einer %STRAIGHT%-Schablone ein Gerät abwerfen würdest, darfst du stattdessen eine %BANKLEFT%- oder %BANKRIGHT%-Schablone derselben Geschwindigkeit verwenden."
     },
     "Torani Kulda": {
       display_name: "Torani Kulda",
-      text: "Nachdem du einen Angriff durchgeführt hast, erleidet jedes feindliche Schiff in deinem %BULLSEYEARC%1&nbsp;%HIT%-Schaden, es sei denn, es entfernt 1&nbsp;grünen Marker.%LINEBREAK%<strong>Todsicherer Treffer:</strong> Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, können Verteidigungswürfel nicht unter Verwendung von grünen Markern modifiziert werden."
+      text: "Nachdem du einen Angriff durchgeführt hast, erleidet jedes feindliche Schiff in deinem %BULLSEYEARC%1 %HIT%-Schaden, es sei denn, es entfernt 1 grünen Marker.%LINEBREAK%<strong>Todsicherer Treffer:</strong> Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, können Verteidigungswürfel nicht unter Verwendung von grünen Markern modifiziert werden."
     },
     "Torkil Mux": {
       display_name: "Torkil Mux",
       text: "Zu Beginn der Kampfphase darfst du 1 Schiff in deinem Feuerwinkel wählen. Falls du das tust, kämpft jenes Schiff in dieser Runde bei Initiative 0 anstatt bei seinem normalen Initiativewert."
+    },
+    "Trade Federation Drone": {
+      display_name: "Drohne der Handelsförderation",
+      text: "<i class = flavor_text>In der Schlacht von Naboo kämpften zahllose Droidenjäger aufseiten der Handelsföderation. Bis heute werden die preisgünstigen Schiffe in den Klonkriegen eingesetzt.</i>%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite 0-1 ausgeben, um 1  %FOCUS%-Ergebnis in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
     },
     "Trandoshan Slaver": {
       display_name: "Trandoshanischer Sklavenjäger",
@@ -9067,7 +12324,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Unkar Plutt": {
       display_name: "Unkar Plutt",
-      text: "Zu Beginn der Kampfphase, falls 1 oder mehrere andere Schiffe in Reichweite 0 sind, erhalten du und jedes andere Schiff in Reichweite 0 je 1 Fangstrahlmarker.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2&nbsp;Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
+      text: "Zu Beginn der Kampfphase, falls 1 oder mehrere andere Schiffe in Reichweite 0 sind, erhalten du und jedes andere Schiff in Reichweite 0 je 1 Fangstrahlmarker.%LINEBREAK%<strong>Schlepperstrahl:</strong> <strong>Aktion:</strong> Wähle ein Schiff in deinem %FRONTARC% in Reichweite 1. Jenes Schiff erhält 1 Fangstrahlmarker oder 2 Fangstrahlmarker, falls es in deinem %BULLSEYEARC% in Reichweite 1 ist."
     },
     "Valen Rudor": {
       display_name: "Valen Rudor",
@@ -9075,7 +12332,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Ved Foslo": {
       display_name: "Ved Foslo",
-      text: "Solange du ein Manöver ausführst, darfst du stattdessen ein Manöver derselben Flugrichtung und Schwierigkeit, aber einer um 1 höheren oder niedrigeren Geschwindigkeit ausführen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "Solange du ein Manöver ausführst, darfst du stattdessen ein Manöver derselben Flugrichtung und Schwierigkeit, aber einer um 1 höheren oder niedrigeren Geschwindigkeit ausführen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Vennie": {
       display_name: "Vennie",
@@ -9089,9 +12346,13 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Pilot der Beschützer-Staffel",
       text: "<i class = flavor_text>Der K-Flügler von Koensayr zeichnet sich durch einen topmodernen Sublicht-Antriebsmotor (kurz: SLAM) sowie beispiellose achtzehn Waffenaufhängungen aus. Was Geschwindigkeit und Feuerkraft anbelangt, steht er außer Konkurrenz.</i>"
     },
+    "Wat Tambor": {
+      display_name: "Wat Tambor",
+      text: "Solange du einen Primärangriff durchführst, darfst du für jedes berechnende befreundete Schiff in Reichweite 1 des Verteidigers 1 Angriffswürfel neu werfen."
+    },
     "Wedge Antilles": {
       display_name: "Wedge Antilles",
-      text: "Solange du einen Angriff durchführst, wirft der Verteidiger 1&nbsp;Verteidigungswürfel weniger."
+      text: "Solange du einen Angriff durchführst, wirft der Verteidiger 1 Verteidigungswürfel weniger."
     },
     "Wild Space Fringer": {
       display_name: "Grenzgänger aus dem Wilden Raum",
@@ -9103,15 +12364,15 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Zari Bangel": {
       display_name: "Zari Bangel",
-      text: "Du überspringst deinen Schritt „Aktion durchführen“ nicht, nachdem du ein Manöver teilweise ausgeführt hast.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote <rotate>-Aktion durchführen."
+      text: "Du überspringst deinen Schritt „Aktion durchführen“ nicht, nachdem du ein Manöver teilweise ausgeführt hast.%LINEBREAK%<strong>Optimierte Gyrostabilisatoren:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BOOST%- oder eine rote %ROTATEARC%-Aktion durchführen."
     },
     "Zealous Recruit": {
       display_name: "Fanatischer Rekrut",
-      text: "<i class = flavor_text>Jeder Pilot eines mandalorianischen Fangjägers beherrscht den Concordianischen Wirbel, ein Manöver, bei dem das schmale Profil des Jägers für einen tödlichen Frontalangriff genutzt wird. </i>%LINEBREAK% <strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1&nbsp;Ergebnis in ein %EVADE%-Ergebnis."
+      text: "<i class = flavor_text>Jeder Pilot eines mandalorianischen Fangjägers beherrscht den Concordianischen Wirbel, ein Manöver, bei dem das schmale Profil des Jägers für einen tödlichen Frontalangriff genutzt wird. </i>%LINEBREAK% <strong>Concordianischer Wirbel:</strong> Solange du verteidigst, falls die Angriffsreichweite 1 ist und du im %FRONTARC% des Angreifers bist, ändere 1 Ergebnis in ein %EVADE%-Ergebnis."
     },
     "Zertik Strom": {
       display_name: "Zertik Strom",
-      text: "Während der Endphase darfst du eine Zielerfassung ausgeben, die du auf einem feindlichen Schiff hast, um 1 der Schadenskarten jenes Schiffes offenzulegen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "Während der Endphase darfst du eine Zielerfassung ausgeben, die du auf einem feindlichen Schiff hast, um 1 der Schadenskarten jenes Schiffes offenzulegen.%LINEBREAK%<strong>Verbesserter Zielcomputer:</strong> Solange du einen Primärangriff gegen einen Verteidiger durchführst, den du als Ziel erfasst hast, wirf 1 zusätzlichen Angriffswürfel und ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Zeta Squadron Pilot": {
       display_name: "Pilot der Zeta-Staffel",
@@ -9123,11 +12384,15 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Zuckuss": {
       display_name: "Zuckuss",
-      text: "Solange du einen Primärangriff durchführst, darfst du 1 zusätzlichen Angriffswürfel werfen. Falls du das tust, wirft der Verteidiger 1&nbsp;zusätzlichen Verteidigungswürfel."
+      text: "Solange du einen Primärangriff durchführst, darfst du 1 zusätzlichen Angriffswürfel werfen. Falls du das tust, wirft der Verteidiger 1 zusätzlichen Verteidigungswürfel."
     },
     '"Avenger"': {
       display_name: "„Avenger“",
       text: "Nachdem ein anderes befreundetes Schiff zerstört worden ist, darfst du eine Aktion durchführen, auch solange du gestresst bist.%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
+    },
+    '"Axe"': {
+      display_name: "„Axe“",
+      text: "Nachdem du verteidigt oder einen Angriff durchgeführt hast, darfst du ein befreundetes Schiff in Reichweite 1-2 in deinem %LEFTARC% oder %RIGHTARC% wählen. Falls du das tust, transferiere 1 grünen Marker auf jenes Schiff."
     },
     '"Backdraft"': {
       display_name: "„Backdraft“",
@@ -9135,7 +12400,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Blackout"': {
       display_name: "„Blackout“",
-      text: "Solange du einen Angriff durchführst, falls der Angriff durch ein Hindernis versperrt ist, wirft der Verteidiger 2&nbsp;Verteidigungswürfel weniger.%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
+      text: "Solange du einen Angriff durchführst, falls der Angriff durch ein Hindernis versperrt ist, wirft der Verteidiger 2 Verteidigungswürfel weniger.%LINEBREAK%<strong>Automatische Schubdüsen:</strong> Nachdem du eine Aktion durchgeführt hast, darfst du eine rote %BARRELROLL%-Aktion oder eine rote %BOOST%-Aktion durchführen."
     },
     '"Chopper"': {
       display_name: "„Chopper“",
@@ -9143,7 +12408,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Countdown"': {
       display_name: "„Countdown“",
-      text: "Solange du verteidigst, nach dem Schritt „Ergebnisse neutralisieren“, falls du nicht gestresst bist, darfst du 1&nbsp;%HIT%-Schaden erleiden und 1&nbsp;Stressmarker erhalten. Falls du das tust, negiere alle Würfelergebnisse.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Solange du verteidigst, nach dem Schritt „Ergebnisse neutralisieren“, falls du nicht gestresst bist, darfst du 1 %HIT%-Schaden erleiden und 1 Stressmarker erhalten. Falls du das tust, negiere alle Würfelergebnisse.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     '"Deathfire"': {
       display_name: "„Todesfeuer“",
@@ -9159,7 +12424,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Duchess"': {
       display_name: "„Herzogin“",
-      text: "Du darfst wählen, <strong>Adaptive Querruder</strong> nicht zu verwenden. %LINEBREAK%Du darfst <strong>Adaptive Querruder</strong> verwenden, auch solange du gestresst bist.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Du darfst wählen, <strong>Adaptive Querruder</strong> nicht zu verwenden. %LINEBREAK%Du darfst <strong>Adaptive Querruder</strong> verwenden, auch solange du gestresst bist.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     '"Dutch" Vander': {
       display_name: "„Dutch“ Vander",
@@ -9167,11 +12432,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Echo"': {
       display_name: "„Echo“",
-      text: "Solange du dich enttarnst, <b>musst</b> du die [2&nbsp;%BANKLEFT%]- oder [2&nbsp;%BANKRIGHT%]-Schablone anstatt der [2&nbsp;%STRAIGHT%]-Schablone verwenden.%LINEBREAK%<strong>Stygium-Gitter:</strong> Nachdem du dich enttarnt hast, darfst du eine %EVADE%-Aktion durchführen. Zu Beginn der Endphase darfst du 1 Ausweichmarker ausgeben, um 1 Tarnungsmarker zu erhalten."
+      text: "Solange du dich enttarnst, <b>musst</b> du die [2 %BANKLEFT%]- oder [2 %BANKRIGHT%]-Schablone anstatt der [2 %STRAIGHT%]-Schablone verwenden.%LINEBREAK%<strong>Stygium-Gitter:</strong> Nachdem du dich enttarnt hast, darfst du eine %EVADE%-Aktion durchführen. Zu Beginn der Endphase darfst du 1 Ausweichmarker ausgeben, um 1 Tarnungsmarker zu erhalten."
     },
     '"Howlrunner"': {
       display_name: "„Howlrunner“",
-      text: "Solange ein befreundetes Schiff in Reichweite 0-1 einen Primärangriff durchführt, darf jenes Schiff 1&nbsp;Angriffswürfel neu werfen."
+      text: "Solange ein befreundetes Schiff in Reichweite 0-1 einen Primärangriff durchführt, darf jenes Schiff 1 Angriffswürfel neu werfen."
+    },
+    '"Jag"': {
+      display_name: "„Jag“",
+      text: "Nachdem ein befreundetes Schiff in Reichweite 1-2 in deinem %LEFTARC% oder %RIGHTARC% verteidigt hat, darfst du den Angreifer als Ziel erfassen."
+    },
+    '"Kickback"': {
+      display_name: "„Kickback“",
+      text: "Nachdem du eine %BARRELROLL%-Aktion durchgeführt hast, darfst du eine rote %LOCK%-Aktion durchführen."
     },
     '"Leebo"': {
       display_name: "„Leebo“",
@@ -9179,7 +12452,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Longshot"': {
       display_name: "„Longshot“",
-      text: "Solange du einen Primärangriff in Angriffsreichweite 3 durchführst, wirf 1&nbsp;zusätzlichen Angriffswürfel."
+      text: "Solange du einen Primärangriff in Angriffsreichweite 3 durchführst, wirf 1 zusätzlichen Angriffswürfel."
     },
     '"Mauler" Mithel': {
       display_name: "„Mauler“ Mithel",
@@ -9201,13 +12474,21 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "„Null“",
       text: "Solange du nicht beschädigt bist, behandle deinen Initiativwert, als wäre er 7."
     },
+    '"Odd Ball" (ARC-170)': {
+      display_name: "„Odd Ball“",
+      text: "Nachdem du ein rotes Manöver vollständig ausgeführt oder eine rote Aktion durchgeführt hast, falls ein feindliches Schiff in deinem %BULLSEYEARC% ist, darfst du jenes Schiff als Ziel erfassen."
+    },
+    '"Odd Ball"': {
+      display_name: "„Odd Ball“",
+      text: "Nachdem du ein rotes Manöver vollständig ausgeführt oder eine rote Aktion durchgeführt hast, falls ein feindliches Schiff in deinem %BULLSEYEARC% ist, darfst du jenes Schiff als Ziel erfassen."
+    },
     '"Pure Sabacc"': {
       display_name: "„Voller Sabacc“",
-      text: "Solange du einen Angriff durchführst, falls du 1 oder weniger Schadenskarten hast, darfst du 1 zusätzlichen Angriffswürfel werfen.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Solange du einen Angriff durchführst, falls du 1 oder weniger Schadenskarten hast, darfst du 1 zusätzlichen Angriffswürfel werfen.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     '"Quickdraw"': {
       display_name: "„Quickdraw“",
-      text: "Nachdem du ein Schild verloren hast, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, darfst du einen Bonus-Primärangriff durchführen.%LINEBREAK%<strong>Schwerer Geschützturm:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Du <b>musst</b> die %FRONTARC%-Voraussetzung deiner ausgerüsteten %MISSILE%-Aufwertungen behandeln, als wäre sie %SINGLETURRETARC%."
+      text: "Nachdem du ein Schild verloren hast, darfst du 1 %CHARGE% ausgeben. Falls du das tust, darfst du einen Bonus-Primärangriff durchführen.%LINEBREAK%<strong>Schwerer Geschützturm:</strong> Du kannst deinen %SINGLETURRETARC%-Anzeiger nur auf deinen %FRONTARC% oder %REARARC% rotieren. Du <b>musst</b> die %FRONTARC%-Voraussetzung deiner ausgerüsteten %MISSILE%-Aufwertungen behandeln, als wäre sie %SINGLETURRETARC%."
     },
     '"Recoil"': {
       display_name: "„Recoil“",
@@ -9219,27 +12500,43 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Scorch"': {
       display_name: "„Scorch“",
-      text: "Solange du einen Primärangriff durchführst, falls du nicht gestresst bist, darfst du 1 Stressmarker erhalten, um 1&nbsp;zusätzlichen Angriffswürfel zu werfen."
+      text: "Solange du einen Primärangriff durchführst, falls du nicht gestresst bist, darfst du 1 Stressmarker erhalten, um 1 zusätzlichen Angriffswürfel zu werfen."
     },
     '"Scourge" Skutu': {
       display_name: "„Geißel“ Skutu ",
       text: "Solange du einen Angriff gegen einen Verteidiger in deinem %BULLSEYEARC% durchführst, wirf 1 zusätzlichen Angriffswürfel."
     },
+    '"Sinker"': {
+      display_name: "„Sinker“",
+      text: "Solange ein befreundetes Schiff in Reichweite 1-2 in deinem %LEFTARC% oder %RIGHTARC% einen Primärangriff durchführt, darf es 1 Angriffswürfel neu werfen."
+    },
     '"Static"': {
       display_name: "„Static“",
       text: "Solange du einen Primärangriff durchführst, darfst du deine Zielerfassung auf dem Verteidiger und einen Fokusmarker ausgeben, um alle deine Ergebnisse in %CRIT%-Ergebnisse zu ändern."
     },
+    '"Swoop"': {
+      display_name: "„Swoop“",
+      text: "Nachdem ein befreundetes kleines oder mittleres Schiff ein Manöver mit Geschwindigkeit 3-4 vollständig ausgeführt hat, falls es in Reichweite 0-1 ist, darf es eine rote %BOOST%-Aktion durchführen."
+    },
+    '"Tucker"': {
+      display_name: "„Tucker“",
+      text: "Nachdem ein befreundetes Schiff in Reichweite 1-2 einen Angriff gegen ein feindliches Schiff in deinem %FRONTARC% durchgeführt hat, darfst du eine %FOCUS% -Aktion durchführen."
+    },
     '"Vizier"': {
       display_name: "„Wesir“",
-      text: "Nachdem du unter Verwendung deiner Schiffsfähigkeit <strong>Adaptive Querruder</strong> ein Manöver mit Geschwindigkeit 1 vollständig ausgeführt hast, darfst du eine %COORDINATE%-Aktion durchführen. Falls du das tust, überspringe deinen Schritt „Aktion durchführen“.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Manöver ausführen."
+      text: "Nachdem du unter Verwendung deiner Schiffsfähigkeit <strong>Adaptive Querruder</strong> ein Manöver mit Geschwindigkeit 1 vollständig ausgeführt hast, darfst du eine %COORDINATE%-Aktion durchführen. Falls du das tust, überspringe deinen Schritt „Aktion durchführen“.%LINEBREAK%<strong>Adaptive Querruder:</strong> Bevor du dein Rad aufdeckst, falls du nicht gestresst bist, <b>musst</b> du ein weißes [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Manöver ausführen."
     },
     '"Wampa"': {
       display_name: "„Wampa“",
-      text: "Solange du einen Angriff durchführst, darfst du 1&nbsp;%CHARGE% ausgeben, um 1&nbsp;zusätzlichen Angriffswürfel zu werfen.%LINEBREAK%Nach dem Verteidigen, verliere 1&nbsp;%CHARGE%."
+      text: "Solange du einen Angriff durchführst, darfst du 1 %CHARGE% ausgeben, um 1 zusätzlichen Angriffswürfel zu werfen.%LINEBREAK%Nach dem Verteidigen, verliere 1 %CHARGE%."
     },
     '"Whisper"': {
       display_name: "„Geflüster“",
       text: "Nachdem du einen Angriff durchgeführt hast, der getroffen hat, erhalte 1 Ausweichmarker.%LINEBREAK%<strong>Stygium-Gitter:</strong> Nachdem du dich enttarnt hast, darfst du eine %EVADE%-Aktion durchführen. Zu Beginn der Endphase darfst du 1 Ausweichmarker ausgeben, um 1 Tarnungsmarker zu erhalten."
+    },
+    '"Wolffe"': {
+      display_name: "„Wolffe“",
+      text: "Solange du einen %FRONTARC%-Primärangriff durchführst, darfst du 1 %CHARGE% ausgeben, um 1 Angriffswürfel neu zu werfen. %LINEBREAK%Solange du einen %REARARC%-Primärangriff durchführst, darfst du 1  %CHARGE% wiederherstellen, um 1  zusätzlichen Angriffswürfel zu werfen."
     },
     '"Zeb" Orrelios': {
       display_name: "„Zeb“ Orrelios",
@@ -9252,12 +12549,20 @@ exportObj.cardLoaders.Deutsch = function() {
     '"Zeb" Orrelios (TIE Fighter)': {
       display_name: "„Zeb“ Orrelios (TIE Fighter)",
       text: "Solange du verteidigst, werden %CRIT%-Ergebnisse neutralisiert, bevor %HIT%-Ergebnisse neutralisiert werden."
+    },
+    "Haor Chall Prototype": {
+      display_name: "Prototyp von Haor Chall",
+      text: "Nachdem ein feindliches Schiff in deinem %BULLSEYEARC% in Reichweite 0-2 ein anderes befreundetes Schiff zum Verteidiger deklariert hat, darfst du eine %CALCULATE%- oder %LOCK%-Aktion durchführen.%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite 0-1 ausgeben, um 1 %FOCUS%-Ergebnis in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
+    },
+    "Precise Hunter": {
+      display_name: "Präzisionsjäger",
+      text: "Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 Leerseiten-Ergebnis neu werfen.%LINEBREAK%<strong>Vernetzte Berechnungssysteme:</strong> Solange du verteidigst oder einen Angriff durchführst, darfst du 1 Berechnungsmarker von einem befreundeten Schiff in Reichweite 0-1 ausgeben, um 1  %FOCUS%-Ergebnis in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
     }
   };
   upgrade_translations = {
     "0-0-0": {
       display_name: "0-0-0",
-      text: "<i>Nur für Abschaum oder Staffel, die Darth Vader enthält</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1 feindliches Schiff in Reichweite 0-1 wählen. Falls du das tust, erhältst du 1 Berechnungsmarker, es sei denn, jenes Schiff entscheidet sich dafür, 1&nbsp;Stressmarker zu erhalten."
+      text: "<i>Nur für Abschaum oder Staffel, die Darth Vader enthält</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1 feindliches Schiff in Reichweite 0-1 wählen. Falls du das tust, erhältst du 1 Berechnungsmarker, es sei denn, jenes Schiff entscheidet sich dafür, 1 Stressmarker zu erhalten."
     },
     "4-LOM": {
       display_name: "4-LOM",
@@ -9269,7 +12574,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Black One": {
       display_name: "Schwarz Eins",
-      text: "<i>Fügt %SLAM% hinzu</i>%LINEBREAK%<i>Nur für Widerstand</i>%LINEBREAK%Nachdem du eine %SLAM%-Aktion durchgeführt hast, verliere 1&nbsp;%CHARGE%. Dann darfst du 1&nbsp;Ionenmarker erhalten, um 1 Entwaffnet-Marker zu entfernen.%LINEBREAK%Falls deine %CHARGE% inaktiv ist, kannst du die %SLAM%-Aktion nicht durchführen."
+      text: "<i>Fügt %SLAM% hinzu</i>%LINEBREAK%<i>Nur für Widerstand</i>%LINEBREAK%Nachdem du eine %SLAM%-Aktion durchgeführt hast, verliere 1 %CHARGE%. Dann darfst du 1 Ionenmarker erhalten, um 1 Entwaffnet-Marker zu entfernen.%LINEBREAK%Falls deine %CHARGE% inaktiv ist, kannst du die %SLAM%-Aktion nicht durchführen."
     },
     "Dauntless": {
       display_name: "Dauntless",
@@ -9285,7 +12590,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Hound's Tooth": {
       display_name: "Reißzahn",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%An dir kann 1&nbsp;Z-95-AF4-Kopfjäger andocken."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%An dir kann 1 Z-95-AF4-Kopfjäger andocken."
     },
     "IG-2000": {
       display_name: "IG-2000",
@@ -9309,7 +12614,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Outrider": {
       display_name: "Outrider",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange du einen versperrten Angriff durchführst, wirft der Verteidiger 1&nbsp;Verteidigungswürfel weniger.%LINEBREAK%Nachdem du ein Manöver vollständig ausgeführt hast, falls du dich durch ein Hindernis hindurchbewegt oder dich mit ihm überschnitten hast, darfst du 1 deiner roten oder orangefarbenen Marker entfernen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange du einen versperrten Angriff durchführst, wirft der Verteidiger 1 Verteidigungswürfel weniger.%LINEBREAK%Nachdem du ein Manöver vollständig ausgeführt hast, falls du dich durch ein Hindernis hindurchbewegt oder dich mit ihm überschnitten hast, darfst du 1 deiner roten oder orangefarbenen Marker entfernen."
     },
     "Phantom": {
       display_name: "Phantom",
@@ -9317,27 +12622,35 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Punishing One": {
       display_name: "Vollstrecker Eins",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %FRONTARC% ist, wirf 1&nbsp;zusätzlichen Angriffswürfel.%LINEBREAK%Entferne den %CREW%-Slot. Füge den %ASTROMECH%-Slot hinzu."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %FRONTARC% ist, wirf 1 zusätzlichen Angriffswürfel.%LINEBREAK%Entferne den %CREW%-Slot. Füge den %ASTROMECH%-Slot hinzu."
     },
     "ST-321": {
       display_name: "ST-321",
       text: "<i>Nur für Imperium</i>%LINEBREAK%Nachdem du eine %COORDINATE%-Aktion durchgeführt hast, darfst du ein feindliches Schiff in Reichweite 0-3 des von dir koordinierten Schiffes wählen. Falls du das tust, erfasse jenes feindliche Schiff als Ziel, wobei du die Reichweitenbeschränkung ignorierst."
     },
+    "Scimitar": {
+      display_name: "Scimitar",
+      text: "<i>Fügt <r>%CLOAK%</r> ,  %JAM% hinzu</i>%LINEBREAK%<i>Nur für Separatistenallianz</i>%LINEBREAK%<strong>Aufbau:</strong> Nach dem Schritt „Streitkräfte platzieren“ darfst du dich tarnen.%LINEBREAK%Nachdem du dich enttarnt hast, darfst du ein feindliches Schiff in deinem %BULLSEYEARC% wählen. Falls du das tust, erhält es 1 Störsignalmarker."
+    },
     "Shadow Caster": {
       display_name: "Shadow Caster",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du einen Angriff durchgeführt hast, der getroffen hat, falls der Verteidiger in deinem %SINGLETURRETARC% und in deinem %FRONTARC% ist, erhält der Verteidiger 1&nbsp;Fangstrahlmarker."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du einen Angriff durchgeführt hast, der getroffen hat, falls der Verteidiger in deinem %SINGLETURRETARC% und in deinem %FRONTARC% ist, erhält der Verteidiger 1 Fangstrahlmarker."
     },
     "Slave I": {
       display_name: "Sklave I",
       text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Wende­­manöver (%TURNLEFT% oder %TURNRIGHT%) oder Drehmanöver (%BANKLEFT% oder %BANKRIGHT%) aufgedeckt hast, darfst du dein Rad auf das Manöver derselben Geschwindigkeit und Flugrichtung in der anderen Orientierung einstellen.%LINEBREAK%Füge den %TORPEDO%-Slot hinzu."
     },
+    "Soulless One": {
+      display_name: "Seelenlose",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%<i>Fügt 2 Hüllenpunkte hinzu</i>%LINEBREAK%Solange du verteidigst, falls der Angreifer außerhalb deines Feuerwinkels ist, darfst du 1 Verteidigungswürfel neu werfen."
+    },
     "Virago": {
       display_name: "Virago",
-      text: "Während der Endphase darfst du 1&nbsp;%CHARGE% ausgeben, um eine rote %BOOST%-Aktion durchzuführen.%LINEBREAK%Füge den %MODIFICATION%-Slot hinzu."
+      text: "Während der Endphase darfst du 1 %CHARGE% ausgeben, um eine rote %BOOST%-Aktion durchzuführen.%LINEBREAK%Füge den %MODIFICATION%-Slot hinzu."
     },
     "Ablative Plating": {
       display_name: "Ablative Panzerung",
-      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%Bevor du Schaden durch ein Hindernis oder die Detonation einer befreundeten Bombe erleiden würdest, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, verhindere 1 Schaden."
+      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%Bevor du Schaden durch ein Hindernis oder die Detonation einer befreundeten Bombe erleiden würdest, darfst du 1 %CHARGE% ausgeben. Falls du das tust, verhindere 1 Schaden."
     },
     "Admiral Sloane": {
       display_name: "Admiral Sloane",
@@ -9345,7 +12658,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Adv. Proton Torpedoes": {
       display_name: "Verstärkte Protonentorpedos",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Ändere 1&nbsp;%HIT%-Ergebnis in ein&nbsp;%CRIT%-Ergebnis."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Advanced Optics": {
       display_name: "Verbesserte Optik",
@@ -9361,7 +12674,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Afterburners": {
       display_name: "Nachbrenner",
-      text: "<i>Nur für kleines Schiff</i>%LINEBREAK%Nachdem du ein Manöver mit Geschwindigkeit 3-5 vollständig ausgeführt hast, darfst du 1&nbsp;%CHARGE% ausgeben, um eine %BOOST%-Aktion durchzuführen, auch solange du gestresst bist."
+      text: "<i>Nur für kleines Schiff</i>%LINEBREAK%Nachdem du ein Manöver mit Geschwindigkeit 3-5 vollständig ausgeführt hast, darfst du 1 %CHARGE% ausgeben, um eine %BOOST%-Aktion durchzuführen, auch solange du gestresst bist."
     },
     "Agent Kallus": {
       display_name: "Agent Kallus",
@@ -9373,19 +12686,23 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "BB Astromech": {
       display_name: "BB-Astromechdroide",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du ein blaues Manöver ausführst, darfst du 1&nbsp;%CHARGE% ausgeben, um eine %BARRELROLL%-Aktion durchzuführen."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du ein blaues Manöver ausführst, darfst du 1 %CHARGE% ausgeben, um eine %BARRELROLL%-Aktion durchzuführen."
     },
     "BB-8": {
       display_name: "BB-8",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du ein blaues Manöver ausführst, darfst du 1&nbsp;%CHARGE% ausgeben, um eine&nbsp;%BARRELROLL%- oder&nbsp;%BOOST%-Ak­tion durch­zu­fü­hren."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du ein blaues Manöver ausführst, darfst du 1 %CHARGE% ausgeben, um eine %BARRELROLL%- oder %BOOST%-Ak­tion durch­zu­fü­hren."
     },
     "BT-1": {
       display_name: "BT-1",
-      text: "<i>Nur für Abschaum oder Staffel, die Darth Vader enthält</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du für jeden Stressmarker, den der Verteidiger hat, 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
+      text: "<i>Nur für Abschaum oder Staffel, die Darth Vader enthält</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du für jeden Stressmarker, den der Verteidiger hat, 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
     },
     "Barrage Rockets": {
       display_name: "Raketensalve",
-      text: "<strong>Angriff (</strong>%FOCUS%<strong>):</strong> Gib 1&nbsp;%CHARGE%&nbsp;aus. Falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 oder mehrere %CHARGE% ausgeben, um ebenso viele Angriffswürfel neu zu werfen."
+      text: "<strong>Angriff (</strong>%FOCUS%<strong>):</strong> Gib 1 %CHARGE% aus. Falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 oder mehrere %CHARGE% ausgeben, um ebenso viele Angriffswürfel neu zu werfen."
+    },
+    "Battle Meditation": {
+      display_name: "Kampfmeditation",
+      text: "<i>Fügt %COORDINATE% hinzu</i>%LINEBREAK%<i>Nur für Galaktische Republik</i>%LINEBREAK%Du kannst keine limitierten Schiffe koordinieren. %LINEBREAK%Solange du eine violette %COORDINATE%-Aktion durchführst, darfst du 1 zusätzliches befreundetes nicht-limitiertes Schiff desselben Typs koordinieren. Beide Schiffe müssen dieselbe Aktion durchführen."
     },
     "Baze Malbus": {
       display_name: "Baze Malbus",
@@ -9405,23 +12722,31 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Bomblet Generator": {
       display_name: "Streubombengenerator",
-      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone eine Streubombe abzuwerfen.%LINEBREAK%Zu Beginn der Aktivierungsphase darfst du 1 Schild ausgeben, um 2&nbsp;%CHARGE% wiederherzustellen."
+      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung der [1 %STRAIGHT%]-Schablone eine Streubombe abzuwerfen.%LINEBREAK%Zu Beginn der Aktivierungsphase darfst du 1 Schild ausgeben, um 2 %CHARGE% wiederherzustellen."
     },
     "Bossk": {
       display_name: "Bossk",
       text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du einen Primärangriff durchgeführt hast, der verfehlt hat, falls du nicht gestresst bist, <b>musst</b> du 1 Stressmarker erhalten, um einen Bonus-Primärangriff gegen dasselbe Ziel durchzuführen."
     },
+    "Brilliant Evasion": {
+      display_name: "Brilliantes Ausweichmanöver",
+      text: "Solange du verteidigst, falls du nicht im %BULLSEYEARC% des Angreifers bist, darfst du 1 %FORCE% ausgeben, um 2 deiner %FOCUS%-Ergebnisse in %EVADE% -Ergebnisse ändern."
+    },
     "C-3PO": {
       display_name: "C-3PO",
-      text: "<i>Fügt %CALCULATE% hinzu</i>%LINEBREAK%<i>Nur für Rebellen</i>%LINEBREAK%Bevor du Verteidigungswürfel wirfst, darfst du 1&nbsp;Berechnungs­marker ausgeben, um laut eine Zahl von 1 oder höher zu raten. Falls du das tust und genau so viele %EVADE%-Ergebnisse wirfst, wie du geraten hast, füge 1&nbsp;%EVADE%-Ergebnis hinzu.%LINEBREAK%Nachdem du die %CALCULATE%-Aktion"
+      text: "<i>Fügt %CALCULATE% hinzu</i>%LINEBREAK%<i>Nur für Rebellen</i>%LINEBREAK%Bevor du Verteidigungswürfel wirfst, darfst du 1 Berechnungs­marker ausgeben, um laut eine Zahl von 1 oder höher zu raten. Falls du das tust und genau so viele %EVADE%-Ergebnisse wirfst, wie du geraten hast, füge 1 %EVADE%-Ergebnis hinzu.%LINEBREAK%Nachdem du die %CALCULATE%-Aktion"
     },
     "C-3PO (Resistance)": {
       display_name: "C-3PO (Resistance)",
-      text: "<i>Fügt %CALCULATE% ,  <r>%COORDINATE%</r> hinzu</i>%LINEBREAK%<i>Nur für Widerstand</i>%LINEBREAK%Solange du koordinierst, kannst du befreundete Schiffe jenseits von Reichweite 2 wählen, falls sie ein&nbsp;%CALCULATE% in ihrer Aktionsleiste haben.%LINEBREAK%Nachdem du die&nbsp;%CALCULATE%- oder&nbsp;%COORDINATE%-Aktion durchgeführt hast, erhalte 1 Berechnungsmarker."
+      text: "<i>Fügt %CALCULATE% ,  <r>%COORDINATE%</r> hinzu</i>%LINEBREAK%<i>Nur für Widerstand</i>%LINEBREAK%Solange du koordinierst, kannst du befreundete Schiffe jenseits von Reichweite 2 wählen, falls sie ein %CALCULATE% in ihrer Aktionsleiste haben.%LINEBREAK%Nachdem du die %CALCULATE%- oder %COORDINATE%-Aktion durchgeführt hast, erhalte 1 Berechnungsmarker."
     },
     "Cad Bane": {
       display_name: "Cad Bane",
       text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Gerät abgeworfen oder gestartet hast, darfst du eine rote %BOOST%-Aktion durchführen."
+    },
+    "Calibrated Laser Targeting": {
+      display_name: "Kalibriertes Laser-Zielsystem",
+      text: "Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, füge 1 %FOCUS% -Ergebnis hinzu."
     },
     "Captain Phasma": {
       display_name: "Captain Phasma",
@@ -9431,33 +12756,41 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Cassian Andor",
       text: "<i>Nur für Rebellen</i>%LINEBREAK%Während der Systemphase darfst du 1 feindliches Schiff in Reichweite 1-2 wählen und laut eine Flugrichtung und Geschwindigkeit raten, dann sieh dir das Rad jenes Schiffes an. Falls du die Flugrichtung und Geschwindigkeit des gewählten Schiffes richtig geraten hast, darfst du dein Rad auf ein anderes Manöver einstellen."
     },
+    "Chancellor Palpatine": {
+      display_name: "Kanzler Palpatine",
+      text: "<i>Fügt %COORDINATE% hinzu</i>%LINEBREAK%<i>Nur für Separatistenallianz oder Galaktische Republik</i>%LINEBREAK%Kanzler Palpatine:%LINEBREAK%<strong>Aufbau:</strong> Rüste diese Seite offen aus. %LINEBREAK%Nachdem du verteidigt hast, falls der Angreifer in Reichweite 0-2 ist, darfst du 1 %FORCE% ausgeben. Falls du das tust, erhält der Angreifer 1 Stressmarker.%LINEBREAK%Während der Endphase darfst du diese Karte umdrehen.%LINEBREAK%Darth Sidious:%LINEBREAK%Nachdem du eine violette &nbsp;%COORDINATE%&nbsp;-Aktion durchgeführt hast, erhält das von dir koordinierte Schiff 1&nbsp;Stressmarker. Dann erhält es 1 _x001F_Fokusmarker oder es stellt 1&nbsp;%FORCE% wieder her."
+    },
     "Chewbacca": {
       display_name: "Chewbacca",
       text: "<i>Nur für Rebellen</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 2 %CHARGE% ausgeben, um 1 offene Schadenskarte zu reparieren."
     },
     "Chewbacca (Scum)": {
       display_name: "Chewbacca (Scum)",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Zu Beginn der Endphase darfst du 1&nbsp;Fokusmarker ausgeben, um 1&nbsp;deiner offenen Schadenskarten zu reparieren."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Zu Beginn der Endphase darfst du 1 Fokusmarker ausgeben, um 1 deiner offenen Schadenskarten zu reparieren."
     },
     "Chewbacca (Resistance)": {
       display_name: "Chewbacca (Resistance)",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%<strong>Aufbau:</strong> Verliere 1&nbsp;%CHARGE%.%LINEBREAK%Nachdem einem befreundeten Schiff in Reichweite 0-3 1&nbsp;Schadenskarte zugeteilt worden ist, stelle 1&nbsp;%CHARGE% wieder her.%LINEBREAK%Solange du einen Angriff durchführst, darfst du 2&nbsp;%CHARGE% ausgeben, um 1&nbsp;%FOCUS%-Ergebnis in ein&nbsp;%CRIT%-Ergebnis zu ändern."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%<strong>Aufbau:</strong> Verliere 1 %CHARGE%.%LINEBREAK%Nachdem einem befreundeten Schiff in Reichweite 0-3 1 Schadenskarte zugeteilt worden ist, stelle 1 %CHARGE% wieder her.%LINEBREAK%Solange du einen Angriff durchführst, darfst du 2 %CHARGE% ausgeben, um 1 %FOCUS%-Ergebnis in ein %CRIT%-Ergebnis zu ändern."
     },
     "Ciena Ree": {
       display_name: "Ciena Ree",
-      text: "<i>Benötigt %COORDINATE% oder <r>%COORDINATE%</r></i>%LINEBREAK%<i>Nur für Imperium</i>%LINEBREAK%Nachdem du eine %COORDINATE%-Aktion durchgeführt hast, falls das von dir koordinierte Schiff eine %BARRELROLL%- oder %BOOST%-Aktion durchgeführt hat, darf es 1&nbsp;Stressmarker erhalten, um sich um 90° zu drehen."
+      text: "<i>Benötigt %COORDINATE% oder <r>%COORDINATE%</r></i>%LINEBREAK%<i>Nur für Imperium</i>%LINEBREAK%Nachdem du eine %COORDINATE%-Aktion durchgeführt hast, falls das von dir koordinierte Schiff eine %BARRELROLL%- oder %BOOST%-Aktion durchgeführt hat, darf es 1 Stressmarker erhalten, um sich um 90° zu drehen."
     },
     "Cikatro Vizago": {
       display_name: "Cikatro Vizago",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Während der Endphase darfst du 2&nbsp;%ILLICIT%-Aufwertungen wählen, die befreundete Schiffe in Reichweite 0-1 ausgerüstet haben. Falls du das tust, darfst du diese Aufwertungen austauschen.%LINEBREAK%<strong>Spielende:</strong> Lege alle %ILLICIT%-Aufwertungen auf ihre ursprünglichen Schiffe zurück."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Während der Endphase darfst du 2 %ILLICIT%-Aufwertungen wählen, die befreundete Schiffe in Reichweite 0-1 ausgerüstet haben. Falls du das tust, darfst du diese Aufwertungen austauschen.%LINEBREAK%<strong>Spielende:</strong> Lege alle %ILLICIT%-Aufwertungen auf ihre ursprünglichen Schiffe zurück."
     },
     "Cloaking Device": {
       display_name: "Tarngerät",
-      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1&nbsp;%CHARGE% aus, um eine %CLOAK%-Aktion durchzuführen.%LINEBREAK%Zu Beginn der Planungsphase wirf 1&nbsp;Angriffswürfel. Bei einem %FOCUS%-Ergebnis, enttarne dich oder lege deinen Tarnungsmarker ab."
+      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um eine %CLOAK%-Aktion durchzuführen.%LINEBREAK%Zu Beginn der Planungsphase wirf 1 Angriffswürfel. Bei einem %FOCUS%-Ergebnis, enttarne dich oder lege deinen Tarnungsmarker ab."
+    },
+    "Clone Commander Cody": {
+      display_name: "Klon-Kommandant Cody",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Nachdem du einen Angriff durchgeführt hast, der verfehlt hat, falls 1 oder mehrere %HIT%/%CRIT%-Ergebnisse neutralisiert worden sind, erhält der Verteidiger 1 Anstrengungsmarker."
     },
     "Cluster Missiles": {
       display_name: "Clusterraketen",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Nach diesem Angriff darfst du diesen Angriff als Bonusangriff gegen ein anderes Ziel in Reichweite 0-1 des Verteidigers durchführen, wobei du die %LOCK%-Voraussetzung ignorierst."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Nach diesem Angriff darfst du diesen Angriff als Bonusangriff gegen ein anderes Ziel in Reichweite 0-1 des Verteidigers durchführen, wobei du die %LOCK%-Voraussetzung ignorierst."
     },
     "Collision Detector": {
       display_name: "Kollisionssensor",
@@ -9469,31 +12802,39 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Concussion Missiles": {
       display_name: "Erschütterungsraketen",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE%aus. Nachdem dieser Angriff getroffen hat, legt jedes Schiff in Reichweite 0-1 zum Verteidiger 1 seiner Schadenskarten offen."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE%aus. Nachdem dieser Angriff getroffen hat, legt jedes Schiff in Reichweite 0-1 zum Verteidiger 1 seiner Schadenskarten offen."
     },
     "Conner Nets": {
       display_name: "Connernetz",
-      text: "<strong>Mine</strong>%LINEBREAK%Während der Systemphase darfst du 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone ein Connernetz abzuwerfen.%LINEBREAK%Die %CHARGE% dieser Karte kann nicht wiederhergestellt werden."
+      text: "<strong>Mine</strong>%LINEBREAK%Während der Systemphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung der [1 %STRAIGHT%]-Schablone ein Connernetz abzuwerfen.%LINEBREAK%Die %CHARGE% dieser Karte kann nicht wiederhergestellt werden."
     },
     "Contraband Cybernetics": {
       display_name: "Illegale Kybernetik",
-      text: "Bevor du aktiviert wirst, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, kannst du bis zum Ende der Runde Aktionen durchführen und rote Manöver ausführen, auch solange du gestresst bist."
+      text: "Bevor du aktiviert wirst, darfst du 1 %CHARGE% ausgeben. Falls du das tust, kannst du bis zum Ende der Runde Aktionen durchführen und rote Manöver ausführen, auch solange du gestresst bist."
+    },
+    "Count Dooku": {
+      display_name: "Count Dooku",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Bevor ein Schiff in Reichweite 0-2 Angriffs- oder Verteidigungswürfel wirft, falls alle deine %FORCE% aktiv sind, darfst du 1 %FORCE% ausgeben und ein Ergebnis benennen. Falls der Wurf das benannte Ergebnis nicht enthält, muss das Schiff 1 Würfel auf jenes Ergebnis ändern."
     },
     "Crack Shot": {
       display_name: "Meisterhafter Schuss",
-      text: "Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, vor dem Schritt „Ergebnisse neutralisieren“, darfst du 1&nbsp;%CHARGE% ausgeben, um 1&nbsp;%EVADE%-Ergebnis zu negieren."
+      text: "Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, vor dem Schritt „Ergebnisse neutralisieren“, darfst du 1 %CHARGE% ausgeben, um 1 %EVADE%-Ergebnis zu negieren."
+    },
+    "DRK-1 Probe Droids": {
+      display_name: "DRK-1-Sondendroiden",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Während der Endphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung einer Schablone mit Geschwindigkeit 3 1  DRK-1-Sondendroiden abzuwerfen oder zu starten.%LINEBREAK%Die %CHARGE% dieser Karte können nicht wiederhergestellt werden."
     },
     "Daredevil": {
       display_name: "Draufgänger",
-      text: "<i>Benötigt %BOOST%</i>%LINEBREAK%<i>Nur für kleines Schiff</i>%LINEBREAK%Solange du eine weiße %BOOST%-Aktion durchführst, darfst du sie behandeln, als wäre sie rot, um stattdessen die [1&nbsp;%TURNLEFT%]- oder [1&nbsp;%TURNRIGHT%]-Schablone zu verwenden."
+      text: "<i>Benötigt %BOOST%</i>%LINEBREAK%<i>Nur für kleines Schiff</i>%LINEBREAK%Solange du eine weiße %BOOST%-Aktion durchführst, darfst du sie behandeln, als wäre sie rot, um stattdessen die [1 %TURNLEFT%]- oder [1 %TURNRIGHT%]-Schablone zu verwenden."
     },
     "Darth Vader": {
       display_name: "Darth Vader",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1 Schiff in deinem Feuerwinkel in Reichweite 0-2 wählen und 1&nbsp;%FORCE% ausgeben. Falls du das tust, erleidet jenes Schiff 1&nbsp;%HIT%-Schaden, es sei denn, es entscheidet sich dafür, 1 grünen Marker zu"
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1 Schiff in deinem Feuerwinkel in Reichweite 0-2 wählen und 1 %FORCE% ausgeben. Falls du das tust, erleidet jenes Schiff 1 %HIT%-Schaden, es sei denn, es entscheidet sich dafür, 1 grünen Marker zu"
     },
     "Deadman's Switch": {
       display_name: "Totmannschalter",
-      text: "Nachdem du zerstört worden bist, erleidet jedes andere Schiff in Reichweite 0-1 1&nbsp;%HIT%-Schaden."
+      text: "Nachdem du zerstört worden bist, erleidet jedes andere Schiff in Reichweite 0-1 1 %HIT%-Schaden."
     },
     "Death Troopers": {
       display_name: "Todestruppen",
@@ -9503,9 +12844,21 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Trümmertanz",
       text: "<i>Fügt <r>%EVADE%</r> hinzu</i>%LINEBREAK%<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du eine rote %EVADE%-Aktion durchführst, falls ein Hindernis in Reichweite 0-1 ist, behandle die Aktion stattdessen, als wäre sie weiß."
     },
+    "Dedicated": {
+      display_name: "Pflichtbewusst",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Solange ein anderes befreundetes Schiff in deinem %LEFTARC% oder %RIGHTARC% in Reichweite 0-2 verteidigt, falls es limitiert ist oder die Aufwertung <strong>Pflichtbewusst</strong> hat und du nicht angestrengt bist, darfst du 1 Anstrengungsmarker erhalten. Falls du das tust, wirft der Verteidiger 1 seiner Leerseiten-Ergebnisse neu."
+    },
+    "Delta-7B": {
+      display_name: "Delta-7B",
+      text: "<i class = flavor_text>Der Delta-7B wurde als schwerere Variante des Abfangjägers der Aethersprite-Klasse konzipiert und unterscheidet sich optisch nur durch seinen verschobenen Astromech-Anschluss. Viele Jedi-Generäle bevorzugen ihn aufgrund seiner verbesserten Feuerkraft und Stabilität.</i>"
+    },
     "Dengar": {
       display_name: "Dengar",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du verteidigt hast, falls der Angreifer in deinem Feuerwinkel ist, darfst du 1&nbsp;%CHARGE% ausgeben. Falls du das tust, wirf 1 Angriffswürfel, es sei denn, der Angreifer entscheidet sich dafür, 1 grünen Marker zu entfernen. Bei einem %HIT%- oder %CRIT%-Ergebnis erleidet der Angreifer 1&nbsp;%HIT%-Schaden."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du verteidigt hast, falls der Angreifer in deinem Feuerwinkel ist, darfst du 1 %CHARGE% ausgeben. Falls du das tust, wirf 1 Angriffswürfel, es sei denn, der Angreifer entscheidet sich dafür, 1 grünen Marker zu entfernen. Bei einem %HIT%- oder %CRIT%-Ergebnis erleidet der Angreifer 1 %HIT%-Schaden."
+    },
+    "Discord Missiles": {
+      display_name: "Diskordanzraketen",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1&nbsp;Berechnungsmarker und 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [3&nbsp;%BANKLEFT%]-, [3&nbsp;%STRAIGHT%] oder [3&nbsp;%BANKRIGHT%]-Schablone 1&nbsp;Buzz- Droidenschwarm zu starten.%LINEBREAK%Die %CHARGE% dieser Karte kann nicht wiederhergestellt werden."
     },
     "Director Krennic": {
       display_name: "Direktor Krennic",
@@ -9517,47 +12870,51 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Electronic Baffle": {
       display_name: "Elektronischer Dämpfer",
-      text: "Während der Endphase darfst du 1&nbsp;%HIT%-Schaden erleiden, um 1&nbsp;roten&nbsp;Marker zu entfernen."
+      text: "Während der Endphase darfst du 1 %HIT%-Schaden erleiden, um 1 roten Marker zu entfernen."
     },
     "Elusive": {
       display_name: "Schwer zu treffen",
-      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du verteidigst, darfst du 1&nbsp;%CHARGE% ausgeben, um 1 Verteidigungswürfel neu zu werfen.%LINEBREAK%Nachdem du ein rotes Manöver vollständig ausgeführt hast, stelle 1&nbsp;%CHARGE% wieder her."
+      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du verteidigst, darfst du 1 %CHARGE% ausgeben, um 1 Verteidigungswürfel neu zu werfen.%LINEBREAK%Nachdem du ein rotes Manöver vollständig ausgeführt hast, stelle 1 %CHARGE% wieder her."
     },
     "Emperor Palpatine": {
       display_name: "Imperator Palpatine",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange ein anderes befreundetes Schiff verteidigt oder einen Angriff durchführt, darfst du 1&nbsp;%FORCE%&nbsp;ausgeben, um 1 seiner Würfel so zu modifizieren, als hätte jenes Schiff 1&nbsp;%FORCE%&nbsp;ausgegeben."
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange ein anderes befreundetes Schiff verteidigt oder einen Angriff durchführt, darfst du 1 %FORCE% ausgeben, um 1 seiner Würfel so zu modifizieren, als hätte jenes Schiff 1 %FORCE% ausgegeben."
+    },
+    "Energy-Shell Charges": {
+      display_name: "Energiegeschosse",
+      text: "<i>Benötigt %CALCULATE% oder <r>%CALCULATE%</r></i>%LINEBREAK%<i>Nur für Separatistenallianz</i>%LINEBREAK%<strong>Angriff (%CALCULATE%):</strong> Gib 1 %CHARGE% aus. Solange du diesen Angriff durchführst, darfst du 1 Berechnungsmarker ausgegeben, um 1 %FOCUS%-Ergebnis in ein %CRIT%-Ergebnis zu ändern.%LINEBREAK%<strong>Aktion</strong>: Lade diese Karte nach."
     },
     "Engine Upgrade": {
       display_name: "Verbessertes Triebwerk",
-      text: "Diese Aufwertungskarte hat variable Punktekosten.%LINEBREAK%<i>Fügt %BOOST% hinzu</i>%LINEBREAK%<i>Benötigt <r>%BOOST%</r></i>%LINEBREAK%<i class = flavor_text>Große Armeen wie das Militär des Galaktischen Imperiums haben meist standardisierte Triebwerke. Freischaffende Piloten und kleinere Organisationen ersetzen oft Energiekopplungen,  bauen zusätzliche Düsen ein oder nutzen Hochleistungskraftstoffe, um noch mehr aus ihren Triebwerken herauszuholen</i>"
+      text: "<i>Fügt %BOOST% hinzu</i>%LINEBREAK%<i>Benötigt <r>%BOOST%</r></i>%LINEBREAK%<i class = flavor_text>Große Armeen wie das Militär des Galaktischen Imperiums haben meist standardisierte Triebwerke. Freischaffende Piloten und kleinere Organisationen ersetzen oft Energiekopplungen, "
     },
     "Expert Handling": {
       display_name: "Flugkunst",
-      text: "Diese Aufwertungskarte hat variable Punktekosten.%LINEBREAK%<i>Fügt %BARRELROLL% hinzu</i>%LINEBREAK%<i>Benötigt <r>%BARRELROLL%</r></i>%LINEBREAK%<i class = flavor_text>Auch schwere Jäger können in eine Fassrolle gezwungen werden, wobei es einen erfahrenen Piloten braucht, um die Maschine nicht übermäßig zu belasten und dem Feind kein leichtes Ziel zu bieten.</i>"
+      text: "<i>Fügt %BARRELROLL% hinzu</i>%LINEBREAK%<i>Benötigt <r>%BARRELROLL%</r></i>%LINEBREAK%<i class = flavor_text>Auch schwere Jäger können in eine Fassrolle gezwungen werden, wobei es einen erfahrenen Piloten braucht, um die Maschine nicht übermäßig zu belasten und dem Feind kein leichtes Ziel zu bieten.</i>"
     },
     "Ezra Bridger": {
       display_name: "Ezra Bridger",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem du einen Primärangriff durchgeführt hast, darfst du 1&nbsp;%FORCE% ausgeben, um einen Bonus-%SINGLETURRETARC%-Angriff aus einem %SINGLETURRETARC%, aus dem du in dieser Runde noch nicht angegriffen hast, durchzuführen. Falls du das tust und gestresst bist, darfst du 1 Angriffswürfel neu werfen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem du einen Primärangriff durchgeführt hast, darfst du 1 %FORCE% ausgeben, um einen Bonus-%SINGLETURRETARC%-Angriff aus einem %SINGLETURRETARC%, aus dem du in dieser Runde noch nicht angegriffen hast, durchzuführen. Falls du das tust und gestresst bist, darfst du 1 Angriffswürfel neu werfen."
     },
     "Fanatical": {
       display_name: "Fanatisch",
-      text: "<i>Nur für Erste Ordnung</i>%LINEBREAK%Solange du einen Primärangriff durchführst, falls du keine Schilde hast, darfst du 1&nbsp;%FOCUS%-Ergebnis in ein %HIT%-Ergebnis ändern."
+      text: "<i>Nur für Erste Ordnung</i>%LINEBREAK%Solange du einen Primärangriff durchführst, falls du keine Schilde hast, darfst du 1 %FOCUS%-Ergebnis in ein %HIT%-Ergebnis ändern."
     },
     "Fearless": {
       display_name: "Furchtlos",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen %FRONTARC%-Primärangriff durchführst, falls die Angriffs­reichweite&nbsp;1 ist und du im %FRONTARC% des Verteidigers bist, darfst du 1 deiner Ergebnisse in ein %HIT%-Ergebnis ändern."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen %FRONTARC%-Primärangriff durchführst, falls die Angriffs­reichweite 1 ist und du im %FRONTARC% des Verteidigers bist, darfst du 1 deiner Ergebnisse in ein %HIT%-Ergebnis ändern."
     },
     "Feedback Array": {
       display_name: "Rückkopplungsfeld",
-      text: "Bevor du kämpfst, darfst du 1&nbsp;Ionenmarker und 1 Entwaffnet-Marker erhalten. Falls du das tust, erleidet jedes Schiff in Reichweite 0 1&nbsp;%HIT%-Schaden."
+      text: "Bevor du kämpfst, darfst du 1 Ionenmarker und 1 Entwaffnet-Marker erhalten. Falls du das tust, erleidet jedes Schiff in Reichweite 0 1 %HIT%-Schaden."
     },
     "Ferrosphere Paint": {
       display_name: "Ferrosphärenfarbe",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Nachdem ein feindliches Schiff dich als Ziel erfasst hat, falls du nicht im %BULLSEYEARC%&nbsp;jenes Schiffes bist, erhält jenes Schiff 1 Stressmarker."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Nachdem ein feindliches Schiff dich als Ziel erfasst hat, falls du nicht im %BULLSEYEARC% jenes Schiffes bist, erhält jenes Schiff 1 Stressmarker."
     },
     "Fifth Brother": {
       display_name: "Fünfter Bruder",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1&nbsp;%FORCE%&nbsp;ausgeben, um 1&nbsp;deiner %FOCUS%-Ergebnisse in ein %CRIT%-Ergebnis zu ändern."
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1 %FORCE% ausgeben, um 1 deiner %FOCUS%-Ergebnisse in ein %CRIT%-Ergebnis zu ändern."
     },
     "Finn": {
       display_name: "Finn",
@@ -9565,15 +12922,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Fire-Control System": {
       display_name: "Feuerkontrollsystem",
-      text: "Solange du einen Angriff durchführst, falls du den Verteidiger als Ziel erfasst hast, darfst du 1&nbsp;Angriffswürfel neu werfen. Falls du das tust, kannst du während dieses Angriffs deine Zielerfassung nicht ausgeben."
+      text: "Solange du einen Angriff durchführst, falls du den Verteidiger als Ziel erfasst hast, darfst du 1 Angriffswürfel neu werfen. Falls du das tust, kannst du während dieses Angriffs deine Zielerfassung nicht ausgeben."
     },
     "Freelance Slicer": {
       display_name: "Freischaffender Hacker",
-      text: "Solange du verteidigst, bevor die Angriffswürfel geworfen werden, darfstdu eine Zielerfassung, die du auf dem Angreifer hast, ausgeben, um 1&nbsp;Angriffswürfel zu werfen. Falls du das tust, erhält der Angreifer 1&nbsp;Störsignalmarker. Dann, bei einem %HIT%- oder %CRIT%-Ergebnis, erhältst du 1&nbsp;Störsignalmarker."
+      text: "Solange du verteidigst, bevor die Angriffswürfel geworfen werden, darfstdu eine Zielerfassung, die du auf dem Angreifer hast, ausgeben, um 1 Angriffswürfel zu werfen. Falls du das tust, erhält der Angreifer 1 Störsignalmarker. Dann, bei einem %HIT%- oder %CRIT%-Ergebnis, erhältst du 1 Störsignalmarker."
     },
     'GNK "Gonk" Droid': {
       display_name: "GNK-„Gonk“-Droide",
-      text: "<strong>Aufbau:</strong> Verliere 1&nbsp;%CHARGE%.%LINEBREAK%<strong>Aktion:</strong> Stelle 1&nbsp;%CHARGE% wieder her.%LINEBREAK%<strong>Aktion:</strong> Gib 1&nbsp;%CHARGE% aus, um 1 Schild wiederherzustellen."
+      text: "<strong>Aufbau:</strong> Verliere 1 %CHARGE%.%LINEBREAK%<strong>Aktion:</strong> Stelle 1 %CHARGE% wieder her.%LINEBREAK%<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um 1 Schild wiederherzustellen."
+    },
+    "General Grievous": {
+      display_name: "General Grievous",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Solange du verteidigst, falls nach dem Schritt „Ergebnisse neutralisieren“ 2 oder mehr %HIT%/%CRIT%-Ergebnisse vorhanden sind, darfst du 1  %CHARGE% ausgeben, um 1 %HIT%- oder %CRIT% -Ergebnis zu negieren. %LINEBREAK%Nachdem ein befreundetes Schiff zerstört worden ist, stelle 1 %CHARGE% wieder her."
     },
     "General Hux": {
       display_name: "General Hux",
@@ -9581,23 +12942,27 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Grand Inquisitor": {
       display_name: "Großinquisitor",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Nachdem ein feindliches Schiff in Reichweite 0-2 sein Rad aufgedeckt hat, darfst du 1&nbsp;%FORCE% ausgeben, um 1 weiße Aktion aus deiner Aktionsleiste durchzuführen, wobei du jene Aktion behandelst, als wäre sie rot."
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Nachdem ein feindliches Schiff in Reichweite 0-2 sein Rad aufgedeckt hat, darfst du 1 %FORCE% ausgeben, um 1 weiße Aktion aus deiner Aktionsleiste durchzuführen, wobei du jene Aktion behandelst, als wäre sie rot."
     },
     "Grand Moff Tarkin": {
       display_name: "Großmoff Tarkin",
       text: "<i>Benötigt %LOCK% oder <r>%LOCK%</r></i>%LINEBREAK%<i>Nur für Imperium</i>%LINEBREAK%Während der Systemphase darfst du 2 %CHARGE% ausgeben. Falls du das tust, darf jedes befreundete Schiff ein Schiff, das du als Ziel erfasst hast, als Ziel erfassen."
     },
+    "Grappling Struts": {
+      display_name: "Laufkrallen",
+      text: "Geschlossen:%LINEBREAK%<strong>Aufbau:</strong> Rüste diese Seite offen aus.%LINEBREAK%Solange du ein Manöver ausführst, falls du einen Asteroiden oder eine Trümmerwolke überschneidest und 1 oder weniger andere befreundete Schiffe in Reichweite 0 jenes Hindernisses sind, darfst du diese Karte umdrehen.%LINEBREAK%Geöffnet:%LINEBREAK%Du ignorierst Hindernisse in Reichweite&nbsp;0 und solange du dich durch sie hindurchbewegst. Nachdem du dein Rad aufgedeckt hast, falls du ein anderes Manöver als [2&nbsp;%STRAIGHT%] aufgedeckt hast und in Reichweite 0 eines Asteroiden oder einer Trümmerwolke bist, überspringe deinen Schritt „Manöver ausführen“ und entferne 1_x001F_ Stressmarker; falls du ein rechtes oder linkes Manöver aufgedeckt hast, drehe dein Schiff um 90° in jene Richtung. Nachdem du ein Manöver ausgeführt hast, drehe diese Karte um."
+    },
     "Greedo": {
       display_name: "Greedo",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1&nbsp;%CHARGE% ausgeben, um 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis zu ändern.%LINEBREAK%Solange du verteidigst, falls deine %CHARGE% aktiv ist, darf der Angreifer 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1 %CHARGE% ausgeben, um 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis zu ändern.%LINEBREAK%Solange du verteidigst, falls deine %CHARGE% aktiv ist, darf der Angreifer 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
     },
     "Han Solo": {
       display_name: "Han Solo",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während der Kampfphase, bei Initiative&nbsp;7, darfst du einen %SINGLETURRETARC%-Angriff durchführen. Du kannst in dieser Runde nicht noch einmal aus jenem %SINGLETURRETARC% angreifen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während der Kampfphase, bei Initiative 7, darfst du einen %SINGLETURRETARC%-Angriff durchführen. Du kannst in dieser Runde nicht noch einmal aus jenem %SINGLETURRETARC% angreifen."
     },
     "Han Solo (Scum)": {
       display_name: "Han Solo (Scum)",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Bevor du kämpfst, darfst du eine rote&nbsp;%FOCUS%-Aktion durchführen."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Bevor du kämpfst, darfst du eine rote %FOCUS%-Aktion durchführen."
     },
     "Han Solo (Resistance)": {
       display_name: "Han Solo (Resistance)",
@@ -9605,7 +12970,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Hate": {
       display_name: "Hass",
-      text: "Nachdem du 1 oder mehr Schaden erlitten hast, stelle ebenso viele %FORCE%&nbsp;wieder her."
+      text: "Nachdem du 1 oder mehr Schaden erlitten hast, stelle ebenso viele %FORCE% wieder her."
     },
     "Heavy Laser Cannon": {
       display_name: "Schwere Laserkanone",
@@ -9613,11 +12978,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Heightened Perception": {
       display_name: "Geschärfte Sinne",
-      text: "Zu Beginn der Kampfphase darfst du 1&nbsp;%FORCE% ausgeben. Falls du das tust, kämpfe in dieser Phase bei Initiative 7 anstatt bei deinem normalen Initiativwert."
+      text: "Zu Beginn der Kampfphase darfst du 1 %FORCE% ausgeben. Falls du das tust, kämpfe in dieser Phase bei Initiative 7 anstatt bei deinem normalen Initiativwert."
     },
     "Hera Syndulla": {
       display_name: "Hera Syndulla",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Du kannst rote Manöver ausführen, auch solange du gestresst bist. Nachdem du ein rotes Manöver vollständig ausgeführt hast, falls du 3 oder mehr Stressmarker hast, entferne 1 Stressmarker und erleide 1&nbsp;%HIT%-Schaden."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Du kannst rote Manöver ausführen, auch solange du gestresst bist. Nachdem du ein rotes Manöver vollständig ausgeführt hast, falls du 3 oder mehr Stressmarker hast, entferne 1 Stressmarker und erleide 1 %HIT%-Schaden."
     },
     "Heroic": {
       display_name: "Heroisch",
@@ -9625,7 +12990,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Homing Missiles": {
       display_name: "Lenkraketen",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Nachdem du den Verteidiger deklariert hast, darf der Verteidiger wählen, 1&nbsp;%HIT%-Schaden zu erleiden. Falls er das tut, überspringe die Schritte „Angriffswürfel“ und „Verteidigungswürfel“, und der Angriff wird behandelt, als hätte er getroffen."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Nachdem du den Verteidiger deklariert hast, darf der Verteidiger wählen, 1 %HIT%-Schaden zu erleiden. Falls er das tut, überspringe die Schritte „Angriffswürfel“ und „Verteidigungswürfel“, und der Angriff wird behandelt, als hätte er getroffen."
     },
     "Hotshot Gunner": {
       display_name: "Erstklassiger Bordschütze",
@@ -9633,7 +12998,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Hull Upgrade": {
       display_name: "Verstärkte Hülle",
-      text: "Diese Aufwertungskarte hat variable Punktekosten.%LINEBREAK%<i class = flavor_text>Auch wer sich keinen verbesserten Schildgenerator leisten kann, muss nicht auf erhöhten Schutz verzichten, sondern kann sich mit zusätzlichen Panzerplatten an der Schiffshülle behelfen.</i>"
+      text: "<i class = flavor_text>Auch wer sich keinen verbesserten Schildgenerator leisten kann, muss nicht auf erhöhten Schutz verzichten, sondern kann sich mit zusätzlichen Panzerplatten an der Schiffshülle behelfen.</i>"
     },
     "Hyperspace Tracking Data": {
       display_name: "Hyperraum-Ortungsdaten",
@@ -9647,13 +13012,17 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "ISB-Hacker",
       text: "<i>Nur für Imperium</i>%LINEBREAK%Während der Endphase können feindliche Schiffe in Reichweite 1-2 keine Störsignalmarker entfernen."
     },
+    "Impervium Plating": {
+      display_name: "Impervium-Panzerung",
+      text: "Bevor dir eine offene <strong>Schiff</strong>-Schadenskarte zugeteilt werden würde, darfst du 1 %CHARGE% ausgeben, um sie stattdessen abzulegen."
+    },
     "Inertial Dampeners": {
       display_name: "Trägheitsdämpfer",
-      text: "Bevor du ein Manöver ausführen würdest, darfst du 1 Schild ausgeben. Falls du das tust, führe anstatt des Manövers, das du aufgedeckt hast, ein weißes [0&nbsp;%STOP%]-Manöver aus, dann erhalte 1 Stressmarker."
+      text: "Bevor du ein Manöver ausführen würdest, darfst du 1 Schild ausgeben. Falls du das tust, führe anstatt des Manövers, das du aufgedeckt hast, ein weißes [0 %STOP%]-Manöver aus, dann erhalte 1 Stressmarker."
     },
     "Informant": {
       display_name: "Informant",
-      text: "<strong>Aufbau:</strong> Nachdem die Streitkräfte platziert worden sind, wähle 1&nbsp;feindliches Schiff und ordne ihm den Zustand Abhörgerät zu."
+      text: "<strong>Aufbau:</strong> Nachdem die Streitkräfte platziert worden sind, wähle 1 feindliches Schiff und ordne ihm den Zustand Abhörgerät zu."
     },
     "Instinctive Aim": {
       display_name: "Instinktives Zielen",
@@ -9665,27 +13034,27 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Intimidation": {
       display_name: "Furchteinflößend",
-      text: "Solange ein feindliches Schiff in Reichweite 0 verteidigt, wirft es 1&nbsp;Verteidigungswürfel weniger."
+      text: "Solange ein feindliches Schiff in Reichweite 0 verteidigt, wirft es 1 Verteidigungswürfel weniger."
     },
     "Ion Cannon": {
       display_name: "Ionenkanone",
-      text: "<strong>Angriff:</strong> Falls dieser Angriff trifft, gib 1&nbsp;%HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1&nbsp;%HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
+      text: "<strong>Angriff:</strong> Falls dieser Angriff trifft, gib 1 %HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1 %HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
     },
     "Ion Cannon Turret": {
       display_name: "Ionengeschütz",
-      text: "<i>Fügt %ROTATEARC% hinzu</i>%LINEBREAK%<strong>Angriff:</strong> Falls dieser Angriff trifft, gib 1&nbsp;%HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1&nbsp;%HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
+      text: "<i>Fügt %ROTATEARC% hinzu</i>%LINEBREAK%<strong>Angriff:</strong> Falls dieser Angriff trifft, gib 1 %HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1 %HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
     },
     "Ion Missiles": {
       display_name: "Ionenraketen",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Falls dieser Angriff trifft, gib 1&nbsp;%HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1&nbsp;%HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Falls dieser Angriff trifft, gib 1 %HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1 %HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
     },
     "Ion Torpedoes": {
       display_name: "Ionentorpedos",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Falls dieser Angriff trifft, gib 1&nbsp;%HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1&nbsp;%HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Falls dieser Angriff trifft, gib 1 %HIT%- oder %CRIT%-Ergebnis aus, um den Verteidiger 1 %HIT%-Schaden erleiden zu lassen. Alle übrigen %HIT%/%CRIT%-Ergebnisse fügen Ionenmarker anstatt Schaden zu."
     },
     "Jabba the Hutt": {
       display_name: "Jabba der Hutt",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Während der Endphase darfst du 1 befreundetes Schiff in Reichweite 0-2 wählen und 1&nbsp;%CHARGE% ausgeben. Falls du das tust, stellt jenes Schiff 1&nbsp;%CHARGE% von 1&nbsp;seiner ausgerüsteten %ILLICIT%-Aufwertungen wieder her."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Während der Endphase darfst du 1 befreundetes Schiff in Reichweite 0-2 wählen und 1 %CHARGE% ausgeben. Falls du das tust, stellt jenes Schiff 1 %CHARGE% von 1 seiner ausgerüsteten %ILLICIT%-Aufwertungen wieder her."
     },
     "Jamming Beam": {
       display_name: "Störstrahl",
@@ -9693,31 +13062,39 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Juke": {
       display_name: "Finte",
-      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du einen Angriff durchführst, falls du ausweichst, darfst du 1&nbsp;der %EVADE%-Ergebnisse des Verteidigers in ein %FOCUS%-Ergebnis ändern."
+      text: "<i>Nur für kleines Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du einen Angriff durchführst, falls du ausweichst, darfst du 1 der %EVADE%-Ergebnisse des Verteidigers in ein %FOCUS%-Ergebnis ändern."
     },
     "Jyn Erso": {
       display_name: "Jyn Erso",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Falls ein befreundetes Schiff in Reichweite 0-3 einen Fokusmarker erhalten würde, darf es stattdessen 1&nbsp;Ausweichmarker erhalten."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Falls ein befreundetes Schiff in Reichweite 0-3 einen Fokusmarker erhalten würde, darf es stattdessen 1 Ausweichmarker erhalten."
+    },
+    "K2-B4": {
+      display_name: "K2-B4",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Solange ein befreundetes Schiff in Reichweite 0-3 verteidigt, darf es 1 Berechnungsmarker ausgeben. Falls es das tut, füge 1 %EVADE%-Ergebnis hinzu, es sei denn, der Angreifer entscheidet sich dafür, 1 Anstrengungsmarker zu erhalten."
     },
     "Kanan Jarrus": {
       display_name: "Kanan Jarrus",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem ein befreundetes Schiff in Reichweite 0-2 ein weißes Manöver vollständig ausgeführt hat, darfst du 1&nbsp;%FORCE% ausgeben, um 1&nbsp;Stressmarker von jenem Schiff zu entfernen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem ein befreundetes Schiff in Reichweite 0-2 ein weißes Manöver vollständig ausgeführt hat, darfst du 1 %FORCE% ausgeben, um 1 Stressmarker von jenem Schiff zu entfernen."
     },
     "Ketsu Onyo": {
       display_name: "Ketsu Onyo",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Zu Beginn der Endphase darfst du 1&nbsp;feindliches Schiff in Reichweite 0-2 in deinem Feuerwinkel wählen. Falls du das tust, entfernt jenes Schiff seine Fangstrahlmarker nicht."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Zu Beginn der Endphase darfst du 1 feindliches Schiff in Reichweite 0-2 in deinem Feuerwinkel wählen. Falls du das tust, entfernt jenes Schiff seine Fangstrahlmarker nicht."
+    },
+    "Kraken": {
+      display_name: "Kraken",
+      text: "<i>Fügt %CALCULATE% hinzu</i>%LINEBREAK%<i>Nur für Separatistenallianz</i>%LINEBREAK%Während der Endphase darfst du bis zu 3 befreundete Schiffe in Reichweite 0-3 wählen. Falls du das tust, entfernt jedes dieser Schiffe 1  Berechnungsmarker nicht."
+    },
+    "Kylo Ren": {
+      display_name: "Kylo Ren",
+      text: "<i>Nur für Erste Ordnung</i>%LINEBREAK%<strong>Aktion:</strong> Wähle 1 feindliches Schiff in Reichweite 1-3. Falls du das tust, gib 1 %FORCE% aus, um jenem Schiff den Zustand <strong>Ich zeige dir die dunkle Seite</strong> zuzuordnen."
     },
     "L3-37": {
       display_name: "L3-37",
       text: "<i>Nur für Abschaum</i>%LINEBREAK%<strong>Aufbau:</strong> Rüste diese Seite offen aus.%LINEBREAK%Solange du verteidigst, darfst du diese Karte umdrehen. Fall du das tust, muss der Angreifer alle Angriffswürfel neu werfen. %LINEBREAK% Programmierung von L3-37: Falls du keine Schilde hast, verringere die Schwierigkeit deiner Drehmanöver (%BANKLEFT% und %BANKRIGHT%)."
     },
-    "Kylo Ren": {
-      display_name: "Kylo Ren",
-      text: "<i>Nur für Erste Ordnung</i>%LINEBREAK%<strong>Aktion:</strong> Wähle 1&nbsp;feindliches Schiff in Reichweite 1-3. Falls du das tust, gib 1&nbsp;%FORCE% aus, um jenem Schiff den Zustand <strong>Ich zeige dir die dunkle Seite</strong> zuzuordnen."
-    },
     "Lando Calrissian": {
       display_name: "Lando Calrissian",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aktion:</strong> Wirf 2 Verteidigungswürfel. Erhalte 1 Fokusmarker für jedes %FOCUS%-Ergebnis. Erhalte 1&nbsp;Ausweichmarker für jedes %EVADE%-Ergebnis. Falls beide Ergebnisse Leerseiten sind, wählt der Gegenspieler Fokus- oder Ausweichmarker. Du erhältst 1 Marker"
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aktion:</strong> Wirf 2 Verteidigungswürfel. Erhalte 1 Fokusmarker für jedes %FOCUS%-Ergebnis. Erhalte 1 Ausweichmarker für jedes %EVADE%-Ergebnis. Falls beide Ergebnisse Leerseiten sind, wählt der Gegenspieler Fokus- oder Ausweichmarker. Du erhältst 1 Marker"
     },
     "Lando Calrissian (Scum)": {
       display_name: "Lando Calrissian (Scum)",
@@ -9737,11 +13114,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Lone Wolf": {
       display_name: "Einsamer Wolf",
-      text: "Solange du verteidigst oder einen Angriff durchführst, falls keine anderen befreundeten Schiffe in Reichweite 0-2 sind, darfst du 1&nbsp;%CHARGE% ausgeben, um 1 deiner Würfel neu zu werfen."
+      text: "Solange du verteidigst oder einen Angriff durchführst, falls keine anderen befreundeten Schiffe in Reichweite 0-2 sind, darfst du 1 %CHARGE% ausgeben, um 1 deiner Würfel neu zu werfen."
     },
     "Luke Skywalker": {
       display_name: "Luke Skywalker",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1&nbsp;%FORCE% ausgeben, um deinen %SINGLETURRETARC%-Anzeiger zu rotieren."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Zu Beginn der Kampfphase darfst du 1 %FORCE% ausgeben, um deinen %SINGLETURRETARC%-Anzeiger zu rotieren."
     },
     "M9-G8": {
       display_name: "M9-G8",
@@ -9753,11 +13130,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Marksmanship": {
       display_name: "Treffsicherheit",
-      text: "Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
+      text: "Solange du einen Angriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis ändern."
     },
     "Maul": {
       display_name: "Maul",
-      text: "<i>Nur für Abschaum oder Staffel, die Ezra Bridger enthält oder Staffel, die Ezra Bridger (Sheathipede) enthält oder Staffel, die Ezra Bridger (TIE Fighter) enthält</i>%LINEBREAK%Nachdem du Schaden erlitten hast, darfst du 1&nbsp;Stress­marker erhalten, um 1&nbsp;%FORCE% wiederherzustellen.%LINEBREAK%Du kannst „Dunkle Seite“-Aufwertungen ausrüsten."
+      text: "<i>Nur für Abschaum oder Staffel, die Ezra Bridger enthält oder Staffel, die Ezra Bridger (Sheathipede) enthält oder Staffel, die Ezra Bridger (TIE Fighter) enthält</i>%LINEBREAK%Nachdem du Schaden erlitten hast, darfst du 1 Stress­marker erhalten, um 1 %FORCE% wiederherzustellen.%LINEBREAK%Du kannst „Dunkle Seite“-Aufwertungen ausrüsten."
     },
     "Minister Tua": {
       display_name: "Ministerin Tua",
@@ -9765,11 +13142,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Moff Jerjerrod": {
       display_name: "Moff Jerjerrod",
-      text: "<i>Benötigt %COORDINATE% oder <r>%COORDINATE%</r></i>%LINEBREAK%<i>Nur für Imperium</i>%LINEBREAK%Während der Systemphase darfst du 2 %CHARGE% ausgeben. Falls du das tust, wähle die [1&nbsp;%BANKLEFT%]-, [1&nbsp;%STRAIGHT%]- oder [1&nbsp;%BANKRIGHT%]-Schablone. Jedes befreundete Schiff darf unter Verwendung jener Schablone eine rote %BOOST%-Aktion durchführen."
+      text: "<i>Benötigt %COORDINATE% oder <r>%COORDINATE%</r></i>%LINEBREAK%<i>Nur für Imperium</i>%LINEBREAK%Während der Systemphase darfst du 2 %CHARGE% ausgeben. Falls du das tust, wähle die [1 %BANKLEFT%]-, [1 %STRAIGHT%]- oder [1 %BANKRIGHT%]-Schablone. Jedes befreundete Schiff darf unter Verwendung jener Schablone eine rote %BOOST%-Aktion durchführen."
     },
     "Munitions Failsafe": {
       display_name: "Ausfallsichere Munition",
-      text: "Solange du einen %TORPEDO%- oder %MISSILE%-Angriff durchführst, nachdem du die Angriffswürfel geworfen hast, darfst du alle Würfelergebnisse negieren, um 1&nbsp;%CHARGE% wiederherzustellen, die du als Kosten für den Angriff ausgegeben hast."
+      text: "Solange du einen %TORPEDO%- oder %MISSILE%-Angriff durchführst, nachdem du die Angriffswürfel geworfen hast, darfst du alle Würfelergebnisse negieren, um 1 %CHARGE% wiederherzustellen, die du als Kosten für den Angriff ausgegeben hast."
     },
     "Nien Nunb": {
       display_name: "Nien Nunb",
@@ -9777,7 +13154,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Novice Technician": {
       display_name: "Unerfahrener Techniker",
-      text: "Am Ende der Runde darfst du 1&nbsp;Angriffswürfel werfen, um 1&nbsp;offene Schadenskarte zu reparieren. Dann, bei einem %HIT%-Ergebnis, lege 1&nbsp;Schadenskarte offen."
+      text: "Am Ende der Runde darfst du 1 Angriffswürfel werfen, um 1 offene Schadenskarte zu reparieren. Dann, bei einem %HIT%-Ergebnis, lege 1 Schadenskarte offen."
     },
     "Os-1 Arsenal Loadout": {
       display_name: "Os-1-Waffenarsenal",
@@ -9785,11 +13162,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Outmaneuver": {
       display_name: "Ausmanövrieren",
-      text: "Solange du einen %FRONTARC%-Angriff durchführst, falls du nicht im Feuerwinkel des Verteidigers bist, wirft der Verteidiger 1&nbsp;Verteidigungswürfel weniger."
+      text: "Solange du einen %FRONTARC%-Angriff durchführst, falls du nicht im Feuerwinkel des Verteidigers bist, wirft der Verteidiger 1 Verteidigungswürfel weniger."
     },
     "Paige Tico": {
       display_name: "Paige Tico",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Nachdem du einen Primärangriff durchgeführt hast, darfst du 1&nbsp;Bombe abwerfen oder deinen %SINGLETURRETARC%-Anzeiger rotieren.%LINEBREAK%Nachdem du zerstört worden bist, darfst du 1 Bombe abwerfen."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Nachdem du einen Primärangriff durchgeführt hast, darfst du 1 Bombe abwerfen oder deinen %SINGLETURRETARC%-Anzeiger rotieren.%LINEBREAK%Nachdem du zerstört worden bist, darfst du 1 Bombe abwerfen."
     },
     "Pattern Analyzer": {
       display_name: "Mustererkennung",
@@ -9809,11 +13186,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Predator": {
       display_name: "Jagdinstinkt",
-      text: "Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1&nbsp;Angriffswürfel neu werfen."
+      text: "Solange du einen Primärangriff durchführst, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 Angriffswürfel neu werfen."
     },
     "Predictive Shot": {
       display_name: "Vorausschauender Schuss",
-      text: "Nachdem du einen Angriff deklariert hast, falls der Verteidiger in deinem %BULLSEYEARC%&nbsp;ist, darfst du 1&nbsp;%FORCE% ausgeben. Falls du das tust, kann der Verteidiger während des Schrittes „Verteidigungswürfel werfen“ nicht mehr Verteidigungswürfel werfen als die Anzahl deiner %HIT%/%CRIT%-Ergebnisse."
+      text: "Nachdem du einen Angriff deklariert hast, falls der Verteidiger in deinem %BULLSEYEARC% ist, darfst du 1 %FORCE% ausgeben. Falls du das tust, kann der Verteidiger während des Schrittes „Verteidigungswürfel werfen“ nicht mehr Verteidigungswürfel werfen als die Anzahl deiner %HIT%/%CRIT%-Ergebnisse."
     },
     "Primed Thrusters": {
       display_name: "Verbesserte Schubdüsen",
@@ -9821,19 +13198,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Proton Bombs": {
       display_name: "Protonenbomben",
-      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone eine Protonenbombe abzuwerfen."
+      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung der [1 %STRAIGHT%]-Schablone eine Protonenbombe abzuwerfen."
     },
     "Proton Rockets": {
       display_name: "Protonenraketen",
-      text: "<strong>Angriff (</strong>%FOCUS%<strong>):</strong> Gib 1&nbsp;%CHARGE%&nbsp;aus."
+      text: "<strong>Angriff (</strong>%FOCUS%<strong>):</strong> Gib 1 %CHARGE% aus."
     },
     "Proton Torpedoes": {
       display_name: "Protonentorpedos",
-      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1&nbsp;%CHARGE% aus. Ändere 1&nbsp;%HIT%-Ergebnis in ein %CRIT%-Ergebnis."
+      text: "<strong>Angriff (</strong>%LOCK%<strong>):</strong> Gib 1 %CHARGE% aus. Ändere 1 %HIT%-Ergebnis in ein %CRIT%-Ergebnis."
     },
     "Proximity Mines": {
       display_name: "Annäherungsminen",
-      text: "<strong>Mine</strong>%LINEBREAK%Während der Systemphase darfst du 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone eine Annäherungsmine abzuwerfen.%LINEBREAK%Die %CHARGE% dieser Karte können nicht wiederhergestellt werden."
+      text: "<strong>Mine</strong>%LINEBREAK%Während der Systemphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung der [1 %STRAIGHT%]-Schablone eine Annäherungsmine abzuwerfen.%LINEBREAK%Die %CHARGE% dieser Karte können nicht wiederhergestellt werden."
     },
     "Qi'ra": {
       display_name: "Qi’ra",
@@ -9841,15 +13218,15 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "R2 Astromech": {
       display_name: "R2-Astromechdroide",
-      text: "Nachdem du dein Rad aufgedeckt hast, darfst du 1&nbsp;%CHARGE% ausgeben und 1 Entwaffnet-Marker erhalten, um 1&nbsp;Schild wiederherzustellen."
+      text: "Nachdem du dein Rad aufgedeckt hast, darfst du 1 %CHARGE% ausgeben und 1 Entwaffnet-Marker erhalten, um 1 Schild wiederherzustellen."
     },
     "R2-D2 (Crew)": {
       display_name: "R2-D2 (Crew)",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während der Endphase, falls du beschädigt bist und keine Schilde hast, darfst du 1&nbsp;Angriffswürfel werfen, um 1&nbsp;Schild wiederherzustellen. Bei einem %HIT%-Ergebnis lege 1 deiner Schadenskarten offen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während der Endphase, falls du beschädigt bist und keine Schilde hast, darfst du 1 Angriffswürfel werfen, um 1 Schild wiederherzustellen. Bei einem %HIT%-Ergebnis lege 1 deiner Schadenskarten offen."
     },
     "R2-D2": {
       display_name: "R2-D2",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem du dein Rad aufgedeckt hast, darfst du 1&nbsp;%CHARGE% ausgeben und 1 Entwaffnet-Marker erhalten, um 1&nbsp;Schild wiederherzustellen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Nachdem du dein Rad aufgedeckt hast, darfst du 1 %CHARGE% ausgeben und 1 Entwaffnet-Marker erhalten, um 1 Schild wiederherzustellen."
     },
     "R2-HA": {
       display_name: "R2-HA",
@@ -9863,17 +13240,29 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "R4-Astromechdroide",
       text: "<i>Nur für kleines Schiff</i>%LINEBREAK%Verringere die Schwierigkeit deiner Basismanöver mit Geschwindigkeit 1-2 (%TURNLEFT%, %BANKLEFT%, %STRAIGHT%, %BANKRIGHT%, %TURNRIGHT%)."
     },
+    "R4-P Astromech": {
+      display_name: "R4-P-Astromechdroide",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Bevor du ein Basismanöver ausführst, darfst du 1 %CHARGE% ausgeben. Falls du das tust, verringere die Schwierigkeit jenes Manövers, solange du es ausführst."
+    },
+    "R4-P17": {
+      display_name: "R4-P17",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Nachdem du ein rotes Manöver vollständig ausgeführt hast, darfst du 1 %CHARGE% ausgeben, um eine Aktion durchzuführen, auch solange du gestresst bist."
+    },
+    "R4-P44": {
+      display_name: "R4-P44",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Nachdem du ein rotes Manöver vollständig ausgeführt hast, falls ein feindliches Schiff in deinem %BULLSEYEARC% ist, erhalte 1 Berechnungsmarker."
+    },
     "R5 Astromech": {
       display_name: "R5-Astromechdroide",
-      text: "<strong>Aktion:</strong> Gib 1&nbsp;%CHARGE% aus, um 1 verdeckte Schadenskarte zu reparieren.%LINEBREAK%<strong>Aktion:</strong> Repariere 1 offene <strong>Schiff</strong>-Schadenskarte."
+      text: "<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um 1 verdeckte Schadenskarte zu reparieren.%LINEBREAK%<strong>Aktion:</strong> Repariere 1 offene <strong>Schiff</strong>-Schadenskarte."
     },
     "R5-D8": {
       display_name: "R5-D8",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1&nbsp;%CHARGE% aus, um 1 verdeckte Schadenskarte zu reparieren.%LINEBREAK%<strong>Aktion:</strong> Repariere 1 offene <strong>Schiff</strong>-Schadenskarte."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um 1 verdeckte Schadenskarte zu reparieren.%LINEBREAK%<strong>Aktion:</strong> Repariere 1 offene <strong>Schiff</strong>-Schadenskarte."
     },
     "R5-P8": {
       display_name: "R5-P8",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Angriff gegen einen Verteidiger in deinem %FRONTARC% durchführst, darfst du 1&nbsp;%CHARGE% ausgeben, um 1 Angriffswürfel neu zu werfen. Falls das neugeworfene Ergebnis ein %CRIT% ist, erleide 1&nbsp;%CRIT%-Schaden."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Solange du einen Angriff gegen einen Verteidiger in deinem %FRONTARC% durchführst, darfst du 1 %CHARGE% ausgeben, um 1 Angriffswürfel neu zu werfen. Falls das neugeworfene Ergebnis ein %CRIT% ist, erleide 1 %CRIT%-Schaden."
     },
     "R5-TK": {
       display_name: "R5-TK",
@@ -9881,19 +13270,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "R5-X3": {
       display_name: "R5-X3",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du aktiviert wirst oder kämpfst, darfst du 1&nbsp;%CHARGE% ausgeben, um bis zum Ende der Phase Hindernisse zu ignorieren."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Bevor du aktiviert wirst oder kämpfst, darfst du 1 %CHARGE% ausgeben, um bis zum Ende der Phase Hindernisse zu ignorieren."
     },
     "Rey": {
       display_name: "Rey",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Solange du verteidigst oder einen Angriff durchführst, falls das feindliche Schiff in deinem %SINGLETURRETARC% ist, darfst du 1&nbsp;%FORCE% ausgeben, um 1 deiner Leerseiten-Ergebnisse in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Solange du verteidigst oder einen Angriff durchführst, falls das feindliche Schiff in deinem %SINGLETURRETARC% ist, darfst du 1 %FORCE% ausgeben, um 1 deiner Leerseiten-Ergebnisse in ein %EVADE%- oder %HIT%-Ergebnis zu ändern."
     },
     "Rey's Millennium Falcon": {
       display_name: "Reys Millennium Falke",
-      text: "<i>Nur für Widerstand</i>%LINEBREAK%Falls du 2 oder weniger Stressmarker hast, kannst du rote Segnor-Looping-Manöver [%SLOOPLEFT% oder %SLOOPRIGHT%] ausführen und %BOOST%- und&nbsp;<rotate>-Aktionen durchführen, auch solange du gestresst bist."
+      text: "<i>Nur für Widerstand</i>%LINEBREAK%Falls du 2 oder weniger Stressmarker hast, kannst du rote Segnor-Looping-Manöver [%SLOOPLEFT% oder %SLOOPRIGHT%] ausführen und %BOOST%- und %ROTATEARC%-Aktionen durchführen, auch solange du gestresst bist."
     },
     "Rigged Cargo Chute": {
       display_name: "Manipulierte Frachtrampe",
-      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1&nbsp;%CHARGE% aus. Wirf unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone 1 freie Fracht ab."
+      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%<strong>Aktion:</strong> Gib 1 %CHARGE% aus. Wirf unter Verwendung der [1 %STRAIGHT%]-Schablone 1 freie Fracht ab."
     },
     "Rose Tico": {
       display_name: "Rose Tico",
@@ -9901,19 +13290,19 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Ruthless": {
       display_name: "Skrupellos",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du ein anderes befreundetes Schiff in Reichweite 0-1 zum Verteidiger wählen. Falls du das tust, erleidet jenes Schiff 1&nbsp;%HIT%-Schaden und du darfst 1 deiner Würfelergebnisse in ein %HIT%-Ergebnis ändern."
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du ein anderes befreundetes Schiff in Reichweite 0-1 zum Verteidiger wählen. Falls du das tust, erleidet jenes Schiff 1 %HIT%-Schaden und du darfst 1 deiner Würfelergebnisse in ein %HIT%-Ergebnis ändern."
     },
     "Sabine Wren": {
       display_name: "Sabine Wren",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aufbau:</strong> Platziere 1 Ionen-, 1&nbsp;Störsignal-, 1&nbsp;Stress- und 1&nbsp;Fangstrahlmarker auf dieser Karte. %LINEBREAK%Nachdem ein Schiff den Effekt einer befreundeten Bombe erlitten hat, darfst du 1 Ionen-, Störsignal-, Stress- oder Fangstrahlmarker von dieser Karte entfernen. Falls du das tust, erhält jenes Schiff einen passenden Marker."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%<strong>Aufbau:</strong> Platziere 1 Ionen-, 1 Störsignal-, 1 Stress- und 1 Fangstrahlmarker auf dieser Karte. %LINEBREAK%Nachdem ein Schiff den Effekt einer befreundeten Bombe erlitten hat, darfst du 1 Ionen-, Störsignal-, Stress- oder Fangstrahlmarker von dieser Karte entfernen. Falls du das tust, erhält jenes Schiff einen passenden Marker."
     },
     "Saturation Salvo": {
       display_name: "Flächenangriff",
-      text: "<i>Benötigt %RELOAD% oder <r>%RELOAD%</r></i>%LINEBREAK%Solange du einen %TORPEDO%- oder %MISSILE%-Angriff durchführst, darfst du 1&nbsp;%CHARGE% von jener Aufwertung ausgeben. Falls du das tust, wähle 2 Verteidigungswürfel. Der Verteidiger muss jene Würfel neu werfen."
+      text: "<i>Benötigt %RELOAD% oder <r>%RELOAD%</r></i>%LINEBREAK%Solange du einen %TORPEDO%- oder %MISSILE%-Angriff durchführst, darfst du 1 %CHARGE% von jener Aufwertung ausgeben. Falls du das tust, wähle 2 Verteidigungswürfel. Der Verteidiger muss jene Würfel neu werfen."
     },
     "Saw Gerrera": {
       display_name: "Saw Gerrera",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1&nbsp;%HIT%-Schaden erleiden, um alle deine %FOCUS%-Ergebnisse in %CRIT%-Ergebnisse zu ändern."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange du einen Angriff durchführst, darfst du 1 %HIT%-Schaden erleiden, um alle deine %FOCUS%-Ergebnisse in %CRIT%-Ergebnisse zu ändern."
     },
     "Seasoned Navigator": {
       display_name: "Erfahrener Navigator",
@@ -9921,31 +13310,39 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Seismic Charges": {
       display_name: "Seismische Bomben",
-      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1&nbsp;%CHARGE% ausgeben, um unter Verwendung der [1&nbsp;%STRAIGHT%]-Schablone eine Seismische Bombe abzuwerfen."
+      text: "<strong>Bombe</strong>%LINEBREAK%Während der Systemphase darfst du 1 %CHARGE% ausgeben, um unter Verwendung der [1 %STRAIGHT%]-Schablone eine Seismische Bombe abzuwerfen."
     },
     "Selfless": {
       display_name: "Selbstlos",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange ein anderes befreundetes Schiff in Reichweite 0-1 verteidigt, vor dem Schritt „Ergebnisse neutralisieren“, falls du im Angriffswinkel bist, darfst du 1&nbsp;%CRIT%-Schaden erleiden, um 1&nbsp;%CRIT%-Ergebnis zu negieren."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Solange ein anderes befreundetes Schiff in Reichweite 0-1 verteidigt, vor dem Schritt „Ergebnisse neutralisieren“, falls du im Angriffswinkel bist, darfst du 1 %CRIT%-Schaden erleiden, um 1 %CRIT%-Ergebnis zu negieren."
     },
     "Sense": {
       display_name: "Gespür",
-      text: "Während der Systemphase darfst du 1 Schiff in Reichweite 0-1 wählen und sein Rad ansehen. Falls du 1&nbsp;%FORCE% ausgibst, darfst du stattdessen ein Schiff in Reichweite 0-3 wählen."
+      text: "Während der Systemphase darfst du 1 Schiff in Reichweite 0-1 wählen und sein Rad ansehen. Falls du 1 %FORCE% ausgibst, darfst du stattdessen ein Schiff in Reichweite 0-3 wählen."
     },
     "Servomotor S-Foils": {
       display_name: "Servomotorische S-Flügel",
       text: "<strong>Geschlossen:</strong><i>Fügt %FOCUS%-><r>%BOOST%</r> hinzu</i>%LINEBREAK%<i>Fügt %BOOST% hinzu</i>%LINEBREAK%Solange du einen Primärangriff durchführst, wirf 1&nbsp;Angriffswürfel weniger.%LINEBREAK%Bevor du aktiviert wirst, darfst du diese Karte umdrehen.%LINEBREAK%<strong>Geöffnet:</strong>Bevor du aktiviert wirst, darfst du diese Karte umdrehen."
     },
+    "Seventh Fleet Gunner": {
+      display_name: "Kanonier der siebten Flotte",
+      text: "<i>Nur für Galaktische Republik</i>%LINEBREAK%Solange ein anderes befreundetes Schiff einen Primärangriff durchführt, falls der Verteidiger in deinem Feuerwinkel ist, darfst du 1 %CHARGE% ausgeben. Falls du das tust, wirft der Angreifer 1 zusätzlichen Angriffswürfel, bis zu einem Maximum von 4. Während der Systemphase darfst du 1  Entwaffnet-Marker erhalten, um 1 %CHARGE% wiederherzustellen."
+    },
     "Seventh Sister": {
       display_name: "Siebte Schwester",
-      text: "<i>Nur für Imperium</i>%LINEBREAK%Falls ein feindliches Schiff in Reichweite 0-1 einen Stressmarker erhalten würde, darfst du 1&nbsp;%FORCE% ausgeben, um es stattdessen 1 Störsignal- oder 1 Fangstrahlmarker erhalten zu lassen."
+      text: "<i>Nur für Imperium</i>%LINEBREAK%Falls ein feindliches Schiff in Reichweite 0-1 einen Stressmarker erhalten würde, darfst du 1 %FORCE% ausgeben, um es stattdessen 1 Störsignal- oder 1 Fangstrahlmarker erhalten zu lassen."
     },
     "Shield Upgrade": {
       display_name: "Verbesserte Schilde",
-      text: "Diese Aufwertungskarte hat variable Punktekosten.%LINEBREAK%<i class = flavor_text>Deflektor­schilde sind der wichtigste Verteidigungsmechanismus der meisten Raumschiffe, abgesehen von extrem leichten Jägern. Eine Verbesserung der Schildkapazität ist eine kostspielige, aber durchaus "
+      text: "<i class = flavor_text>Deflektor­schilde sind der wichtigste Verteidigungsmechanismus der meisten Raumschiffe, abgesehen von extrem leichten Jägern. Eine Verbesserung der Schildkapazität ist eine kostspielige, aber durchaus lohnenswerte Investition. </i>"
     },
     "Skilled Bombardier": {
       display_name: "Versierte Bombenschützin",
       text: "Falls du ein Gerät abwerfen oder starten würdest, darfst du eine Schablone mit gleicher Flugrichtung und einer um 1 höheren oder niedrigeren Geschwindigkeit verwenden."
+    },
+    "Spare Parts Canisters": {
+      display_name: "Astromech Ersatzteilkanister",
+      text: "<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um 1 Ladung von 1  deiner ausgerüsteten %ASTROMECH%-Aufwertungen wiederherzustellen. %LINEBREAK%<strong>Aktion:</strong> Gib 1 %CHARGE% aus, um 1 Ersatzteil abzuwerfen, dann verliere alle Zielerfassungen, die dir zugeordnet sind."
     },
     "Special Forces Gunner": {
       display_name: "Bordschütze der Spezialeinheiten",
@@ -9961,11 +13358,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Stealth Device": {
       display_name: "Tarnvorrichtung",
-      text: "Diese Aufwertungskarte hat variable Punktekosten.%LINEBREAK%Solange du verteidigst, falls deine %CHARGE% aktiv ist, wirf 1&nbsp;zusätzlichen Verteidigungswürfel.%LINEBREAK%Nachdem du Schaden erlitten hast, verliere 1&nbsp;%CHARGE%."
+      text: "Solange du verteidigst, falls deine %CHARGE% aktiv ist, wirf 1 zusätzlichen Verteidigungswürfel.%LINEBREAK%Nachdem du Schaden erlitten hast, verliere 1 %CHARGE%."
     },
     "Supernatural Reflexes": {
       display_name: "Übernatürliche Reflexe",
-      text: "<i>Nur für kleines Schiff</i>%LINEBREAK%Bevor du aktiviert wirst, darfst du 1&nbsp;%FORCE% ausgeben, um eine %BARRELROLL%- oder %BOOST%-Aktion durchzuführen. Dann, falls du eine Aktion durchgeführt hast, die nicht in deiner Aktionsleiste ist, erleide 1&nbsp;%HIT%-Schaden."
+      text: "<i>Nur für kleines Schiff</i>%LINEBREAK%Bevor du aktiviert wirst, darfst du 1 %FORCE% ausgeben, um eine %BARRELROLL%- oder %BOOST%-Aktion durchzuführen. Dann, falls du eine Aktion durchgeführt hast, die nicht in deiner Aktionsleiste ist, erleide 1 %HIT%-Schaden."
     },
     "Supreme Leader Snoke": {
       display_name: "Oberster Anführer Snoke",
@@ -9975,21 +13372,29 @@ exportObj.cardLoaders.Deutsch = function() {
       display_name: "Schwarmtaktik",
       text: "Zu Beginn der Kampfphase darfst du 1 befreundetes Schiff in Reichweite 1 wählen. Falls du das tust, behandelt jenes Schiff seine Initiative bis zum Ende der Runde so, als würde sie deiner Initiative entsprechen."
     },
+    "Synchronized Console": {
+      display_name: "Synchronisierte Steuerkonsole",
+      text: "<i>Benötigt %LOCK% oder <r>%LOCK%</r></i>%LINEBREAK%<i>Nur für Galaktische Republik</i>%LINEBREAK%Nachdem du einen Angriff durchgeführt hast, darfst du ein befreundetes Schiff in Reichweite 1 oder ein befreundetes Schiff mit der Aufwertung <strong>Synchronisierte Steuerkonsole</strong> in Reichweite 1-3 wählen und eine Zielerfassung ausgeben, die du auf dem Verteidiger hast. Falls du das tust, darf das von dir gewählte Schiff den Verteidiger als Ziel erfassen."
+    },
+    "TV-94": {
+      display_name: "TV-94",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Solange ein befreundetes Schiff in Reichweite 0-3 einen Primärangriff gegen einen Verteidiger in seinem %BULLSEYEARC% durchführt, falls 2 oder weniger Angriffswürfel vorhanden sind, darf es 1 Berechnungsmarker ausgeben, um 1 %HIT% - Ergebnis hinzuzufügen."
+    },
     "Tactical Officer": {
       display_name: "Taktikoffizier",
       text: "<i>Fügt %COORDINATE% hinzu</i>%LINEBREAK%<i>Benötigt <r>%COORDINATE%</r></i>%LINEBREAK%<i class = flavor_text>In den Wirren einer Raumschlacht kann ein einzelner Befehl über Sieg oder totale Auslöschung entscheiden.</i>"
     },
     "Tactical Scrambler": {
       display_name: "Taktischer Scrambler",
-      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du den Angriff eines feindlichen Schiffes versperrst, wirft der Verteidiger 1&nbsp;zusätzlichen Verteidigungswürfel."
+      text: "<i>Nur für großes Schiff oder mittleres Schiff</i>%LINEBREAK%Solange du den Angriff eines feindlichen Schiffes versperrst, wirft der Verteidiger 1 zusätzlichen Verteidigungswürfel."
     },
     "Targeting Synchronizer": {
       display_name: "Zielsynchronisiersystem",
-      text: "<i>Benötigt %LOCK% oder <r>%LOCK%</r></i>%LINEBREAK%Solange ein befreundetes Schiff in Reichweite 1-2 einen Angriff gegen ein Ziel durchführt, das du als Ziel erfasst hast, ignoriert jenes Schiff die&nbsp;%LOCK%-Angriffsvoraussetzung."
+      text: "<i>Benötigt %LOCK% oder <r>%LOCK%</r></i>%LINEBREAK%Solange ein befreundetes Schiff in Reichweite 1-2 einen Angriff gegen ein Ziel durchführt, das du als Ziel erfasst hast, ignoriert jenes Schiff die %LOCK%-Angriffsvoraussetzung."
     },
     "Tobias Beckett": {
       display_name: "Tobias Beckett",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%<strong>Aufbau:</strong> Nach dem Platzieren der Streitkräfte darfst du 1&nbsp;Hindernis im Spielbereich wählen. Falls du das tust, platziere es irgendwo im Spielbereich, jenseits von Reichweite 2 zu den Spielfeldecken und Schiffen und jenseits von Reichweite&nbsp;1 zu anderen Hindernissen."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%<strong>Aufbau:</strong> Nach dem Platzieren der Streitkräfte darfst du 1 Hindernis im Spielbereich wählen. Falls du das tust, platziere es irgendwo im Spielbereich, jenseits von Reichweite 2 zu den Spielfeldecken und Schiffen und jenseits von Reichweite 1 zu anderen Hindernissen."
     },
     "Tractor Beam": {
       display_name: "Fangstrahl",
@@ -9997,7 +13402,11 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Trajectory Simulator": {
       display_name: "Flugbahnsimulator",
-      text: "Während der Systemphase, falls du eine Bombe abwerfen oder starten würdest, darfst du sie stattdessen unter Verwendung der [5&nbsp;%STRAIGHT%]-Schablone starten."
+      text: "Während der Systemphase, falls du eine Bombe abwerfen oder starten würdest, darfst du sie stattdessen unter Verwendung der [5 %STRAIGHT%]-Schablone starten."
+    },
+    "Treacherous": {
+      display_name: "Verräterisch",
+      text: "<i>Nur für Separatistenallianz</i>%LINEBREAK%Solange du verteidigst, darfst du ein Schiff wählen, das den Angriff versperrt, und 1 %CHARGE% ausgeben. Falls du das tust, negiere 1 %HIT%- oder %CRIT%-Ergebnis und das von dir gewählte Schiff erhält 1 Anstrengungsmarker.%LINEBREAK%Nachdem ein Schiff in Reichweite 0-3 zerstört worden ist, stelle 1 %CHARGE% wieder her."
     },
     "Trick Shot": {
       display_name: "Trickschuss",
@@ -10005,7 +13414,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     "Unkar Plutt": {
       display_name: "Unkar Plutt",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Manöver teilweise ausgeführt hast, darfst du 1&nbsp;%HIT%-Schaden erleiden, um 1 weiße Aktion durchzuführen."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Manöver teilweise ausgeführt hast, darfst du 1 %HIT%-Schaden erleiden, um 1 weiße Aktion durchzuführen."
     },
     "Veteran Tail Gunner": {
       display_name: "Kampferprobter Heckschütze",
@@ -10025,7 +13434,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Chopper" (Crew)': {
       display_name: "„Chopper“ (Crew)",
-      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während des Schrittes „Aktion durchführen“ darfst du 1 Aktion durchführen, auch solange du gestresst bist. Nachdem du eine Aktion durchgeführt hast, solange du gestresst bist, erleide 1&nbsp;%HIT%-Schaden, es sei denn, du legst 1&nbsp;deiner Schadenskarten offen."
+      text: "<i>Nur für Rebellen</i>%LINEBREAK%Während des Schrittes „Aktion durchführen“ darfst du 1 Aktion durchführen, auch solange du gestresst bist. Nachdem du eine Aktion durchgeführt hast, solange du gestresst bist, erleide 1 %HIT%-Schaden, es sei denn, du legst 1 deiner Schadenskarten offen."
     },
     '"Chopper" (Astromech)': {
       display_name: "„Chopper“ (Astromech)",
@@ -10033,7 +13442,7 @@ exportObj.cardLoaders.Deutsch = function() {
     },
     '"Genius"': {
       display_name: "„Genie“",
-      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Manöver vollständig ausgeführt hast, falls du in dieser Runde noch kein Gerät abgeworfen oder gestartet hast, darfst du 1&nbsp;Bombe abwerfen."
+      text: "<i>Nur für Abschaum</i>%LINEBREAK%Nachdem du ein Manöver vollständig ausgeführt hast, falls du in dieser Runde noch kein Gerät abgeworfen oder gestartet hast, darfst du 1 Bombe abwerfen."
     },
     '"Zeb" Orrelios': {
       display_name: "„Zeb“ Orrelios",
@@ -10051,28 +13460,32 @@ exportObj.cardLoaders.Deutsch = function() {
   };
   condition_translations = {
     'Suppressive Fire': {
-      text: 'While you perform an attack against a ship other than <strong>Captain Rex</strong>, roll 1 fewer attack die. %LINEBREAK% After <strong>Captain Rex</strong> defends, remove this card.  %LINEBREAK% At the end of the Combat Phase, if <strong>Captain Rex</strong> did not perform an attack this phase, remove this card. %LINEBREAK% After <strong>Captain Rex</strong> is destroyed, remove this card.'
+      display_name: 'Sperrfeuer',
+      text: 'Solange du einen Angriff gegen ein anderes Schiff als <strong>Captain Rex</strong> durchführst, wirf 1 Angriffswürfel weniger. %LINEBREAK%Nachdem <strong>Captain Rex</strong> verteidigt hat, entferne diese Karte. <strong>Captain Rex</strong>Am Ende der Kampfphase, falls <strong>Captain Rex</strong> in dieser Phase keinen Angriff durchgeführt hat, entferne diese Karte. %LINEBREAK%Nachdem <strong>Captain Rex</strong> zerstört worden ist, entferne diese Karte.'
     },
     'Hunted': {
-      text: 'After you are destroyed, you must choose another friendly ship and assign this condition to it, if able.'
+      display_name: 'Gejagt',
+      text: 'Nachdem du zerstört worden bist, musst du ein anderes befreundetes Schiff wählen und ihm diesen Zustand zuordnen, falls möglich.'
     },
     'Listening Device': {
-      text: 'During the System Phase, if an enemy ship with the <strong>Informant</strong> upgrade is at range 0-2, flip your dial faceup.'
+      display_name: 'Abhörgerät',
+      text: 'Während der Systemphase, falls ein feindliches Schiff mit der Aufwertung <strong>Informant</strong> in Reichweite 0-2 ist, drehe dein Rad auf die offene Seite.'
     },
     'Optimized Prototype': {
-      text: 'While you perform a %FRONTARC% primary attack against a ship locked by a friendly ship with the <strong>Director Krennic</strong> upgrade, you may spend 1 %HIT%/%CRIT%/%FOCUS% result. If you do, choose one: the defender loses 1 shield or the defender flips 1 of its facedown damage cards.'
+      display_name: 'Optimierter Prototyp',
+      text: 'Solange du einen %FRONTARC%-Primärangriff gegen ein Schiff durchführst, das von einem befreundeten Schiff mit der Aufwertung <strong>Direktor Krennic</strong> als Ziel erfasst ist, darfst du 1 %HIT%/%CRIT%/%FOCUS%-Ergebnis ausgeben. Falls du das tust, wähle 1 der folgenden Optionen: Der Verteidiger verliert 1 Schild oder der Verteidiger dreht 1 seiner verdeckten Schadenskarten um.'
     },
     'Proton Bomb': {
       display_name: "Protonenbombe",
-      text: '(Bomb Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, erleidet jedes Schiff in Reichweite 0–1 1 %CRIT%-Schaden.'
+      text: '(Bomben Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, erleidet jedes Schiff in Reichweite 0–1 1 %CRIT%-Schaden.'
     },
     'Seismic Charge': {
       display_name: "Seismische Bombe",
-      text: '(Bomb Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, wähle 1 Hindernis in Reichweite 0–1. Jedes Schiff in Reichweite 0–1 zu jenem Hindernis erleidet 1 %HIT%-Schaden. Dann entferne jenes Hindernis.'
+      text: '(Bomben Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, wähle 1 Hindernis in Reichweite 0–1. Jedes Schiff in Reichweite 0–1 zu jenem Hindernis erleidet 1 %HIT%-Schaden. Dann entferne jenes Hindernis.'
     },
     'Bomblet': {
       display_name: "Streubombe",
-      text: '(Bomb Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, wirft jedes Schiff in Reichweite 0–1 2 Angriffswürfel. Jedes Schiff erleidet 1 %HIT%-Schaden für jedes %HIT%/%CRIT% Ergebnis.'
+      text: '(Bomben Token) - Am Ende der Aktivierungsphase detoniert dieses Gerät. Sobald dieses Gerät detoniert, wirft jedes Schiff in Reichweite 0–1 2 Angriffswürfel. Jedes Schiff erleidet 1 %HIT%-Schaden für jedes %HIT%/%CRIT% Ergebnis.'
     },
     'Loose Cargo': {
       display_name: "Freie Fracht",
@@ -10085,6 +13498,14 @@ exportObj.cardLoaders.Deutsch = function() {
     'Proximity Mine': {
       display_name: "Annäherungsmine",
       text: '(Mine Token) - Nachdem sich ein Schiff durch dieses Gerät hindurchbewegt oder mit ihm überschnitten hat, detoniert es. Sobald dieses Gerät detoniert, wirft jenes Schiff 2 Angriffswürfel. Jenes Schiff erleidet dann 1 %HIT%-Schaden sowie 1 %HIT%/%CRIT%-Schaden für jedes passende Ergebnis.'
+    },
+    'Rattled': {
+      display_name: 'Aus der Fassung',
+      text: 'Nachdem eine Bombe oder Mine in Reichweite 0-1 detoniert ist, erleide 1 %CRIT% Schaden. Dann entferne diese Karte. %LINEBREAK% <strong>Aktion:</strong> Falls keine Bomben oder Minen in Reichweite 0-1 sind, entferne diese Karte.'
+    },
+    'I\'ll Show You the Dark Side': {
+      display_name: 'Ich zeige dir die dunkle Seite',
+      text: 'Sobald diese Karte zugeordnet wird, falls keine offene Schadenskarte darauf liegt, sucht der Spieler, der sie zugeordnet hat, im Schadensstapel nach 1 <strong>Pilot</strong>-Schadenskarte und platziert sie offen auf dieser Karte. Dann mische den Schadensstapel. %LINEBREAK%Sobald du 1 %CRIT%-Schaden erleiden würdest, wird dir stattdessen die offene Schadenskarte auf dieser Karte zugeteilt. Dann entferne diese Karte. '
     }
   };
   return exportObj.setupTranslationCardData(pilot_translations, upgrade_translations, condition_translations);
@@ -10115,6 +13536,7 @@ exportObj.translations.English = {
     "Jam": '<i class="xwing-miniatures-font xwing-miniatures-font-jam"></i>',
     "Calculate": '<i class="xwing-miniatures-font xwing-miniatures-font-calculate"></i>',
     "Coordinate": '<i class="xwing-miniatures-font xwing-miniatures-font-coordinate"></i>',
+    "F-Coordinate": '<i class="xwing-miniatures-font force xwing-miniatures-font-coordinate"></i>',
     "Cloak": '<i class="xwing-miniatures-font xwing-miniatures-font-cloak"></i>',
     "Slam": '<i class="xwing-miniatures-font xwing-miniatures-font-slam"></i>',
     "R> Barrel Roll": '<i class="xwing-miniatures-font xwing-miniatures-font-linked red"></i> <i class="xwing-miniatures-font red xwing-miniatures-font-barrelroll"></i>',
@@ -10144,7 +13566,8 @@ exportObj.translations.English = {
     "Device": '<i class="xwing-miniatures-font xwing-miniatures-font-device"></i>',
     "Tech": '<i class="xwing-miniatures-font xwing-miniatures-font-tech"></i>',
     "Title": '<i class="xwing-miniatures-font xwing-miniatures-font-title"></i>',
-    "Hardpoint": '<i class="xwing-miniatures-font xwing-miniatures-font-hardpoint"></i>'
+    "Hardpoint": '<i class="xwing-miniatures-font xwing-miniatures-font-hardpoint"></i>',
+    "Tactical Relay": '<i class="xwing-miniatures-font xwing-miniatures-font-tacticalrelay"></i>'
   },
   slot: {
     "Astromech": "Astromech",
@@ -10164,7 +13587,8 @@ exportObj.translations.English = {
     "Gunner": "Gunner",
     "Device": "Device",
     "Tech": "Tech",
-    "Title": "Title"
+    "Title": "Title",
+    "Tactical Relay": "Tactical Relay"
   },
   sources: {
     "Second Edition Core Set": "Second Edition Core Set",
@@ -10198,7 +13622,9 @@ exportObj.translations.English = {
   },
   byCSSSelector: {
     '.unreleased-content-used .translated': 'This squad uses unreleased content!',
+    '.loading-failed-container .translated': 'It appears that you followed a broken link. No squad could be loaded!',
     '.collection-invalid .translated': 'You cannot field this list with your collection!',
+    '.ship-number-invalid-container .translated': 'A tournament legal squad must contain 2-8 ships!',
     '.game-type-selector option[value="standard"]': 'Extended',
     '.game-type-selector option[value="hyperspace"]': 'Hyperspace',
     '.game-type-selector option[value="custom"]': 'Custom',
@@ -10213,6 +13639,7 @@ exportObj.translations.English = {
     '.info-well .info-actions td.info-header': 'Actions',
     '.info-well .info-upgrades td.info-header': 'Upgrades',
     '.info-well .info-range td.info-header': 'Range',
+    '.info-well .info-sources.info-header': 'Sources',
     '.clear-squad': 'New Squad',
     '.save-list': '<i class="fa fa-floppy-o"></i>&nbsp;Save',
     '.save-list-as': '<i class="fa fa-files-o"></i>&nbsp;Save as…',
@@ -10328,6 +13755,14 @@ exportObj.cardLoaders.English = function() {
   exportObj.renameShip("Mining Guild TIE Fighter", "Mining Guild TIE Fighter");
   exportObj.renameShip("Scavenged YT-1300", "Scavenged YT-1300");
   pilot_translations = {
+    "0-66": {
+      display_name: "0-66",
+      text: "After you defend, you may spend 1 calculate token to perform an action."
+    },
+    "104th Battalion Pilot": {
+      display_name: "104th Battalion Pilot",
+      text: "<i class = flavor_text>The ARC-170 was designed as a dominating heavy escort fighter with powerful front and rear lasers, ordnance, and an astromech for navigation. Squadrons of these mighty ships bolster the Republic Navy’s presence at any battle where they are deployed.</i>"
+    },
     "4-LOM": {
       display_name: "4-LOM",
       text: "After you fully execute a red maneuver, gain 1 calculate token.%LINEBREAK%At the start of the End Phase, you may choose 1 ship at range 0-1. If you do, transfer 1 of your stress tokens to that ship."
@@ -10348,6 +13783,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Ahhav",
       text: "While you defend or perform an attack, if the enemy ship is a larger size than you, roll 1 additional die.%LINEBREAK%<strong>Notched Stabilizers:</strong> While you move, you ignore asteroids."
     },
+    "Ahsoka Tano": {
+      display_name: "Ahsoka Tano",
+      text: "After you fully execute a maneuver, you may choose a friendly ship at range&nbsp;0-1 and spend 1&nbsp;%FORCE%. That ship may perform an action, even if it is stressed.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
+    },
     "Airen Cracken": {
       display_name: "Airen Cracken",
       text: "After you perform an attack, you may choose 1 friendly ship at range 1. That ship may perform an action, treating it as red."
@@ -10355,6 +13794,10 @@ exportObj.cardLoaders.English = function() {
     "Alpha Squadron Pilot": {
       display_name: "Alpha Squadron Pilot",
       text: "<i class = flavor_text>Sienar Fleet Systems designed the TIE interceptor with four wing-mounted laser cannons, a dramatic increase in firepower over its predecessors.</i>%LINEBREAK%<strong>Autothrusters:</strong> After you perform an action, you may perform a red %BARRELROLL% or red %BOOST% action."
+    },
+    "Anakin Skywalker": {
+      display_name: "Anakin Skywalker",
+      text: "After you fully execute a maneuver, if there is an enemy ship in your %FRONTARC% at range&nbsp;0-1 or in your %BULLSEYEARC%, you may spend 1 %FORCE% to remove 1&nbsp;stress token.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
     },
     "Arvel Crynyd": {
       display_name: "Arvel Crynyd",
@@ -10376,11 +13819,15 @@ exportObj.cardLoaders.English = function() {
       display_name: "Baron of the Empire",
       text: "<i class = flavor_text>Sienar Fleet System’s TIE Advanced v1 is a groundbreaking starfighter design, featuring upgraded engines, a missile launcher, and folding s-foils.</i>"
     },
+    "Barriss Offee": {
+      display_name: "Barriss Offee",
+      text: "While a friendly ship at range&nbsp;0-2 performs an attack, if the defender is in its %BULLSEYEARC%, you may spend 1&nbsp;%FORCE% to change 1&nbsp;%FOCUS% result to a %HIT% result or 1&nbsp;%HIT% result to a %CRIT% result.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1 %FORCE% to perform a %BOOST% or %BARRELROLL% action."
+    },
     "Ben Teene": {
       display_name: "Ben Teene",
       text: "After you perform an attack, if the defender is in your %SINGLETURRETARC%, assign the <strong>Rattled</strong> condition to the defender."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Two Tubes",
       text: "After you perform a %FOCUS% action, you may transfer 1 of your focus tokens to a friendly ship at range 1-2."
     },
@@ -10436,9 +13883,13 @@ exportObj.cardLoaders.English = function() {
       display_name: "Blue Squadron Pilot",
       text: "<i class = flavor_text>Due to its heavy weapons array and resilient shielding, the B-wing has solidified itself as the Rebel Alliance’s most innovative assault fighter.</i>"
     },
+    "Blue Squadron Protector": {
+      display_name: "Blue Squadron Protector",
+      text: "<i class = flavor_text>Blue Squadron’s elite clone pilots are trained to fly their V-19s in conjunction with Jedi and often support famous commanders such as Anakin Skywalker and Ahsoka Tano.</i>"
+    },
     "Blue Squadron Recruit": {
       display_name: "Blue Squadron Recruit",
-      text: "<i class = flavor_text>Young beings across the galaxy have grown up on tales of heroism in the Galactic Civil War, and many learned to fly in the same cockpits from which their parents fought the Empire.</i>%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "<i class = flavor_text>Young beings across the galaxy have grown up on tales of heroism in the Galactic Civil War, and many learned to fly in the same cockpits from which their parents fought the Empire.</i>%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Blue Squadron Rookie": {
       display_name: "Blue Squadron Rookie",
@@ -10499,6 +13950,10 @@ exportObj.cardLoaders.English = function() {
     "Captain Rex": {
       display_name: "Captain Rex",
       text: "After you perform an attack, assign the <strong>Suppressive Fire</strong> condition to the defender."
+    },
+    "Captain Sear": {
+      display_name: "Captain Sear",
+      text: "While a friendly ship at range&nbsp;0-3 performs a primary attack, if the defender is in its %BULLSEYEARC%, before the Neutralize Results step, the friendly ship may spend 1 calculate token to cancel 1 %EVADE% result."
     },
     "Captain Seevor": {
       display_name: "Captain Seevor",
@@ -10564,6 +14019,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Corran Horn",
       text: "At initiative 0, you may perform a bonus primary attack against an enemy ship in your %BULLSEYEARC%. If you do, at the start of the next Planning Phase, gain 1 disarm token.%LINEBREAK%<strong>Experimental Scanners:</strong> You can acquire locks beyond range 3. You cannot acquire locks at range 1."
     },
+    "Count Dooku": {
+      display_name: "Count Dooku",
+      text: "After you defend, if the attacker is in your firing arc, you may spend 1&nbsp;%FORCE% to remove 1 of your blue or red tokens.%LINEBREAK%After you perform an attack that hits, you may spend 1 %FORCE% to perform an action."
+    },
     "Countess Ryad": {
       display_name: "Countess Ryad",
       text: "While you would execute a %STRAIGHT% maneuver, you may increase the difficulty of the maneuver. If you do, execute it as a %KTURN% maneuver instead.%LINEBREAK%<strong>Full Throttle:</strong> After you fully execute a speed 3-5 maneuver, you may perform an %EVADE% action."
@@ -10576,6 +14035,14 @@ exportObj.cardLoaders.English = function() {
       display_name: "Cutlass Squadron Pilot",
       text: "<i class = flavor_text>The TIE punisher’s design builds upon the success of the TIE bomber, adding shielding, a second bomb chute, and three additional ordnance pods, each equipped with a twin ion engine.</i>"
     },
+    "DFS-081": {
+      display_name: "DFS-081",
+      text: "While a friendly ship at range 0-1 defends, it may spend 1 calculate token to change all %CRIT% results to %HIT% results.%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
+    },
+    "DFS-311": {
+      display_name: "DFS-311",
+      text: "At the start of the Engagement Phase, you may transfer 1 of your calculate tokens to another friendly ship at range&nbsp;0-3.%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
+    },
     "Dace Bonearm": {
       display_name: "Dace Bonearm",
       text: "After an enemy ship at range 0-3 receives at least 1 ion token, you may spend 3&nbsp;%CHARGE%. If you do, that ship gains 2 additional ion tokens."
@@ -10587,6 +14054,14 @@ exportObj.cardLoaders.English = function() {
     "Dalan Oberos": {
       display_name: "Dalan Oberos",
       text: "At the start of the Engagement Phase, you may choose 1 shielded ship in your %BULLSEYEARC% and spend 1&nbsp;%CHARGE%. If you do, that ship loses 1 shield and you recover 1 shield.%LINEBREAK%<strong>Dead to Rights:</strong> While you perform an attack, if the defender is in your %BULLSEYEARC%, defense dice cannot be modified using green tokens."
+    },
+    "Dark Courier": {
+      display_name: "Dark Courier",
+      text: "<i class = flavor_text>The vessel called the Scimitar was heavily modified, equipped with stealth technologies and advanced surveillance devices for infiltration and assassination missions.</i>"
+    },
+    "Darth Maul": {
+      display_name: "Darth Maul",
+      text: "After you perform an attack, you may spend 2 %FORCE% to perform a bonus primary attack against a different target. If your attack missed, you may perform that bonus primary attack against the same target instead."
     },
     "Darth Vader": {
       display_name: "Darth Vader",
@@ -10616,13 +14091,13 @@ exportObj.cardLoaders.English = function() {
       display_name: "Edon Kappehl",
       text: "After you fully execute a blue or white maneuver, if you have not dropped or launched a device this round, you may drop 1 device."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Two Tubes",
       text: "Before you activate, if you are focused, you may perform an action."
     },
     "Ello Asty": {
       display_name: "Ello Asty",
-      text: "After you reveal a red Tallon Roll [<lefttalon> or <righttalon>] maneuver, if you have 2 or fewer stress tokens, treat that maneuver as white.%LINEBREAK%<strong>Weapon Hardpoint:</strong> You can equip 1&nbsp;%CANNON%, %TORPEDO%, or %MISSILE% upgrade."
+      text: "After you reveal a red Tallon Roll [%TROLLLEFT% or %TROLLRIGHT%] maneuver, if you have 2 or fewer stress tokens, treat that maneuver as white.%LINEBREAK%<strong>Weapon Hardpoint:</strong> You can equip 1&nbsp;%CANNON%, %TORPEDO%, or %MISSILE% upgrade."
     },
     "Emon Azzameen": {
       display_name: "Emon Azzameen",
@@ -10651,6 +14126,10 @@ exportObj.cardLoaders.English = function() {
     "Ezra Bridger (TIE Fighter)": {
       display_name: "Ezra Bridger (TIE Fighter)",
       text: "While you defend or perform an attack, if you are stressed, you may spend 1&nbsp;%FORCE% to change up to 2 of your %FOCUS% results to %EVADE% or %HIT% results."
+    },
+    "Feethan Ottraw Autopilot": {
+      display_name: "Feethan Ottraw Autopilot",
+      text: "<i class = flavor_text>Unlike the more disposable fighters it also built for the Separatists, Feethan Ottraw Scalable Assemblies designed the Belbullab-22 with a solid mix of firepower, durability, and speed.</i>"
     },
     "Fenn Rau (Sheathipede)": {
       display_name: "Fenn Rau (Sheathipede)",
@@ -10696,6 +14175,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Gavin Darklighter",
       text: "While a friendly ship performs an attack, if the defender is in your %FRONTARC%, the attacker may change 1&nbsp;%HIT% result to a %CRIT% result.%LINEBREAK%<strong>Experimental Scanners:</strong> You can acquire locks beyond range 3. You cannot acquire locks at range 1."
     },
+    "General Grievous": {
+      display_name: "General Grievous",
+      text: "While you perform a primary attack, if you are not in the defender’s firing arc, you may reroll up to 2&nbsp;attack dice."
+    },
     "Genesis Red": {
       display_name: "Genesis Red",
       text: "After you acquire a lock, you must remove all of your focus and evade tokens. Then, gain the same number of focus and evade tokens that the locked ship has.%LINEBREAK%<strong>Weapon Hardpoint:</strong> You can equip 1 %CANNON%, %TORPEDO%, or %MISSILE% upgrade."
@@ -10703,6 +14186,10 @@ exportObj.cardLoaders.English = function() {
     "Gideon Hask": {
       display_name: "Gideon Hask",
       text: "While you perform an attack against a damaged defender, roll 1 additional attack die."
+    },
+    "Gold Squadron Trooper": {
+      display_name: "Gold Squadron Trooper",
+      text: "<i class = flavor_text>The V-19 Torrent starfighter was designed to be a light escort to nimble Delta-7 interceptors flown by Jedi Knights, and has a unique flight profile to reflect this role.</i>"
     },
     "Gold Squadron Veteran": {
       display_name: "Gold Squadron Veteran",
@@ -10722,7 +14209,7 @@ exportObj.cardLoaders.English = function() {
     },
     "Green Squadron Expert": {
       display_name: "Green Squadron Expert",
-      text: "<i class = flavor_text>Years of field-expedient modifications were standardized in the RZ-2 design, but daring pilots see the ship’s improved reliability as a challenge to further push the limits of its performance.</i>%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "<i class = flavor_text>Years of field-expedient modifications were standardized in the RZ-2 design, but daring pilots see the ship’s improved reliability as a challenge to further push the limits of its performance.</i>%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Green Squadron Pilot": {
       display_name: "Green Squadron Pilot",
@@ -10730,7 +14217,7 @@ exportObj.cardLoaders.English = function() {
     },
     "Greer Sonnel": {
       display_name: "Greer Sonnel",
-      text: "After you fully execute a maneuver, you may rotate your %SINGLETURRETARC%.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "After you fully execute a maneuver, you may rotate your %SINGLETURRETARC%.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Guri": {
       display_name: "Guri",
@@ -10819,6 +14306,10 @@ exportObj.cardLoaders.English = function() {
     "Jaycris Tubbs": {
       display_name: "Jaycris Tubbs",
       text: "After you fully execute a blue maneuver, you may choose a friendly ship at range&nbsp;0-1. If you do, that ship removes 1&nbsp;stress token.%LINEBREAK%<strong>Weapon Hardpoint:</strong> You can equip 1&nbsp;%CANNON%, %TORPEDO%, or %MISSILE% upgrade."
+    },
+    "Jedi Knight": {
+      display_name: "Jedi Knight",
+      text: "<i class = flavor_text>When the Clone Wars began, the Jedi Knights rallied to the cause of preserving the Republic, assuming command of legions of clone troopers and leading them in battle.</i>%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
     },
     "Jek Porkins": {
       display_name: "Jek Porkins",
@@ -10972,13 +14463,21 @@ exportObj.cardLoaders.English = function() {
       display_name: "Luke Skywalker",
       text: "After you become the defender (before dice are rolled), you may recover 1&nbsp;%FORCE%."
     },
+    "Luminara Unduli": {
+      display_name: "Luminara Unduli",
+      text: "While a friendly ship at range&nbsp;0-2 defends, if it is not in the attacker’s %BULLSEYEARC%, you may spend 1&nbsp;%FORCE%. If you do, change 1&nbsp;%CRIT% result to a %HIT% result or 1 %HIT% result to a %FOCUS% result.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
+    },
     "L'ulo L'ampar": {
       display_name: "L’ulo L’ampar",
-      text: "While you defend or perform a primary attack, if you are stressed, you <b>must</b> roll 1 fewer defense die or 1 additional attack die.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "While you defend or perform a primary attack, if you are stressed, you <b>must</b> roll 1 fewer defense die or 1 additional attack die.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Maarek Stele": {
       display_name: "Maarek Stele",
       text: "While you perform an attack, if the defender would be dealt a faceup damage card, instead draw 3 damage cards, choose 1, and discard the rest.%LINEBREAK%<strong>Advanced Targeting Computer:</strong> While you perform a primary attack against a defender you have locked, roll 1 additional attack die and change 1&nbsp;%HIT% result to a %CRIT% result. "
+    },
+    "Mace Windu": {
+      display_name: "Mace Windu",
+      text: "After you fully execute a red maneuver, recover 1&nbsp;%FORCE%.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
     },
     "Magva Yarro": {
       display_name: "Magva Yarro",
@@ -11039,6 +14538,10 @@ exportObj.cardLoaders.English = function() {
     "N'dru Suhlak": {
       display_name: "N’dru Suhlak",
       text: "While you perform a primary attack, if there are no other friendly ships at range 0-2, roll 1 additional attack die."
+    },
+    "Obi-Wan Kenobi": {
+      display_name: "Obi-Wan Kenobi",
+      text: "After a friendly ship at range&nbsp;0-2 spends a focus token, you may spend 1&nbsp;%FORCE%. If you do, that ship gains 1&nbsp;focus token.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
     },
     "Obsidian Squadron Pilot": {
       display_name: "Obsidian Squadron Pilot",
@@ -11103,6 +14606,10 @@ exportObj.cardLoaders.English = function() {
     "Planetary Sentinel": {
       display_name: "Planetary Sentinel",
       text: "<i class = flavor_text>To protect its many military installations, the Empire requires a swift and vigilant defense force.</i>%LINEBREAK% <strong>Adaptive Ailerons:</strong> Before you reveal your dial, if you are not stressed, you <b>must</b> execute a white [1&nbsp;%BANKLEFT%], [1&nbsp;%STRAIGHT%], or [1&nbsp;%BANKRIGHT%] maneuver."
+    },
+    "Plo Koon": {
+      display_name: "Plo Koon",
+      text: "At the start of the Engagement Phase, you may spend 1 %FORCE% and choose another friendly ship at range 0-2. If you do, you may transfer 1 green token to it or transfer one orange token from it to yourself.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
     },
     "Poe Dameron": {
       display_name: "Poe Dameron",
@@ -11172,6 +14679,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Sabine Wren (Scum)",
       text: "While you defend, if the attacker is in your %SINGLETURRETARC% at range 0-2, you may add 1&nbsp;%FOCUS% result to your dice results."
     },
+    "Saesee Tiin": {
+      display_name: "Saesee Tiin",
+      text: "After a friendly ship at range 0-2 reveals its dial, you may spend 1 %FORCE%. If you do, set its dial to another maneuver of the same speed and difficulty.%LINEBREAK%<strong>Fine-tuned Controls:</strong> After you fully execute a maneuver, you may spend 1&nbsp;%FORCE% to perform a %BOOST% or %BARRELROLL% action."
+    },
     "Sarco Plank": {
       display_name: "Sarco Plank",
       text: "While you defend, you may treat your agility value as equal to the speed of the maneuver you executed this round.%LINEBREAK%<strong>Spacetug Tractor Array:</strong> <strong>Action:</strong> Choose a ship in your %FRONTARC% at range 1. That ship gains 1 tractor token, or 2 tractor tokens if it is in your %BULLSEYEARC% at range 1."
@@ -11187,6 +14698,10 @@ exportObj.cardLoaders.English = function() {
     "Scimitar Squadron Pilot": {
       display_name: "Scimitar Squadron Pilot",
       text: "<i class = flavor_text>The TIE/sa is exceptionally nimble for a bomber, allowing it to pinpoint its target while avoiding excessive collateral damage to the surrounding area.</i> %LINEBREAK%<strong>Nimble Bomber:</strong> If you would drop a device using a %STRAIGHT% template, you may use a %BANKLEFT% or %BANKRIGHT% template of the same speed instead."
+    },
+    "Separatist Drone": {
+      display_name: "Separatist Drone",
+      text: "<i class = flavor_text>As the Clone Wars escalate, the Separatist Alliance continues to develop the technology of droid starfighters, as well as the tactical droids that command them.</i>%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
     },
     "Serissu": {
       display_name: "Serissu",
@@ -11220,6 +14735,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Sigma Squadron Ace",
       text: "<i class = flavor_text>Featuring a hyperdrive and shields, the TIE phantom is also equipped with five laser cannons, giving it substantial firepower for an Imperial fighter.</i>%LINEBREAK%<strong>Stygium Array:</strong> After you decloak, you may perform an %EVADE% action. At the start of the End Phase, you may spend 1 evade token to gain 1 cloak token."
     },
+    "Skakoan Ace": {
+      display_name: "Skakoan Ace",
+      text: "<i class = flavor_text>With its powerful engines, devastating triple laser cannons, and high customizability, the Belbullab-22 is the chosen craft of several elite Separatist Alliance pilots, including the infamous General Grievous.</i>"
+    },
     "Skull Squadron Pilot": {
       display_name: "Skull Squadron Pilot",
       text: "<i class = flavor_text>The aces of Skull Squadron favor an aggressive approach, using their craft’s pivot wing technology to achieve unmatched agility in the pursuit of their quarry.</i> %LINEBREAK% <strong>Concordia Faceoff:</strong> While you defend, if the attack range is 1 and you are in the attacker’s %FRONTARC%, change 1 result to an %EVADE% result."
@@ -11235,6 +14754,10 @@ exportObj.cardLoaders.English = function() {
     "Spice Runner": {
       display_name: "Spice Runner",
       text: "<i class = flavor_text>Though its cargo space is limited compared to other light freighters, the small, swift HWK-290 is a favorite choice of smugglers who specialize in discreetly transporting precious goods.</i>"
+    },
+    "Squad Seven Veteran": {
+      display_name: "Squad Seven Veteran",
+      text: "<i class = flavor_text>Clone Flight Seven serves as part of the Open Circle Fleet under legendary Jedi Generals such as Plo Koon and Obi-Wan Kenobi, and won glory at the battles of Coruscant and Cato Neimoidia.</i>"
     },
     "Starkiller Base Pilot": {
       display_name: "Starkiller Base Pilot",
@@ -11258,7 +14781,7 @@ exportObj.cardLoaders.English = function() {
     },
     "Tallissan Lintra": {
       display_name: "Tallissan Lintra",
-      text: "While an enemy ship in your %BULLSEYEARC% performs an attack, you may spend 1&nbsp;%CHARGE%.  If you do, the defender rolls 1 additional die.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "While an enemy ship in your %BULLSEYEARC% performs an attack, you may spend 1&nbsp;%CHARGE%.  If you do, the defender rolls 1 additional die.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Talonbane Cobra": {
       display_name: "Talonbane Cobra",
@@ -11300,6 +14823,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Torkil Mux",
       text: "At the start of the Engagement Phase, you may choose 1 ship in your firing arc. If you do, that ship engages at initiative 0 instead of its normal initiative value this round."
     },
+    "Trade Federation Drone": {
+      display_name: "Trade Federation Drone",
+      text: "<i class = flavor_text>The Trade Federation deployed countless Vulture Droids at the Battle of Naboo, and continues to use these inexpensive starfighters in the Clone Wars.</i>%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
+    },
     "Trandoshan Slaver": {
       display_name: "Trandoshan Slaver",
       text: "<i class = flavor_text>The spacious triple-decker design of the YV-666 makes it popular among bounty hunters and slavers, who often retrofit an entire deck for prisoner transport.</i>"
@@ -11332,6 +14859,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Warden Squadron Pilot",
       text: "<i class = flavor_text>Koensayr Manufacturing’s K-wing boasts an advanced SubLight Acceleration Motor and an unprecedented 18 hard points, granting it unrivaled speed and firepower.</i>"
     },
+    "Wat Tambor": {
+      display_name: "Wat Tambor",
+      text: "While you perform a primary attack, you may reroll 1 attack die for each calculating friendly ship at range&nbsp;1 of the defender."
+    },
     "Wedge Antilles": {
       display_name: "Wedge Antilles",
       text: "While you perform an attack, the defender rolls 1 fewer defense die."
@@ -11346,7 +14877,7 @@ exportObj.cardLoaders.English = function() {
     },
     "Zari Bangel": {
       display_name: "Zari Bangel",
-      text: "You do not skip your Perform Action step after you partially execute a maneuver.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red <rotate> action."
+      text: "You do not skip your Perform Action step after you partially execute a maneuver.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> You can rotate your %SINGLETURRETARC% indicator only to your %FRONTARC% or %REARARC%. After you perform an action, you may perform a red %BOOST% or red %ROTATEARC% action."
     },
     "Zealous Recruit": {
       display_name: "Zealous Recruit",
@@ -11371,6 +14902,10 @@ exportObj.cardLoaders.English = function() {
     '"Avenger"': {
       display_name: "“Avenger”",
       text: "After another friendly ship is destroyed, you may perform an action, even while stressed.%LINEBREAK%<strong>Autothrusters:</strong> After you perform an action, you may perform a red %BARRELROLL% or red %BOOST% action."
+    },
+    '"Axe"': {
+      display_name: "“Axe”",
+      text: "After you defend or perform an attack, you may choose a friendly ship at range&nbsp;1-2 in your %LEFTARC%  or %RIGHTARC%. If you do, transfer 1 green token to that ship."
     },
     '"Backdraft"': {
       display_name: "“Backdraft”",
@@ -11416,6 +14951,14 @@ exportObj.cardLoaders.English = function() {
       display_name: "“Howlrunner”",
       text: "While a friendly ship at range 0-1 performs a primary attack, that ship may reroll 1 attack die."
     },
+    '"Jag"': {
+      display_name: "“Jag”",
+      text: "After a friendly ship at range&nbsp;1-2 in your %LEFTARC%  or %RIGHTARC%  defends, you may acquire a lock on the attacker."
+    },
+    '"Kickback"': {
+      display_name: "“Kickback”",
+      text: "After you perform a %BARRELROLL% action, you may perform a red %LOCK% action."
+    },
     '"Leebo"': {
       display_name: "“Leebo”",
       text: "After you defend or perform an attack, if you spent a calculate token, gain 1 calculate token.%LINEBREAK%<strong>Sensor Blindspot:</strong> While you perform a primary attack at attack range 0-1, do not apply the range 0-1 bonus and roll 1 fewer attack die."
@@ -11444,6 +14987,14 @@ exportObj.cardLoaders.English = function() {
       display_name: "“Null”",
       text: "While you are not damaged, treat your initiative value as 7."
     },
+    '"Odd Ball"': {
+      display_name: "“Odd Ball”",
+      text: "After you fully execute a red maneuver or perform a red action, if there is an enemy ship in your %BULLSEYEARC%, you may acquire a lock on that ship."
+    },
+    '"Odd Ball" (ARC-170)': {
+      display_name: "“Odd Ball” (ARC-170)",
+      text: "After you fully execute a red maneuver or perform a red action, if there is an enemy ship in your %BULLSEYEARC%, you may acquire a lock on that ship."
+    },
     '"Pure Sabacc"': {
       display_name: "“Pure Sabacc”",
       text: "While you perform an attack, if you have 1 or fewer damage cards, you may roll 1 additional attack die.%LINEBREAK%<strong>Adaptive Ailerons:</strong> Before you reveal your dial, if you are not stressed, you <b>must</b> execute a white [1&nbsp;%BANKLEFT%], [1&nbsp;%STRAIGHT%], or [1&nbsp;%BANKRIGHT%] maneuver."
@@ -11468,9 +15019,21 @@ exportObj.cardLoaders.English = function() {
       display_name: "“Scourge” Skutu",
       text: "While you perform an attack against a defender in your %BULLSEYEARC%, roll 1 additional attack die."
     },
+    '"Sinker"': {
+      display_name: "“Sinker”",
+      text: "While a friendly ship at range&nbsp;1-2 in your %LEFTARC% or %RIGHTARC% performs a primary attack, it may reroll 1&nbsp;attack die."
+    },
     '"Static"': {
       display_name: "“Static”",
       text: "While you perform a primary attack, you may spend your lock on the defender and a focus token to change all of your results to %CRIT% results."
+    },
+    '"Swoop"': {
+      display_name: "“Swoop”",
+      text: "After a friendly small or medium ship fully executes a speed 3-4 maneuver, if it is at range&nbsp;0-1, it may perform a red %BOOST% action."
+    },
+    '"Tucker"': {
+      display_name: "“Tucker”",
+      text: "After a friendly ship at range&nbsp;1-2 performs an attack against an enemy ship in your %FRONTARC%, you may perform a %FOCUS%&nbsp;action."
     },
     '"Vizier"': {
       display_name: "“Vizier”",
@@ -11484,6 +15047,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "“Whisper”",
       text: "After you perform an attack that hits, gain 1 evade token.%LINEBREAK%<strong>Stygium Array:</strong> After you decloak, you may perform an %EVADE% action. At the start of the End Phase, you may spend 1 evade token to gain 1 cloak token."
     },
+    '"Wolffe"': {
+      display_name: "“Wolffe”",
+      text: "While you perform a primary %FRONTARC% attack, you may spend 1 %CHARGE% to reroll 1&nbsp;attack die. %LINEBREAK%While you perform a primary %REARARC% attack, you may recover 1&nbsp;%CHARGE% to roll 1&nbsp;additional attack die. "
+    },
     '"Zeb" Orrelios': {
       display_name: "“Zeb” Orrelios",
       text: "While you defend, %CRIT% results are neutralized before %HIT% results.%LINEBREAK%<strong>Locked and Loaded:</strong> While you are docked, after your carrier ship performs a primary %FRONTARC% or %TURRET% attack, it may perform a bonus primary %REARARC% attack."
@@ -11496,23 +15063,16 @@ exportObj.cardLoaders.English = function() {
       display_name: "“Zeb” Orrelios (TIE Fighter)",
       text: "While you defend, %CRIT% results are neutralized before %HIT% results."
     },
-    "General Grevious": {
-      text: " While you perform a primary attack, if you are not in the defender's firing arc, you may reroll up to 2 attack dice. "
+    "Bombardment Drone": {
+      text: "If you would drop a device, you may launch that device instead, using the same template. %LINEBREAK% NETWORKED CALCULATIONS: While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range 0-1 to change 1 %FOCUS% result to an %EVADE% or %HIT% result."
     },
-    "Wat Tambor": {
-      text: " While you perform a primary attack, you may reroll 1 attack die for each calculating friendly ship at range 1 of the defender. "
-    },
-    "Captain Sear": {
-      text: " While a friendly ship at range 0-3 performs a primary attack, if the defender is in its %BULLSEYEARC%, before the Neutralize Results step, the friendly ship may spend 1 calculate token to cancel 1 %EVADE% result. "
+    "Haor Chall Prototype": {
+      display_name: "Haor Chall Prototype",
+      text: "After an enemy ship in your %BULLSEYEARC% at range&nbsp;0-2 declares another friendly ship as the defender, you may perform a %CALCULATE% or %LOCK% action.%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
     },
     "Precise Hunter": {
-      text: " While you perform an attack, if the defender is in your %BULLSEYEARC%, you may reroll 1 blank result. %LINEBREAK% NETWORKED CALCULATIONS: While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range 0-1 to change 1 %FOCUS% result to an %EVADE% or %HIT% result. "
-    },
-    "Hadr Chall Prototype": {
-      text: " After an enemy ship in your %BULLSEYEARC% at range 0-2 declares another friendly ship as the defender, you may perform a %CALCULATE% or %LOCK% action. %LINEBREAK% NETWORKED CALCULATIONS: While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range 0-1 to change 1 %FOCUS% result to an %EVADE% or %HIT% result. "
-    },
-    "DFS-081": {
-      text: " While a friendly ship at range 0-1 defends, it may spend 1 calculate token to change all %CRIT% results to %HIT% results. %LINEBREAK% NETWORKED CALCULATIONS: While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range 0-1 to change 1 %FOCUS% result to an %EVADE% or %HIT% result. "
+      display_name: "Precise Hunter",
+      text: "While you perform an attack, if the defender is in your %BULLSEYEARC%, you may reroll 1&nbsp;blank result.%LINEBREAK%<strong>Networked Calculations:</strong> While you defend or perform an attack, you may spend 1 calculate token from a friendly ship at range&nbsp;0-1 to change 1&nbsp;%FOCUS% result to an %EVADE% or %HIT% result."
     }
   };
   upgrade_translations = {
@@ -11584,6 +15144,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "ST-321",
       text: "<i>Empire only</i>%LINEBREAK%After you perform a %COORDINATE% action, you may choose an enemy ship at range 0-3 of the ship you coordinated. If you do, acquire a lock on that enemy ship, ignoring range restrictions."
     },
+    "Scimitar": {
+      display_name: "Scimitar",
+      text: "<i>Adds <r>%CLOAK%</r> ,  %JAM%</i>%LINEBREAK%<i>Separatist Alliance only</i>%LINEBREAK%<strong>Setup:</strong> After the Place Forces step, you may cloak.%LINEBREAK%After you decloak, you may choose an enemy ship in your %BULLSEYEARC%. If you do, it gains 1&nbsp;jam token."
+    },
     "Shadow Caster": {
       display_name: "Shadow Caster",
       text: "<i>Scum only</i>%LINEBREAK%After you perform an attack that hits, if the defender is in your %SINGLETURRETARC% and your %FRONTARC%, the defender gains 1 tractor token."
@@ -11595,6 +15159,10 @@ exportObj.cardLoaders.English = function() {
     "Virago": {
       display_name: "Virago",
       text: "<i>Adds 1 shield</i> %LINEBREAK% During the End Phase, you may spend 1&nbsp;%CHARGE% to perform a red %BOOST% action.%LINEBREAK%Add %MODIFICATION% slot."
+    },
+    "Soulless One": {
+      display_name: "Soulless One",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%<i>Adds 2 Hull</i>%LINEBREAK%While you defend, if the attacker is outside your firing arc, you may reroll 1&nbsp;defense die."
     },
     "Ablative Plating": {
       display_name: "Ablative Plating",
@@ -11648,6 +15216,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Barrage Rockets",
       text: "<strong>Attack (%FOCUS%):</strong> Spend 1&nbsp;%CHARGE%. If the defender is in your %BULLSEYEARC%, you may spend 1 or more %CHARGE% to reroll that many attack dice."
     },
+    "Battle Meditation": {
+      display_name: "Battle Meditation",
+      text: "<i>Adds %COORDINATE%</i>%LINEBREAK%<i>Galactic Republic only</i>%LINEBREAK%You cannot coordinate limited ships.%LINEBREAK% While you perform a purple %COORDINATE% action, you may coordinate 1 additional friendly non-limited ship of the same type. Both ships must perform the same action."
+    },
     "Baze Malbus": {
       display_name: "Baze Malbus",
       text: "<i>Rebel only</i>%LINEBREAK%While you perform a %FOCUS% action, you may treat it as red. If you do, gain 1 additional focus token for each enemy ship at range 0-1, to a maximum of 2."
@@ -11672,6 +15244,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Bossk",
       text: "<i>Scum only</i>%LINEBREAK%After you perform a primary attack that misses, if you are not stressed, you <b>must</b> receive 1 stress token to perform a bonus primary attack against the same target."
     },
+    "Brilliant Evasion": {
+      display_name: "Brilliant Evasion",
+      text: "While you defend, if you are not in the attacker's %BULLSEYEARC%, you may spend 1 %FORCE% to change 2 of your %FOCUS% results to %EVADE%&nbsp;results."
+    },
     "C-3PO": {
       display_name: "C-3PO",
       text: "<i>Adds %CALCULATE%</i>%LINEBREAK%<i>Rebel only</i>%LINEBREAK%Before rolling defense dice, you may spend 1 calculate token to guess aloud a number 1 or higher. If you do and you roll exactly that many %EVADE% results, add 1&nbsp;%EVADE% result.%LINEBREAK%After you perform the %CALCULATE% action, gain 1 calculate token."
@@ -11684,6 +15260,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Cad Bane",
       text: "<i>Scum only</i>%LINEBREAK%After you drop or launch a device, you may perform a red %BOOST% action."
     },
+    "Calibrated Laser Targeting": {
+      display_name: "Calibrated Laser Targeting",
+      text: "While you perform a primary attack, if&nbsp;the defender is in your %BULLSEYEARC%, add 1&nbsp;%FOCUS%&nbsp;result."
+    },
     "Captain Phasma": {
       display_name: "Captain Phasma",
       text: "<i>First Order only</i>%LINEBREAK%At the end of the Engagement Phase, each enemy ship at range 0-1 that is not stressed gains 1 stress token."
@@ -11691,6 +15271,10 @@ exportObj.cardLoaders.English = function() {
     "Cassian Andor": {
       display_name: "Cassian Andor",
       text: "<i>Rebel only</i>%LINEBREAK%During the System Phase, you may choose 1 enemy ship at range 1-2 and guess aloud a bearing and speed, then look at that ship’s dial. If the chosen ship’s bearing and speed match your guess, you may set your dial to another maneuver."
+    },
+    "Chancellor Palpatine": {
+      display_name: "Chancellor Palpatine",
+      text: "Chancellor Palpatine:%LINEBREAK%<i>Adds %COORDINATE%</i>%LINEBREAK%<i>Separatist Alliance or Galactic Republic only</i>%LINEBREAK%<strong>Setup:</strong> Equip this side faceup.%LINEBREAK%After you defend, if the attacker is at range 0-2, you may spend 1 %FORCE%. If you do, the attacker gains 1 stress token.%LINEBREAK%During the End Phase, you may flip this card.%LINEBREAK%Darth Sidious%LINEBREAK%<i>Adds %COORDINATE%</i>%LINEBREAK%<i>Separatist Alliance or Galactic Republic only</i>%LINEBREAK%After you perform a purple&nbsp;%COORDINATE%&nbsp;action, the ship you coordinated gains 1&nbsp;stress token. Then, it gains 1&nbsp;focus token or recovers 1&nbsp;%FORCE%."
     },
     "Chewbacca": {
       display_name: "Chewbacca",
@@ -11716,6 +15300,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Cloaking Device",
       text: "<i>small ship or medium ship only</i>%LINEBREAK%<strong>Action:</strong> Spend 1&nbsp;%CHARGE% to perform a %CLOAK% action.%LINEBREAK%At the start of the Planning Phase, roll 1 attack die. On a %FOCUS% result, decloak or discard your cloak token."
     },
+    "Clone Commander Cody": {
+      display_name: "Clone Commander Cody",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%After you perform an attack that missed, if 1&nbsp;or more %HIT%/%CRIT% results were neutralized, the defender gains 1&nbsp;strain token."
+    },
     "Cluster Missiles": {
       display_name: "Cluster Missiles",
       text: "<strong>Attack (%LOCK%):</strong> Spend 1&nbsp;%CHARGE%. After this attack, you may perform this attack as a bonus attack against a different target at range 0-1 of the defender, ignoring the %LOCK% requirement."
@@ -11740,9 +15328,17 @@ exportObj.cardLoaders.English = function() {
       display_name: "Contraband Cybernetics",
       text: "Before you activate, you may spend 1&nbsp;%CHARGE%. If you do, until the end of the round, you can perform actions and execute red maneuvers, even while stressed."
     },
+    "Count Dooku": {
+      display_name: "Count Dooku",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%Before a ship at range&nbsp;0-2 rolls attack or defense dice, if all of your %FORCE% are active, you may spend 1 %FORCE% and name a result. If the roll does not contain the named result, the ship must change 1&nbsp;die to that result."
+    },
     "Crack Shot": {
       display_name: "Crack Shot",
       text: "While you perform a primary attack, if the defender is in your %BULLSEYEARC%, before the Neutralize Results step, you may spend 1&nbsp;%CHARGE% to cancel 1&nbsp;%EVADE% result."
+    },
+    "DRK-1 Probe Droids": {
+      display_name: "DRK-1 Probe Droids",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%During the End Phase, you may spend 1&nbsp;%CHARGE% to drop or launch 1&nbsp;DRK-1 probe droid using a speed 3 template.%LINEBREAK%This card’s %CHARGE% cannot be recovered."
     },
     "Daredevil": {
       display_name: "Daredevil",
@@ -11764,6 +15360,14 @@ exportObj.cardLoaders.English = function() {
       display_name: "Debris Gambit",
       text: "<i>Adds <r>%EVADE%</r></i>%LINEBREAK%<i>small ship or medium ship only</i>%LINEBREAK%While you perform a red %EVADE% action, if there is an obstacle at range 0-1, treat the action as white instead."
     },
+    "Dedicated": {
+      display_name: "Dedicated",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%While another friendly ship in your %LEFTARC%&nbsp;or %RIGHTARC% at range&nbsp;0-2 defends, if it is limited or has the <strong>Dedicated</strong> upgrade and you are not strained, you may gain 1 strain token. If you do, the defender rerolls 1&nbsp;of their blank results."
+    },
+    "Delta-7B": {
+      display_name: "Delta-7B",
+      text: "<i class = flavor_text>The Delta-7B was designed as a heavier variant of the Delta-7 Aethersprite-class Interceptor, identifiable by the repositioned astromech slot. Many Jedi Generals favor this craft’s greater firepower and durability.</i>"
+    },
     "Dengar": {
       display_name: "Dengar",
       text: "<i>Scum only</i>%LINEBREAK%After you defend, if the attacker is in your firing arc, you may spend 1&nbsp;%CHARGE%. If you do, roll 1 attack die unless the attacker chooses to remove 1 green token. On a %HIT% or %CRIT% result, the attacker suffers 1&nbsp;%HIT% damage."
@@ -11771,6 +15375,10 @@ exportObj.cardLoaders.English = function() {
     "Director Krennic": {
       display_name: "Director Krennic",
       text: "<i>Adds %LOCK%</i>%LINEBREAK%<i>Empire only</i>%LINEBREAK%<strong>Setup:</strong> Before placing forces, assign the <strong>Optimized Prototype</strong> condition to another friendly ship."
+    },
+    "Discord Missiles": {
+      display_name: "Discord Missiles",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%At the start of the Engagement Phase, you may spend 1&nbsp;calculate token and 1&nbsp;%CHARGE% to launch 1&nbsp;buzz droid swarm using the [3&nbsp;%BANKLEFT%], [3&nbsp;%STRAIGHT%], or [3&nbsp;%BANKRIGHT%] template.%LINEBREAK%This card’s %CHARGE% cannot be recovered."
     },
     "Dorsal Turret": {
       display_name: "Dorsal Turret",
@@ -11787,6 +15395,10 @@ exportObj.cardLoaders.English = function() {
     "Emperor Palpatine": {
       display_name: "Emperor Palpatine",
       text: "<i>Empire only</i>%LINEBREAK%While another friendly ship defends or performs an attack, you may spend 1&nbsp;%FORCE% to modify 1 of its dice as though that ship had spent 1&nbsp;%FORCE%."
+    },
+    "Energy-Shell Charges": {
+      display_name: "Energy-Shell Charges",
+      text: "<i>Requires %CALCULATE% or <r>%CALCULATE%</r></i>%LINEBREAK%<i>Separatist Alliance only</i>%LINEBREAK%<strong>Attack (%CALCULATE%):</strong> Spend 1&nbsp;%CHARGE%. While you perform this attack, you may spend 1&nbsp;calculate token to change 1&nbsp;%FOCUS% result to a %CRIT% result.%LINEBREAK%<strong>Action</strong>: Reload this card."
     },
     "Engine Upgrade": {
       display_name: "Engine Upgrade",
@@ -11836,6 +15448,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "GNK “Gonk” Droid",
       text: "<strong>Setup:</strong> Lose 1&nbsp;%CHARGE%.%LINEBREAK%<strong>Action:</strong> Recover 1&nbsp;%CHARGE%.%LINEBREAK%<strong>Action:</strong> Spend 1&nbsp;%CHARGE% to recover 1 shield."
     },
+    "General Grievous": {
+      display_name: "General Grievous",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%While you defend, after the Neutralize Results step, if there are 2 or more %HIT%/%CRIT% results, you may spend 1&nbsp;%CHARGE% to cancel 1 %HIT% or %CRIT%&nbsp;result. %LINEBREAK%After a friendly ship is destroyed, recover 1&nbsp;%CHARGE%."
+    },
     "General Hux": {
       display_name: "General Hux",
       text: "<i>Requires %COORDINATE% or <r>%COORDINATE%</r></i>%LINEBREAK%<i>First Order only</i>%LINEBREAK%While you perform a white %COORDINATE% action, you may treat it as red. If you do, you may coordinate up to 2 additional ships of the same ship type, and each ship you coordinate must perform the same action, treating that action as red."
@@ -11847,6 +15463,10 @@ exportObj.cardLoaders.English = function() {
     "Grand Moff Tarkin": {
       display_name: "Grand Moff Tarkin",
       text: "<i>Requires %LOCK% or <r>%LOCK%</r></i>%LINEBREAK%<i>Empire only</i>%LINEBREAK%During the System Phase, you may spend 2 %CHARGE%. If you do, each friendly ship may acquire a lock on a ship that you have locked."
+    },
+    "Grappling Struts": {
+      display_name: "Grappling Struts",
+      text: "Closed:%LINEBREAK%<strong>Setup:</strong> Equip this side faceup.%LINEBREAK%While you execute a maneuver, if you overlap an asteroid or debris cloud and there are 1 or fewer other friendly ships at range 0 of that obstacle, you may flip this card.%LINEBREAK%Open:%LINEBREAK%You ignore obstacles at range&nbsp;0 and while you move through them. After you reveal your dial, if you reveal a maneuver other than a [2&nbsp;%STRAIGHT%] and are at range 0 of an asteroid or debris cloud, skip your Execute Maneuver step and remove 1 stress token; if you revealed a right or left maneuver, rotate your ship 90º in that direction. After you execute a maneuver, flip this card."
     },
     "Greedo": {
       display_name: "Greedo",
@@ -11908,6 +15528,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "ISB Slicer",
       text: "<i>Empire only</i>%LINEBREAK%During the End Phase, enemy ships at range 1-2 cannot remove jam tokens."
     },
+    "Impervium Plating": {
+      display_name: "Impervium Plating",
+      text: "Before you would be dealt a faceup <strong>Ship</strong> damage card, you may spend 1&nbsp;%CHARGE% to discard it instead."
+    },
     "Inertial Dampeners": {
       display_name: "Inertial Dampeners",
       text: "Before you would execute a maneuver, you may spend 1 shield. If you do, execute a white [0&nbsp;%STOP%] instead of the maneuver you revealed, then gain 1 stress token."
@@ -11960,6 +15584,10 @@ exportObj.cardLoaders.English = function() {
       display_name: "Jyn Erso",
       text: "<i>Rebel only</i>%LINEBREAK%If a friendly ship at range 0-3 would gain a focus token, it may gain 1 evade token instead."
     },
+    "K2-B4": {
+      display_name: "K2-B4",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%While a friendly ship at range&nbsp;0-3 defends, it may spend 1 calculate token. If it does, add 1 %EVADE% result unless the attacker chooses to gain 1&nbsp;strain token."
+    },
     "Kanan Jarrus": {
       display_name: "Kanan Jarrus",
       text: "<i>Rebel only</i>%LINEBREAK%After a friendly ship at range 0-2 fully executes a white maneuver, you may spend 1&nbsp;%FORCE% to remove 1 stress token from that ship."
@@ -11968,9 +15596,17 @@ exportObj.cardLoaders.English = function() {
       display_name: "Ketsu Onyo",
       text: "<i>Scum only</i>%LINEBREAK%At the start of the End Phase, you may choose 1 enemy ship at range 0-2 in your firing arc. If you do, that ship does not remove its tractor tokens."
     },
+    "Kraken": {
+      display_name: "Kraken",
+      text: "<i>Adds %CALCULATE%</i>%LINEBREAK%<i>Separatist Alliance only</i>%LINEBREAK%During the End Phase, you may choose up to 3&nbsp;friendly ships at range&nbsp;0-3. If you do, each of these ships does not remove 1&nbsp;calculate token."
+    },
+    "Kylo Ren": {
+      display_name: "Kylo Ren",
+      text: "<i>First Order only</i>%LINEBREAK%<strong>Action:</strong> Choose 1 enemy ship at range 1-3. If you do, spend 1&nbsp;%FORCE% to assign the <strong>I’ll Show You the Dark Side</strong> condition to that ship."
+    },
     "L3-37": {
       display_name: "L3-37",
-      text: "<i>Scum only</i>%LINEBREAK%<strong>Setup:</strong> Equip this side faceup.%LINEBREAK%While you defend, you may flip this card. If you do, the attacker must reroll all attack dice.%LINEBREAK%<strong>L3-37’s Programming</strong>If you are not shielded, decrease the difficulty of your bank (%BANKLEFT% and %BANKRIGHT%) maneuvers."
+      text: "<i>Scum only</i>%LINEBREAK%<strong>Setup:</strong> Equip this side faceup.%LINEBREAK%While you defend, you may flip this card. If you do, the attacker must reroll all attack dice.%LINEBREAK%<strong>L3-37’s Programming:</strong> If you are not shielded, decrease the difficulty of your bank (%BANKLEFT% and %BANKRIGHT%) maneuvers."
     },
     "Kylo Ren": {
       display_name: "Kylo Ren",
@@ -12124,6 +15760,18 @@ exportObj.cardLoaders.English = function() {
       display_name: "R4 Astromech",
       text: "<i>small ship only</i>%LINEBREAK%Decrease the difficulty of your speed 1-2 basic maneuvers (%TURNLEFT%, %BANKLEFT%, %STRAIGHT%, %BANKRIGHT%, %TURNRIGHT%)."
     },
+    "R4-P Astromech": {
+      display_name: "R4-P Astromech",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%Before you execute a basic maneuver, you may spend 1&nbsp;%CHARGE%. If you do, while you execute that maneuver, reduce its difficulty."
+    },
+    "R4-P17": {
+      display_name: "R4-P17",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%After you fully execute a red maneuver, you may spend 1&nbsp;%CHARGE% to perform an action, even while stressed."
+    },
+    "R4-P44": {
+      display_name: "R4-P44",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%After you fully execute a red maneuver, if there is an enemy ship in your %BULLSEYEARC%, gain 1&nbsp;calculate token."
+    },
     "R5 Astromech": {
       display_name: "R5 Astromech",
       text: "<strong>Action:</strong> Spend 1&nbsp;%CHARGE% to repair 1 facedown damage card.%LINEBREAK%<strong>Action:</strong> Repair 1 faceup <strong>Ship</strong> damage card."
@@ -12150,7 +15798,7 @@ exportObj.cardLoaders.English = function() {
     },
     "Rey's Millennium Falcon": {
       display_name: "Rey’s Millennium Falcon",
-      text: "<i>Resistance only</i>%LINEBREAK%If you have 2 or fewer stress tokens, you can execute red Segnor’s Loop [%SLOOPLEFT% or %SLOOPRIGHT%] maneuvers and perform %BOOST% and&nbsp;<rotate> actions even while stressed."
+      text: "<i>Resistance only</i>%LINEBREAK%If you have 2 or fewer stress tokens, you can execute red Segnor’s Loop [%SLOOPLEFT% or %SLOOPRIGHT%] maneuvers and perform %BOOST% and&nbsp;%ROTATEARC% actions even while stressed."
     },
     "Rigged Cargo Chute": {
       display_name: "Rigged Cargo Chute",
@@ -12193,8 +15841,12 @@ exportObj.cardLoaders.English = function() {
       text: "During the System Phase, you may choose 1 ship at range 0-1 and look at its dial. If you spend 1&nbsp;%FORCE%, you may choose a ship at range 0-3 instead."
     },
     "Servomotor S-Foils": {
-      display_name: "Servomotor S-foils",
+      display_name: "Servomotor S-Foils",
       text: "<strong>Closed: </strong><i>Adds %BOOST% ,  %FOCUS%&nbsp;<i class=\"xwing-miniatures-font xwing-miniatures-font-linked\"></i>&nbsp;<r>%BOOST%</r></i>%LINEBREAK% While you perform a primary attack, roll 1 fewer attack die.%LINEBREAK%Before you activate, you may flip this card.%LINEBREAK%<strong>Open:</strong> Before you activate, you may flip this card."
+    },
+    "Seventh Fleet Gunner": {
+      display_name: "Seventh Fleet Gunner",
+      text: "<i>Galactic Republic only</i>%LINEBREAK%While another friendly ship performs a primary attack, if the defender is in your firing arc, you may spend 1 %CHARGE%. If you do, the attacker rolls 1&nbsp;additional die, to a maximum of 4. During the System Phase, you may gain 1 disarm token to recover 1 %CHARGE%."
     },
     "Seventh Sister": {
       display_name: "Seventh Sister",
@@ -12207,6 +15859,10 @@ exportObj.cardLoaders.English = function() {
     "Skilled Bombardier": {
       display_name: "Skilled Bombardier",
       text: "If you would drop or launch a device, you may use a template of the same bearing with a speed 1 higher or lower."
+    },
+    "Spare Parts Canisters": {
+      display_name: "Spare Parts Canisters",
+      text: "<strong>Action:</strong> Spend 1&nbsp;%CHARGE% to recover 1&nbsp;charge on one of your equipped %ASTROMECH% upgrades. %LINEBREAK%<strong>Action:</strong> Spend 1&nbsp;%CHARGE% to drop 1 spare parts, then break all locks assigned to you."
     },
     "Special Forces Gunner": {
       display_name: "Special Forces Gunner",
@@ -12236,6 +15892,14 @@ exportObj.cardLoaders.English = function() {
       display_name: "Swarm Tactics",
       text: "At the start of the Engagement Phase, you may choose 1 friendly ship at range 1. If you do, that ship treats its initiative as equal to yours until the end of the round."
     },
+    "Synchronized Console": {
+      display_name: "Synchronized Console",
+      text: "<i>Requires %LOCK% or <r>%LOCK%</r></i>%LINEBREAK%<i>Galactic Republic only</i>%LINEBREAK%After you perform an attack, you may choose a friendly ship at range 1 or a friendly ship with the <strong>Synchronized Console</strong> upgrade at range 1-3 and spend a lock you have on the defender. If you do, the friendly ship you chose may acquire a lock on the defender."
+    },
+    "TV-94": {
+      display_name: "TV-94",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%While a friendly ship at range&nbsp;0-3 performs a primary attack against a defender in its %BULLSEYEARC%, if there are 2&nbsp;or fewer attack dice, it may spend 1&nbsp;calculate token to add 1&nbsp;%HIT%&nbsp;result."
+    },
     "Tactical Officer": {
       display_name: "Tactical Officer",
       text: "<i>Adds %COORDINATE%</i>%LINEBREAK%<i>Requires <r>%COORDINATE%</r></i>%LINEBREAK%<i class = flavor_text>In the chaos of a starfighter battle, a single order can mean the difference between a victory and a massacre.</i>"
@@ -12259,6 +15923,10 @@ exportObj.cardLoaders.English = function() {
     "Trajectory Simulator": {
       display_name: "Trajectory Simulator",
       text: "During the System Phase, if you would drop or launch a bomb, you may launch it using the [5&nbsp;%STRAIGHT%] template instead."
+    },
+    "Treacherous": {
+      display_name: "Treacherous",
+      text: "<i>Separatist Alliance only</i>%LINEBREAK%While you defend, you may choose a ship obstructing the attack and spend 1 %CHARGE%. If you do, cancel 1 %HIT% or %CRIT% result, and the ship you chose gains 1 strain token.%LINEBREAK%After a ship at range 0-3 is destroyed, recover 1 %CHARGE%."
     },
     "Trick Shot": {
       display_name: "Trick Shot",
@@ -12308,30 +15976,6 @@ exportObj.cardLoaders.English = function() {
     },
     "Hardpoint: Torpedo": {
       text: "Adds a %TORPEDO% slot"
-    },
-    "Brilliant Evasion": {
-      text: " While you defend, if you are not in the attacker's %BULLSEYEARC%, you may spend 1 %FORCE% to change 2 of your %FOCUS% results to %EVADE% results. "
-    },
-    "Calibrated Laser Targeting": {
-      text: " While you perform a primary attack, if the defender is in your %BULLSEYEARC%, add 1 %FOCUS% result. "
-    },
-    "Delta-7B": {
-      text: " <i>Adds: 1 attack, 2 shields %LINEBREAK% Removes: 1 agility</i> "
-    },
-    "Biohexacrypt Codes": {
-      text: " While you coordinate or jam, if you have a lock on a ship, you may spend that lock to choose that ship, ignoring range restrictions. "
-    },
-    "Predictive Shot": {
-      text: " After you declare an attack, if the defender is in your %BULLSEYEARC%, you may spend 1 %FORCE%. If you do, during the Roll Defense Dice step, the defender cannot roll more defense dice than the number of your %HIT%/%CRIT% results. "
-    },
-    "Impervium Plating": {
-      text: " Before you would be dealt a faceup Ship damage card, you may spend 1 %CHARGE% to discard it instead. "
-    },
-    "Grappling Struts": {
-      text: "<strong>Closed: </strong> Setup: Equip this side faceup. %LINEBREAK% While you execute a manuever, if you overlap an asteroid or debris cloud and there are 1 or fewer other friendly ships at range 0 of that obstacle, you may flip this card. %LINEBREAK% <b>Open:</b> You ignore obstacles at range 0 and while you move through them. After you reveal your dial, if you reveal a maneuver other than a [2 %STRAIGHT%] and are at range 0 of an asteroid or debris cloud, skip your Execute Maneuver step and remove 1 stress token; if you revealed a right or left maneuver, rotate your ship 90º in that direction. After you execute a maneuver, flip this card."
-    },
-    "Energy-Shell Charges": {
-      text: " <strong>Attack (%CALCULATE%):</strong> Spend 1 %CHARGE%. While you perform this attack, you may spend 1 calculate token to change 1 %FOCUS% result to a %CRIT% result. %LINEBREAK% <strong>Action:</strong> Reload this card."
     }
   };
   condition_translations = {
@@ -12354,13 +15998,13 @@ exportObj.cardLoaders.English = function() {
       text: ' When this card is assigned, if there is no faceup damage card on it, the player who assigned it searches the damage deck for 1 Pilot damage card and places it faceup on this card. Then shuffle the damage deck. When you would suffer 1 %CRIT% damage, you are instead dealth the faceup damage card on this card. Then, remove this card. '
     },
     'Proton Bomb': {
-      text: '(Bomb Token) - At the end of the Activation Phase, this device detonates. When this device detonates, each ship at range 0–1 suffers 1 %CRIT% damage.'
+      text: '(Bomb Token) - At the end of the Activation Phase, this device detonates. When this device detonates, each ship and remote at range 0–1 suffers 1 %CRIT% damage.%LINEBREAK%<i>Errata (Official Rulings Thread 03/2019): Added: "and remote"</i>'
     },
     'Seismic Charge': {
-      text: '(Bomb Token) - At the end of the Activation Phase this device detonates. When this device detonates, choose 1 obstacle at range 0–1. Each ship at range 0–1 of the obstacle suffers 1 %HIT% damage. Then remove that obstacle. '
+      text: '(Bomb Token) - At the end of the Activation Phase this device detonates. When this device detonates, choose 1 obstacle at range 0–1. Each ship and remote at range 0–1 of the obstacle suffers 1 %HIT% damage. Then remove that obstacle.%LINEBREAK%<i>Errata (Official Rulings Thread 03/2019): Added: "and remote"</i> '
     },
     'Bomblet': {
-      text: '(Bomb Token) - At the end of the Activation Phase this device detonates. When this device detonates, each ship at range 0–1 rolls 2 attack dice. Each ship suffers 1 %HIT% damage for each %HIT%/%CRIT% result.'
+      text: '(Bomb Token) - At the end of the Activation Phase this device detonates. When this device detonates, each ship and remote at range 0–1 rolls 2 attack dice. Each ship and remote suffers 1 %HIT% damage for each %HIT%/%CRIT% result.%LINEBREAK%<i>Errata (Official Rulings Thread 03/2019): Added: "and remote"</i>'
     },
     'Loose Cargo': {
       text: '(Debris Token) - Loose cargo is a debris cloud.'
@@ -12369,7 +16013,13 @@ exportObj.cardLoaders.English = function() {
       text: '(Mine Token) - After a ship overlaps or moves through this device, it detonates. When this device detonates, the ship suffers 1 %HIT% damage and gains 3 ion tokens.'
     },
     'Proximity Mine': {
-      text: '(Mine Token) - After a ship overlaps or moves through this device, it detonates. When this device detonates, that ship rolls 2 attack dice. That ship then suffers 1 %HIT% plus 1 %HIT%/%CRIT% damage for each matching result.%LINEBREAK%<i>Errata (since rules reference 1.0.2): Add: "1 %HIT% plus"</i>'
+      text: '(Mine Token) - After a ship overlaps or moves through this device, it detonates. When this device detonates, that ship rolls 2 attack dice. That ship then suffers 1 %HIT% plus 1 %HIT%/%CRIT% damage for each matching result.%LINEBREAK%<i>Errata (since rules reference 1.0.2): Added: "1 %HIT% plus"</i>'
+    },
+    'DRK-1 Probe Droid': {
+      text: 'INIT: 0 %LINEBREAK% AGILITY: 3 %LINEBREAK% HULL: 1 %LINEBREAK% (Remote) - While a friendly ship locks an object or jams an enemy ship, it may measure range from you. %LINEBREAK% After an enemy ship overlaps you, that ship rolls 1 attack die. On a %FOCUS% result, you suffer 1 %HIT% damage. %LINEBREAK% System Phase: At your initiative, you may relocate using a [2 %BANKLEFT%], [2 %STRAIGHT%] or [2 %BANKRIGHT%] template.'
+    },
+    'Buzz Droid Swarm': {
+      text: 'INIT: 0 %LINEBREAK% AGILITY: 3 %LINEBREAK% HULL: 1 %LINEBREAK% (Remote) - After an enemy ship moves through or overlaps you, relocate to its front or rear guides (you are at range 0 of this ship). You cannot overlap an object this way. If you cannot be placed at either set of guides, you and that ship each suffere 1 %HIT% damage. %LINEBREAK% Engagement Phase: At your initiative, each enemy ship at range 0 suffers 1 %CRIT% damage.'
     }
   };
   return exportObj.setupTranslationCardData(pilot_translations, upgrade_translations, condition_translations);
@@ -12886,7 +16536,7 @@ exportObj.cardLoaders['Español'] = function() {
       display_name: "Dron autopilotado",
       text: "<i class = flavor_text>A veces, las advertencias del fabricante están hechas para ser ignoradas.</i>%LINEBREAK%<strong>Células de energía manipuladas:</strong>  Durante la fase de Sistemas, si no estás acoplado, pierdes 1 %CHARGE%. Al final de la fase de Activación, si tienes 0 %CHARGE%, eres destruido. Antes de ser retirado de la zona de juego, toda nave que tengas a alcance 0-1 sufre 1 de daño %CRIT%."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Dos Tubos",
       text: "Después de que realices una acción %FOCUS%, puedes transferir 1 de tus fichas de Concentración a una nave aliada que tengas a alcance 1-2."
     },
@@ -12998,7 +16648,7 @@ exportObj.cardLoaders['Español'] = function() {
       display_name: "Drea Renthal",
       text: "Mientras una nave aliada que no sea limitada efectúa un ataque, si el defensor está situado en tu arco de fuego, el atacante puede volver a tirar 1 dado de ataque."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Dos Tubos",
       text: "Antes de que te actives, si estás concentrado, puedes realizar una acción."
     },
@@ -14705,7 +18355,7 @@ exportObj.cardLoaders['Français'] = function() {
       display_name: "Drone Automatique",
       text: "<i class = flavor_text>Il est parfois utile d'ignorer les avertissements de sécurité préconisés par les fabricants…</i>%LINEBREAK%Cellules Énergétiques Bidouillées&nbsp;: pendant la phase de système, si vous n'êtes pas arrimé, perdez 1 &nbsp;%CHARGE%. À la fin de la phase d'activation, vous êtes détruit si vous avez 0 %CHARGE%. Avant de retirer votre figurine, chaque vaisseau à porté 0-1 subit 1 dégât %CRIT%."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Deux-Tubes",
       text: "Après avoir effectué une action %FOCUS%, vous pouvez transférer 1 de vos marqueurs de concentration à un vaisseau allié à portée 1-2."
     },
@@ -14817,7 +18467,7 @@ exportObj.cardLoaders['Français'] = function() {
       display_name: "Drea Renthal",
       text: "Tant qu'un vaisseau allié non-limité effectue une attaque, si le défenseur est dans votre arc de tir, l'attaquant peut relancer 1 dé d'attaque."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Deux-Tubes",
       text: "Avant votre activation, si vous êtes concentré, vous pouvez effectuer une action."
     },
@@ -16086,7 +19736,9 @@ exportObj.translations.Magyar = {
   },
   byCSSSelector: {
     '.unreleased-content-used .translated': 'Ez a raj kiadatlan tartalmat használ!',
+    '.loading-failed-container .translated': 'It appears that you followed a broken link. No squad could be loaded!',
     '.collection-invalid .translated': 'Ez a lista nem vihető pályára a készletedből!',
+    '.ship-number-invalid-container .translated': 'A tournament legal squad must contain 2-8 ships!',
     '.game-type-selector option[value="standard"]': 'Kiterjesztett',
     '.game-type-selector option[value="hyperspace"]': 'Hyperspace',
     '.game-type-selector option[value="custom"]': 'Egyéni',
@@ -16301,7 +19953,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Delta Squadron Pilot": {
       display_name: "Delta Squadron Pilot",
-      text: "<strong>Full Throttle:</strong> Miután teljesen végrehajtottál egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
+      text: "<strong>Full Throttle:</strong> Miután teljesen végrehajtasz egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
     },
     "Freighter Captain": {
       display_name: "Freighter Captain",
@@ -16325,7 +19977,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Green Squadron Pilot": {
       display_name: "Green Squadron Pilot",
-      text: "<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
+      text: "<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
     },
     "Hired Gun": {
       display_name: "Hired Gun",
@@ -16373,7 +20025,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Onyx Squadron Ace": {
       display_name: "Onyx Squadron Ace",
-      text: "<strong>Full Throttle:</strong> Miután teljesen végrehajtottál egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
+      text: "<strong>Full Throttle:</strong> Miután teljesen végrehajtasz egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
     },
     "Onyx Squadron Scout": {
       display_name: "Onyx Squadron Scout",
@@ -16393,7 +20045,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Phoenix Squadron Pilot": {
       display_name: "Phoenix Squadron Pilot",
-      text: "<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
+      text: "<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
     },
     "Planetary Sentinel": {
       display_name: "Planetary Sentinel",
@@ -16481,7 +20133,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "4-LOM": {
       display_name: "4-LOM",
-      text: "Miután teljesen végrehajtottál egy piros manővert, kapsz 1 kalkuláció jelzőt. A Vége fázis elején választhatsz 1 hajót 0-1-es távolságban. Ha így teszel, add át 1 stressz jelződ annak a hajónak."
+      text: "Miután teljesen végrehajtasz egy piros manővert, kapsz 1 kalkuláció jelzőt. A Vége fázis elején választhatsz 1 hajót 0-1-es távolságban. Ha így teszel, add át 1 stressz jelződ annak a hajónak."
     },
     "Nashtah Pup": {
       display_name: "Nashtah Pup",
@@ -16497,7 +20149,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Arvel Crynyd": {
       display_name: "Arvel Crynyd",
-      text: "Végrehajthatsz elsődleges támadást 0-ás távolságban. Ha egy %BOOST% akcióddal átfedésbe kerülsz egy másik hajóval, úgy hajtsd végre, mintha csak részleges manőver lett volna. %LINEBREAK% VECTORED THRUSTERS: Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% gyorsítás akciót."
+      text: "Végrehajthatsz elsődleges támadást 0-ás távolságban. Ha egy %BOOST% akcióddal átfedésbe kerülsz egy másik hajóval, úgy hajtsd végre, mintha csak részleges manőver lett volna. %LINEBREAK% VECTORED THRUSTERS: Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% gyorsítás akciót."
     },
     "Asajj Ventress": {
       display_name: "Asajj Ventress",
@@ -16507,9 +20159,9 @@ exportObj.cardLoaders.Magyar = function() {
       display_name: "Autopilot Drone",
       text: "<strong>Rigged Energy Cells:</strong> A Rendszer fázis alatt, ha nem vagy dokkolva, elvesztesz 1&nbsp;%CHARGE% jelzőt. Az aktivációs fázis végén, ha már nincs %CHARGE% jelződ, megsemmisülsz. Mielőtt levennéd a hajód minden 0-1-es távolságban lévő hajó elszenved 1&nbsp;%CRIT% sérülést."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Two Tubes",
-      text: "Miután végrehajtottál egy %FOCUS% akciót, átrakhatod 1 fókusz jelződ egy baráti hajóra 1-2-es távolságban."
+      text: "Miután végrehajtasz egy %FOCUS% akciót, átrakhatod 1 fókusz jelződ egy baráti hajóra 1-2-es távolságban."
     },
     "Biggs Darklighter": {
       display_name: "Biggs Darklighter",
@@ -16573,7 +20225,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Colonel Vessery": {
       display_name: "Colonel Vessery",
-      text: "Amikor támadást hajtasz végre egy bemért hajó ellen, miután dobsz a kockákkal, feltehetsz egy bemérés jelzőt a védekezőre.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtottál egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
+      text: "Amikor támadást hajtasz végre egy bemért hajó ellen, miután dobsz a kockákkal, feltehetsz egy bemérés jelzőt a védekezőre.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtasz egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
     },
     "Constable Zuvio": {
       display_name: "Constable Zuvio",
@@ -16585,7 +20237,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Countess Ryad": {
       display_name: "Countess Ryad",
-      text: "Amikor végrehajtanál egy %STRAIGHT% manővert, megnövelheted annak nehézségét. Ha így teszel, helyette végrehajthatod mint %KTURN% manőver.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtottál egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
+      text: "Amikor végrehajtanál egy %STRAIGHT% manővert, megnövelheted annak nehézségét. Ha így teszel, helyette végrehajthatod mint %KTURN% manőver.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtasz egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
     },
     "Dace Bonearm": {
       display_name: "Dace Bonearm",
@@ -16619,7 +20271,7 @@ exportObj.cardLoaders.Magyar = function() {
       display_name: "Drea Renthal",
       text: "Amikor egy baráti nem-limitált hajó végrehajt egy támadást, ha a védekező benne van a tűzívedben, a támadó újradobhatja 1 támadókockáját."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Two Tubes",
       text: "Mielőtt aktiválódnál és van fókuszod, végrehajthatsz egy akciót."
     },
@@ -16713,19 +20365,19 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "IG-88A": {
       display_name: "IG-88A",
-      text: "Az Ütközet fázis elején kiválaszthatsz egy %CALCULATE% akcióval rendelkező baráti hajót 1-3-as távolságban. Ha így teszel, add át 1 kalkuláció jelződet neki.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtottál egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
+      text: "Az Ütközet fázis elején kiválaszthatsz egy %CALCULATE% akcióval rendelkező baráti hajót 1-3-as távolságban. Ha így teszel, add át 1 kalkuláció jelződet neki.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtasz egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
     },
     "IG-88B": {
       display_name: "IG-88B",
-      text: "Miután végrehajtottál egy támadást ami nem talált, végrehajthatsz egy bónusz %CANNON% támadást.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtottál egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
+      text: "Miután végrehajtasz egy támadást ami nem talált, végrehajthatsz egy bónusz %CANNON% támadást.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtasz egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
     },
     "IG-88C": {
       display_name: "IG-88C",
-      text: "Miután végrehajtottál egy %BOOST% akciót, végrehajthatsz egy %EVADE% akciót.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtottál egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
+      text: "Miután végrehajtasz egy %BOOST% akciót, végrehajthatsz egy %EVADE% akciót.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtasz egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
     },
     "IG-88D": {
       display_name: "IG-88D",
-      text: "Amikor végrehajtasz egy Segnor's Loop [%SLOOPLEFT% vagy %SLOOPRIGHT%] manővert, használhatsz ugyanazon sebességű másik sablont helyette: vagy megegyező irányú kanyar [%TURNLEFT% vagy %TURNRIGHT%] vagy előre egyenes [%STRAIGHT%] sablont.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtottál egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
+      text: "Amikor végrehajtasz egy Segnor's Loop [%SLOOPLEFT% vagy %SLOOPRIGHT%] manővert, használhatsz ugyanazon sebességű másik sablont helyette: vagy megegyező irányú kanyar [%TURNLEFT% vagy %TURNRIGHT%] vagy előre egyenes [%STRAIGHT%] sablont.%LINEBREAK%<strong>Advanced Droid Brain:</strong> Miután végrehajtasz egy %CALCULATE% akciót, kapsz 1 kalkuláció jelzőt."
     },
     "Ibtisam": {
       display_name: "Ibtisam",
@@ -16741,7 +20393,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Jake Farrell": {
       display_name: "Jake Farrell",
-      text: "Miután végrehajtasz egy %BARRELROLL% vagy %BOOST% akciót, választhatsz egy baráti hajót 0-1-es távolságban. Az a hajó végrehajthat egy %FOCUS% akciót.%LINEBREAK%<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
+      text: "Miután végrehajtasz egy %BARRELROLL% vagy %BOOST% akciót, választhatsz egy baráti hajót 0-1-es távolságban. Az a hajó végrehajthat egy %FOCUS% akciót.%LINEBREAK%<sasmall><strong>Vectored Thrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% akciót.</sasmall>"
     },
     "Jan Ors": {
       display_name: "Jan Ors",
@@ -16789,7 +20441,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Kullbee Sperado": {
       display_name: "Kullbee Sperado",
-      text: "Miután végrehajtottál egy %BARRELROLL% vagy %BOOST% akciót, megfordíthatod a felszerelt %CONFIG% fejlesztés kártyád."
+      text: "Miután végrehajtasz egy %BARRELROLL% vagy %BOOST% akciót, megfordíthatod a felszerelt %CONFIG% fejlesztés kártyád."
     },
     "Kyle Katarn": {
       display_name: "Kyle Katarn",
@@ -16809,7 +20461,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Lando Calrissian": {
       display_name: "Lando Calrissian",
-      text: "Miután teljesen végrehajtottál egy kék manővert, választhatsz egy baráti hajót 0-3-as távolságban. Az a hajó végrehajthat egy akciót."
+      text: "Miután teljesen végrehajtasz egy kék manővert, választhatsz egy baráti hajót 0-3-as távolságban. Az a hajó végrehajthat egy akciót."
     },
     "Lando Calrissian (Scum)": {
       display_name: "Lando Calrissian",
@@ -16825,7 +20477,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Leevan Tenza": {
       display_name: "Leevan Tenza",
-      text: "Miután végrehajtottál egy %BARRELROLL% vagy %BOOST% akciót, végrehajthatsz egy piros %EVADE% akciót."
+      text: "Miután végrehajtasz egy %BARRELROLL% vagy %BOOST% akciót, végrehajthatsz egy piros %EVADE% akciót."
     },
     "Lieutenant Blount": {
       display_name: "Lieutenant Blount",
@@ -16841,7 +20493,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Lieutenant Sai": {
       display_name: "Lieutenant Sai",
-      text: "Miután végrehajtottál egy %COORDINATE% akciót, ha a koordinált hajó olyan akciót hajt végre, ami a te akciósávodon is rajta van, végrehajthatod azt az akciót."
+      text: "Miután végrehajtasz egy %COORDINATE% akciót, ha a koordinált hajó olyan akciót hajt végre, ami a te akciósávodon is rajta van, végrehajthatod azt az akciót."
     },
     "Lowhhrick": {
       display_name: "Lowhhrick",
@@ -16921,7 +20573,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Rexler Brath": {
       display_name: "Rexler Brath",
-      text: "Miután végrehajtasz egy támadást, ami talál, ha van kitérés jelződ, fordítsd fel a védekező egy sérülés kártyáját.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtottál egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
+      text: "Miután végrehajtasz egy támadást, ami talál, ha van kitérés jelződ, fordítsd fel a védekező egy sérülés kártyáját.%LINEBREAK%<strong>Full Throttle:</strong> Miután teljesen végrehajtasz egy 3-5 sebességű manővert, végrehajthatsz egy %EVADE% akciót."
     },
     "Roark Garnet": {
       display_name: "Roark Garnet",
@@ -17093,7 +20745,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     '"Redline"': {
       display_name: "“Redline”",
-      text: "Fenntarthatsz 2 bemérő jelzőt. Miután végrehajtottál egy akciót, feltehetsz egy bemérő jelzőt."
+      text: "Fenntarthatsz 2 bemérő jelzőt. Miután végrehajtasz egy akciót, feltehetsz egy bemérő jelzőt."
     },
     '"Scourge" Skutu': {
       display_name: "“Scourge” Skutu",
@@ -17101,7 +20753,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     '"Vizier"': {
       display_name: "“Vizier”",
-      text: "Miután teljesen végrehajtottál egy 1-es sebességű manővert az <strong>Adaptive Ailerons</strong> képességed használatával, végrehajthatsz egy %COORDINATE% akciót. Ha így teszel, hagyd ki az <strong>Akció végrehajtása</strong> lépést.%LINEBREAK%<sasmall><strong>Adaptive Ailerons:</strong> Mielőtt felfednéd a tárcsád, ha nem vagy stresszes, végre <b>kell</b> hajtanod egy fehér [1&nbsp;%BANKLEFT%), [1&nbsp;%STRAIGHT%] vagy [1&nbsp;%BANKRIGHT%] manővert.</sasmall>"
+      text: "Miután teljesen végrehajtasz egy 1-es sebességű manővert az <strong>Adaptive Ailerons</strong> képességed használatával, végrehajthatsz egy %COORDINATE% akciót. Ha így teszel, hagyd ki az <strong>Akció végrehajtása</strong> lépést.%LINEBREAK%<sasmall><strong>Adaptive Ailerons:</strong> Mielőtt felfednéd a tárcsád, ha nem vagy stresszes, végre <b>kell</b> hajtanod egy fehér [1&nbsp;%BANKLEFT%), [1&nbsp;%STRAIGHT%] vagy [1&nbsp;%BANKRIGHT%] manővert.</sasmall>"
     },
     '"Wampa"': {
       display_name: "“Wampa”",
@@ -17124,7 +20776,7 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Amikor védekezel a %CRIT% találatok előbb semlegesítődnek a %HIT% találatoknál."
     },
     "Poe Dameron": {
-      text: "Miután végrehajtottál egy akciót, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy végrehajts egy fehér akciót pirosként kezelve.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
+      text: "Miután végrehajtasz egy akciót, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy végrehajts egy fehér akciót pirosként kezelve.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
     },
     "Lieutenant Bastian": {
       text: "Miután egy hajó 1-2-es távolságban felhúz egy sérülés kártyát, felrakhatsz rá egy bemérő jelzőt.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
@@ -17193,7 +20845,7 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Miután egy hajó 1-2-es távolságban felhúz egy sérülés kártyát, felrakhatsz rá egy bemérő jelzőt.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
     },
     "Jaycris Tubbs": {
-      text: "Miután teljesen végrehajtottál egy kék manővert, választhatsz egy baráti hajót 0-1-es távolságban. Ha így teszel, az a hajó levesz egy stressz jelzőt.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
+      text: "Miután teljesen végrehajtasz egy kék manővert, választhatsz egy baráti hajót 0-1-es távolságban. Ha így teszel, az a hajó levesz egy stressz jelzőt.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
     },
     "Black Squadron Ace (T-70)": {
       text: "<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
@@ -17235,16 +20887,16 @@ exportObj.cardLoaders.Magyar = function() {
       text: ""
     },
     "Greer Sonnel": {
-      text: "Miután teljesen végrehajtottál egy manővert, forgathatod a %SINGLETURRETARC% tűzívedet.%SINGLETURRETARC% %LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "Miután teljesen végrehajtasz egy manővert, forgathatod a %SINGLETURRETARC% tűzívedet.%SINGLETURRETARC% %LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "L'ulo L'ampar": {
-      text: "Amikor védekezel vagy elsődleges támadást hajtasz végre, ha stresszes vagy, 1-gyel kevesebb védekezőkockával vagy 1-gyel több támadókockával <strong>kell</strong> dobnod.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "Amikor védekezel vagy elsődleges támadást hajtasz végre, ha stresszes vagy, 1-gyel kevesebb védekezőkockával vagy 1-gyel több támadókockával <strong>kell</strong> dobnod.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "Zari Bangel": {
-      text: "Ne hagyd ki az <strong>Akció végrehajtása</strong> lépést, miután részlegesen hajtottál végre egy manővert.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "Ne hagyd ki az <strong>Akció végrehajtása</strong> lépést, miután részlegesen hajtottál végre egy manővert.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "Tallissan Lintra": {
-      text: "Amikor egy ellenséges hajó a %BULLSEYEARC% tűzívedben végrehajt egy támadást, elkölthetsz 1&nbsp;%CHARGE% jelzőt. Ha így teszel, a védekező 1-gyel több kockával dob.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "Amikor egy ellenséges hajó a %BULLSEYEARC% tűzívedben végrehajt egy támadást, elkölthetsz 1&nbsp;%CHARGE% jelzőt. Ha így teszel, a védekező 1-gyel több kockával dob.%LINEBREAK%<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "Darth Maul": {
       text: "Miután végrehajtasz egy támadást, elkölthetsz 2 %FORCE% jelzőt, hogy végrehajts egy bónusz elsődleges támadást egy másik célpont ellen. Ha az első támadás nem talált, a bónusz támadást végrehajthatod ugyanazon célpont ellen."
@@ -17259,7 +20911,7 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Amikor egy baráti hajó 1-2-es távolságban, a tiédnél alacsonyabb kezdeményezéssel védekezik vagy támadást hajt végre, ha van legalább 1&nbsp;%CHARGE% jelződ, az a hajó újradobhat 1&nbsp;%FOCUS% eredményét. Miután egy ellenséges hajó 0-3-as távolságban megsemmisül, elvesztesz 1&nbsp;%CHARGE% jelzőt.%LINEBREAK%<strong>Linked battery:</strong> Amikor végrehajtasz egy %CANNON% támadást, dobj 1-gyel több támadókockával."
     },
     '"Avenger"': {
-      text: "Miután egy ellenséges hajó 0-3-as távolságban megsemmisül After another friendly ship is destroyed, you may perform an action, even while stressed. %LINEBREAK%<strong>Autothrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BARRELROLL% vagy piros %BOOST% akciót."
+      text: "Miután egy ellenséges hajó 0-3-as távolságban megsemmisül végrehajthatsz egy akciót, akkor is ha stresszes vagy. %LINEBREAK%<strong>Autothrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BARRELROLL% vagy piros %BOOST% akciót."
     },
     '"Recoil"': {
       text: "Amikor stresszes vagy kezelheted úgy a %FRONTARC% tűzívedben 0-1-es távolságban lévő ellenséges hajókat, mintha a %BULLSEYEARC% tűzívedben lennének.%LINEBREAK%<strong>Autothrusters:</strong> Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BARRELROLL% vagy piros %BOOST% akciót."
@@ -17286,13 +20938,13 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Amikor elsődleges támadást hajtasz végre, ha a védekező 0-1-es távolságban van legalább 1 baráti eszköztől, dobj 1-gyel több kockával."
     },
     "Ben Teene": {
-      text: "Miután végrehajtottál egy támadást, ha a védekező benne van a %SINGLETURRETARC% tűzívedben, rendeld hozzá a <strong>Rattled</strong> kondíciós kártyát a védekezőhöz."
+      text: "Miután végrehajtasz egy támadást, ha a védekező benne van a %SINGLETURRETARC% tűzívedben, rendeld hozzá a <strong>Rattled</strong> kondíciós kártyát a védekezőhöz."
     },
     "Vennie": {
       text: "Amikor védkezel, ha a támadó benne van egy baráti hajó %SINGLETURRETARC% tűzívében, hozzáadhatsz 1&nbsp;%FOCUS% eredményt a dobásodhoz."
     },
     "Edon Kappehl": {
-      text: "Miután teljesen végrehajtottál egy kék vagy fehér manővert, ha még nem dobtál vagy lőttél ki eszközt ebben a körben, kidobhatsz egy eszközt."
+      text: "Miután teljesen végrehajtasz egy kék vagy fehér manővert, ha még nem dobtál vagy lőttél ki eszközt ebben a körben, kidobhatsz egy eszközt."
     },
     "Resistance Sympathizer": {
       text: ""
@@ -17310,16 +20962,100 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Miután felfedtél egy piros Tallon Roll (%TROLLLEFT% vagy %TROLLRIGHT%) manővert, ha 2 vagy kevesebb stressz jelződ van, kezeld a manővert fehérként.%LINEBREAK%<strong>Weapon Hardpoint:</strong> Felszerelhetsz 1&nbsp;%CANNON%, %TORPEDO% vagy %MISSILE% fejlesztést."
     },
     "Blue Squadron Recruit": {
-      text: "<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "Green Squadron Expert": {
-      text: "<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtottál egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
+      text: "<strong>Refined Gyrostabilizers:</strong> A %SINGLETURRETARC% mutatódat csak %FRONTARC% vagy %REARARC% irányba forgathatod. Miután végrehajtasz egy akciót, végrehajthatsz egy piros %BOOST% vagy %ROTATEARC% akciót."
     },
     "Foreman Proach": {
       text: "Mielőtt sorra kerülsz az Ütközet fázisban, választhasz 1 ellenséges hajót a %BULLSEYEARC% tűzívedben 1-2-es távolságban és kapsz 1 'inaktív fegyverzet' jelzőt. Ha így teszel, az a hajó kap 1 vonósugár jelzőt.%LINEBREAK%<strong>Notched Stabilizers:</strong> Amikor mozogsz, hagyd figyelmen kívül az aszteroidákat."
     },
     "Overseer Yushyn": {
       text: "Mielőtt egy baráti hajó 1-es távolságban kapna 1 'inaktív fegyverzet' jelzőt, ha az a hajó nem stresszes, elkölthetsz 1&nbsp;%CHARGE% jelzőt. Ha így teszel, az a hajó 1 stressz jelzőt kap helyette.%LINEBREAK%<strong>Notched Stabilizers:</strong> Amikor mozogsz, hagyd figyelmen kívül az aszteroidákat."
+    },
+    "General Grievous": {
+      text: "Amikor elsődleges támadást hajtasz végre, ha nem vagy a védekező tűzívében, újradobhatod akár 2 támadókockádat is."
+    },
+    "Wat Tambor": {
+      text: "Amikor elsődleges támadást hajtasz végre, újradobhatsz 1 támadókockát minden kalkuláció tokennel rendelkező baráti hajó után ami a védekezőtől 1-es távolságban van."
+    },
+    "Captain Sear": {
+      text: "Amikor egy baráti hajó 0-3-as távolságban végrehajt egy elsődleges támadást, ha a védekező benne van annak %BULLSEYEARC% tűzívében, az 'Eredmények semlegesítése' lépés előtt a baráti hajó elkölthet 1&nbsp;%CALCULATE% jelzőt, hogy semlegesítsen 1&nbsp;%EVADE% eredményt."
+    },
+    "Precise Hunter": {
+      text: "Amikor támadást hajtasz végre, ha a védekező benne van a %BULLSEYEARC% tűzívedben, újradobhatsz 1 üres eredményt.%LINEBREAK% NETWORKED CALCULATIONS: Amikor védekezel vagy támadást hajtasz végre, elkölthetsz 1&nbsp;%CALCULATE% jelzőt egy 0-1-es távolságban lévő baráti hajóról, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %EVADE% vagy %HIT% eredményre."
+    },
+    "Haor Chall Prototype": {
+      text: "Miután egy ellenséges hajó a %BULLSEYEARC% tűzívedben 0-2-es távolságban védekezőnek jelöl egy másik baráti hajót, végrehajthatsz egy %CALCULATE% vagy %LOCK% akciót.%LINEBREAK% NETWORKED CALCULATIONS: Amikor védekezel vagy támadást hajtasz végre, elkölthetsz 1&nbsp;%CALCULATE% jelzőt egy 0-1-es távolságban lévő baráti hajóról, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %EVADE% vagy %HIT% eredményre."
+    },
+    "DFS-081": {
+      text: "Amikor egy baráti hajó 0-1 távolságban védekezik, elkölthet 1&nbsp;%CALCULATE% jelzőt, hogy az összes %CRIT% eredményt %HIT% eredményre változtassa.%LINEBREAK% NETWORKED CALCULATIONS: Amikor védekezel vagy támadást hajtasz végre, elkölthetsz 1&nbsp;%CALCULATE% jelzőt egy 0-1-es távolságban lévő baráti hajóról, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %EVADE% vagy %HIT% eredményre."
+    },
+    "Obi-Wan Kenobi": {
+      text: "Miután egy baráti hajó 0-2-es távolságban elkölt egy %FOCUS% jelzőt, elkölthetsz 1&nbsp;%FORCE% jelzőt. Ha így teszel, az a hajó kap 1&nbsp;%FOCUS% jelzőt.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Jedi Knight": {
+      text: "FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Ahsoka Tano": {
+      text: "Miután teljesen végrehajtasz egy manővert, választhatsz egy baráti hajót 0-1-es távolságban és költs el 1&nbsp;%FORCE% jelzőt. Az a hajó végrehajthat egy akciót még ha stresszes is. %LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Anakin Skywalker": {
+      text: "Miután teljesen végrehajtasz egy manővert, ha van egy ellenséges hajó a %FRONTARC% tűzívedben 0-1 távolságban vagy a %BULLSEYEARC% tűzívedben, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy levegyél 1 stressz jelzőt.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Barriss Offee": {
+      text: "Amikor egy baráti hajó 0-2-es távolságban támadást hajt végre, ha a védekező benne van annak %BULLSEYEARC% tűzívében, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy átforgass 1&nbsp;%FOCUS% eredményt %HIT% eredményre vagy 1&nbsp;%HIT% eredményt %CRIT% eredményre.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Luminara Unduli": {
+      text: "Amikor egy baráti hajó 0-2-es távolságban védekezik, ha az nincs a támadó %BULLSEYEARC% tűzívében, elkölthetsz 1&nbsp;%FORCE% jelzőt. Ha így teszel, forgass át 1&nbsp;%CRIT% eredményt %HIT% eredményre vagy 1&nbsp;%HIT% eredményt %FOCUS% eredményre.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Plo Koon": {
+      text: "Az Ütközet fázis elején elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy válassz egy másik baráti hajót 0-2-es távolságban. Ha így teszel, átadhatsz 1 zöld jelzőt neki vagy átvehetsz egy narancs jelzőt magadra.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Saesee Tiin": {
+      text: "Miután egy baráti hajó 0-2-es távolságban felfedi a tárcsáját elkölthetsz 1&nbsp;%FORCE% jelzőt. Ha így teszel, állítsd át a tárcsáját egy másik hasonló sebességű és nehézségű manőverre.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    "Mace Windu": {
+      text: "Miután teljesen végrehajtasz egy piros manővert, tölts vissza 1&nbsp;%FORCE% jelzőt.%LINEBREAK% FINE-TUNED CONTROLS: Miután teljesen végrehajtasz egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy %BOOST% vagy %BARRELROLL% akciót."
+    },
+    '"Kickback"': {
+      text: "Miután végrehajtasz egy %BARRELROLL% akciót, végrehajthatsz egy piros %LOCK% akciót."
+    },
+    '"Odd Ball"': {
+      text: "Miután teljesen végrehajtasz egy piros manővert vagy piros akciót, ha van egy ellenséges hajó a %BULLSEYEARC% tűzívedben, feltehetsz egy bemérőt arra a hajóra."
+    },
+    '"Sinker"': {
+      text: "Amikor egy baráti hajó 1-2-es távolságban a %LEFTARC% vagy %RIGHTARC% tűzívedben elsődleges támadást hajt végre, újradobhat 1 támadókockát."
+    },
+    '"Swoop"': {
+      text: "Miután egy baráti kis vagy közepes hajó teljesen végrehajt egy 3-4 sebességű manővert, ha az 0-1-es távolságban van tőled, végrehajthat egy piros %BOOST% akciót."
+    },
+    '"Axe"': {
+      text: "Miután védekezel vagy támadást hajtasz végre, választhatsz egy baráti hajót 1-2-es távolságban a %LEFTARC% vagy %RIGHTARC% tűzívedben. Ha így teszel add át 1 zöld jelződet annak a hajónak."
+    },
+    '"Tucker"': {
+      text: "Miután egy baráti hajó 1-2-es távolságban végrehajt egy támadást egy ellenséges hajó ellen a %FRONTARC% tűzívedben, végrehajthatsz egy %FOCUS% akciót."
+    },
+    "Bombardment Drone": {
+      text: "Amikor ledobnál egy eszközt, ki is lőheted, ugyanazt a sablont használva. %LINEBREAK% NETWORKED CALCULATIONS: Amikor védekezel vagy támadást hajtasz végre, elkölthetsz 1&nbsp;%CALCULATE% jelzőt egy 0-1-es távolságban lévő baráti hajóról, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %EVADE% vagy %HIT% eredményre."
+    },
+    "Count Dooku": {
+      text: "Miután védekeztél, ha a támadó benne van a tűzívedben, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy levedd egy kék vagy piros jelződ.%LINEBREAK% Miután végrehajtasz egy támadást ami talált, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy végrehajts egy akciót."
+    },
+    "0-66": {
+      text: "Miután védekezel, elkölthetsz 1&nbsp;%CALCULATE% jelzőt, hogy végrehajts egy akciót."
+    },
+    "DFS-311": {
+      text: "Az Üzközet fázis elején, átteheted 1&nbsp;%CALCULATE% jelződet egy másik baráti hajóra 0-3-as távolságban. %LINEBREAK% NETWORKED CALCULATIONS: Amikor védekezel vagy támadást hajtasz végre, elkölthetsz 1&nbsp;%CALCULATE% jelzőt egy 0-1-es távolságban lévő baráti hajóról, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %EVADE% vagy %HIT% eredményre."
+    },
+    '"Odd Ball" (ARC-170)': {
+      text: "Miután teljesen végrehajtasz egy piros manővert vagy piros akciót, ha van egy ellenséges hajó a %BULLSEYEARC% tűzívedben, feltehetsz egy bemérőt arra a hajóra."
+    },
+    '"Jag"': {
+      text: "Miután egy baráti hajó 1-2-es távolságban a %LEFTARC% vagy %RIGHTARC% tűzívedben védekezik, feltehetsz egy bemérőt a támadóra."
+    },
+    '"Wolffe"': {
+      text: "Amikor végrehajtasz egy elsődleges %FRONTARC% támadást, elkölthetsz 1 %CHARGE% jelzőt, hogy újradobj 1 támadókockát. %LINEBREAK% Amikor végrehajtasz egy elsődleges %REARARC% támadást, visszaállíthatsz 1 %CHARGE% jelzőt, hogy 1-gyel több támadókockával dobj"
     }
   };
   upgrade_translations = {
@@ -17373,7 +21109,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Outrider": {
       display_name: "Outrider",
-      text: "<i>csak Lázadók</i>%LINEBREAK%Amikor végrehajtasz egy támadást ami egy akadály által akadályozott, a védekező 1-gyel kevesebb védekezőkockával dob. Miután teljesen végrehajtottál egy manővert, ha áthaladtál vagy átfedésbe kerültél egy akadállyal, levehetsz 1 piros vagy narancs jelződet."
+      text: "<i>csak Lázadók</i>%LINEBREAK%Amikor végrehajtasz egy támadást ami egy akadály által akadályozott, a védekező 1-gyel kevesebb védekezőkockával dob. Miután teljesen végrehajtasz egy manővert, ha áthaladtál vagy átfedésbe kerültél egy akadállyal, levehetsz 1 piros vagy narancs jelződet."
     },
     "Phantom": {
       display_name: "Phantom",
@@ -17557,7 +21293,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Elusive": {
       display_name: "Elusive",
-      text: "<i>csak kis vagy közepes hajó</i>%LINEBREAK%Amikor védekezel, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy újradobj 1 védekezőkockát. Miután teljesen végrehajtottál egy piros manővert, visszatölthetsz 1&nbsp;%CHARGE% jelzőt."
+      text: "<i>csak kis vagy közepes hajó</i>%LINEBREAK%Amikor védekezel, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy újradobj 1 védekezőkockát. Miután teljesen végrehajtasz egy piros manővert, visszatölthetsz 1&nbsp;%CHARGE% jelzőt."
     },
     "Emperor Palpatine": {
       display_name: "Emperor Palpatine",
@@ -17629,7 +21365,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Hera Syndulla": {
       display_name: "Hera Syndulla",
-      text: "<i>csak Lázadók</i>%LINEBREAK%Stresszesen is végrehajthatsz piros manővert. Miután teljesen végrehajtottál egy piros manővert, ha 3 vagy több stressz jelződ van, vegyél le egy stressz jelzőt és szenvedj el 1&nbsp;%HIT% sérülést."
+      text: "<i>csak Lázadók</i>%LINEBREAK%Stresszesen is végrehajthatsz piros manővert. Miután teljesen végrehajtasz egy piros manővert, ha 3 vagy több stressz jelződ van, vegyél le egy stressz jelzőt és szenvedj el 1&nbsp;%HIT% sérülést."
     },
     "Homing Missiles": {
       display_name: "Homing Missiles",
@@ -17701,7 +21437,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Kanan Jarrus": {
       display_name: "Kanan Jarrus",
-      text: "<i>csak Lázadók</i>%LINEBREAK%Miután egy baráti hajó 0-2-es távolságban teljesen végrehajt egy manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy levegyél róla 1 stressz jelzőt."
+      text: "<i>csak Lázadók</i>%LINEBREAK%Miután egy baráti hajó 0-2-es távolságban teljesen végrehajt egy fehér manővert, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy levegyél róla 1 stressz jelzőt."
     },
     "Ketsu Onyo": {
       display_name: "Ketsu Onyo",
@@ -17885,7 +21621,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Servomotor S-Foils": {
       display_name: "Servomotor S-foils",
-      text: "<strong>Closed: </strong><i>Adds %BOOST% ,  %FOCUS%&nbsp;<i class=\"xwing-miniatures-font xwing-miniatures-font-linked\"></i>&nbsp;<r>%BOOST%</r></i>%LINEBREAK% While you perform a primary attack, roll 1 fewer attack die.%LINEBREAK%Before you activate, you may flip this card.%LINEBREAK%<strong>Open:</strong> Before you activate, you may flip this card."
+      text: "<strong>Csukva: </strong><i>Kapott akciók: %BOOST% , %FOCUS%&nbsp;<i class=\"xwing-miniatures-font xwing-miniatures-font-linked\"></i>&nbsp;<r>%BOOST%</r></i>%LINEBREAK% Amikor végrehajtasz egy elsődleges támadást, 1-gyel kevesebb támadókockával dobj.%LINEBREAK%Mielőtt aktiválódsz, megfordíthatod ezt a kártyát.%LINEBREAK%<strong>Nyitva:</strong> Mielőtt aktiválódsz, megfordíthatod ezt a kártyát."
     },
     "Seventh Sister": {
       display_name: "Seventh Sister",
@@ -17945,7 +21681,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Unkar Plutt": {
       display_name: "Unkar Plutt",
-      text: "<i>csak Söpredék</i>%LINEBREAK%Miután részlegesen végrehajtottál egy manővert, elszenvedhetsz 1&nbsp;%HIT% sérülést, hogy végrehajts 1 fehér akciót."
+      text: "<i>csak Söpredék</i>%LINEBREAK%Miután részlegesen végrehajtasz egy manővert, elszenvedhetsz 1&nbsp;%HIT% sérülést, hogy végrehajts 1 fehér akciót."
     },
     "Veteran Tail Gunner": {
       display_name: "Veteran Tail Gunner",
@@ -17973,7 +21709,7 @@ exportObj.cardLoaders.Magyar = function() {
     },
     '"Genius"': {
       display_name: "“Genius”",
-      text: "<i>csak Söpredék</i>%LINEBREAK%Miután teljesen végrehajtottál egy manővert, ha még nem dobtál vagy lőttél ki eszközt ebben a körben, kidobhatsz 1 bombát."
+      text: "<i>csak Söpredék</i>%LINEBREAK%Miután teljesen végrehajtasz egy manővert, ha még nem dobtál vagy lőttél ki eszközt ebben a körben, kidobhatsz 1 bombát."
     },
     '"Zeb" Orrelios': {
       display_name: "“Zeb” Orrelios",
@@ -17992,7 +21728,7 @@ exportObj.cardLoaders.Magyar = function() {
       text: "<i>Kapott akció: %SLAM%</i> %LINEBREAK% Miután végrehajtasz egy %SLAM% akciót, elvesztesz 1&nbsp;%CHARGE% jelzőt. Ezután kaphatsz 1 ion jelzőt, hogy levedd az inaktív fegyverzet jelzőt. Ha a %CHARGE% nem aktív, nem hajthatsz végre %SLAM% akciót."
     },
     "Heroic": {
-      text: "Amikor védekezel vagy támadást hajtasz végre, ha 2 vagy több csak üres eredményed van, újradobhatsz akárhány kockát."
+      text: "<i>csak Ellenállás</i><br>Amikor védekezel vagy támadást hajtasz végre, ha 2 vagy több csak üres eredményed van, újradobhatsz akárhány kockát."
     },
     "Rose Tico": {
       text: "Amikor védekezel vagy támadást hajtasz végre, elkölthetsz egy dobás eredményed, hogy bemérőt rakj az ellenséges hajóra."
@@ -18019,7 +21755,7 @@ exportObj.cardLoaders.Magyar = function() {
       text: "Amikor végrehajtasz egy elsődleges támadást, ha nincs pajzsod, megváltoztathatsz 1&nbsp;%FOCUS% eredményt %HIT% eredményre."
     },
     "Special Forces Gunner": {
-      text: "Amikor végrehajtasz egy elsődleges %FRONTARC% támadást, ha a %SINGLETURRETARC% tűzíved a %FRONTARC% tűzívedben van, 1-gyel több kockával dobhatsz. Miután végrehajtottál egy elsődleges %FRONTARC% támadást, ha a %SINGLETURRETARC% tűzíved a %REARARC% tűzívedben van, végrehajthatsz egy bónusz elsődleges %SINGLETURRETARC% támadást."
+      text: "Amikor végrehajtasz egy elsődleges %FRONTARC% támadást, ha a %SINGLETURRETARC% tűzíved a %FRONTARC% tűzívedben van, 1-gyel több kockával dobhatsz. Miután végrehajtasz egy elsődleges %FRONTARC% támadást, ha a %SINGLETURRETARC% tűzíved a %REARARC% tűzívedben van, végrehajthatsz egy bónusz elsődleges %SINGLETURRETARC% támadást."
     },
     "Captain Phasma": {
       text: "Az Ütközet fázis végén, minden 0-1 távolságban lévő ellenséges hajó ami nem stresszes, kap 1 stressz jelzőt."
@@ -18092,6 +21828,75 @@ exportObj.cardLoaders.Magyar = function() {
     },
     "Pattern Analyzer": {
       text: "Amikor teljesen végrehajtasz egy piros manővert, a <strong>Nehézség ellenőrzése</strong> lépés előtt végrehjathatsz 1 akciót."
+    },
+    "Impervium Plating": {
+      text: "Mielőtt egy felfordított <b>Ship</b> sérüléskártyát kapnál, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy eldobd."
+    },
+    "Grappling Struts": {
+      text: "<strong>Csukva: </strong> Felhelyezés: ezzel az oldalával helyezd fel. %LINEBREAK% Amikor végrehajtasz egy manővert, ha átfedésbe kerülsz egy aszteroidával vagy űrszeméttel és 1 vagy kevesebb másik baráti hajó van 0-ás távolságra attól az akadálytól, megfordíthatod ezt a kártyát. \n%LINEBREAK% <b>Nyitva:</b> Hagyd figyelment kívül a 0-ás távolságnban lévő akadályokat amíg átmozogsz rajtuk. Miután felfeded a tárcsádat, ha más manővert fedtél fel mint [2 %STRAIGHT%] és 0-ás távolságra vagy egy aszteroidától vagy űrszeméttől, ugord át a 'Manőver végrehajtása' lépést és vegyél le 1 stresst jelzőt; ha jobb vagy bal manővert fedtél fel, forgasd a hajódat 90 fokkal abba az irányba. Miután végrehajtasz egy manővert fordítsd át ezt a kártyát."
+    },
+    "Energy-Shell Charges": {
+      text: " <strong>Támadás (%CALCULATE%):</strong> Költs el 1&nbsp;%CHARGE% jelzőt. Amikor végrehajtasz egy támadást, elkölthetsz 1&nbsp;%CALCULATE% jelzőt, hogy megváltoztass 1&nbsp;%FOCUS% eredményt %CRIT% eredményre.%LINEBREAK% <strong>Akció:</strong> Töltsd újra ezt a kártyát."
+    },
+    "Dedicated": {
+      text: "Amikor egy másik baráti hajó a %LEFTARC% vagy a %RIGHTARC% tűzívedben 0-2-es távolságban védekezik, ha az limitált vagy Dedicated fejlesztéssel felszerelt és nem vagy túlterhelve, kaphatsz 1 túlterhelés jelzőt. Ha így teszel a védekező újradobhatja 1 üres eredményét."
+    },
+    "Synchronized Console": {
+      text: "Miután végrehajtasz egy támadást, választhatsz egy baráti hajót 1-es távolságban vagy egy baráti hajót 'Synchronized Console' fejlesztéssel 1-3 távolságban és költsd el a védekezőn lévő bemérődet. Ha így teszel, a kiválasztott baráti hajó kaphat egy bemérőt a védekezőre."
+    },
+    "Battle Meditation": {
+      text: "Nem koordinálhatsz limitált hajót.%LINEBREAK%Amikor végrehajtasz egy lila %COORDINATE% akciót, koordinálhatsz 1 további ugyanolyan típusú nem limitált baráti hajót. Mindkét hajónak ugyanazt az akciót kell végrehajtania."
+    },
+    "R4-P Astromech": {
+      text: "Mielőtt végrehajtasz egy alapmanővert, elkölthetsz 1&nbsp;%CHARGE% jelzőt. Ha így teszel, a manőver végrehajtása közben csökkentsd annak nehézségét."
+    },
+    "R4-P17": {
+      text: "Miután teljesen végrehajtasz egy piros manővert, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy végrehajts egy akciót, még ha stresses is vagy."
+    },
+    "Spare Parts Canisters": {
+      text: "Akció: költs el 1&nbsp;%CHARGE% jelzőt, hogy visszatölts 1&nbsp;%CHARGE% jelzőt egy felszerelt %ASTROMECH% fejlesztéseden.%LINEBREAK%\nAkció: költs el 1&nbsp;%CHARGE% jelzőt, hogy kidobj 1 tartalék alkatrész jelzőt, aztán vegyél le minden rajtad lévő bemérőt."
+    },
+    "Scimitar": {
+      text: "Felhelyezés: a hajók felhelyezése After the Place Forces step, you may cloak. %LINEBREAK% After you decloak, you may choose an enemy ship in your %BULLSEYEARC%. If you do, it gains 1 jam token."
+    },
+    "Chancellor Palpatine": {
+      text: "<strong>Felhelyezés:</strong> Ezzel az oldalával szereld fel.%LINEBREAK% Miután védekeztél, ha a támadó 0-2-es távolságban van, elkölthetsz 1&nbsp;%FORCE% jelzőt. Ha így teszel, a támadó kap egy stressz jelzőt.%LINEBREAK% A vége fázisban megfordíthatod ezt a kártyát.%LINEBREAK% <strong>Darth Sidious:</strong> Miután végrehajtasz egy lila %COORDINATE% akciót, a koordinált hajó kap 1 stressz jelzőt, majd kap 1&nbsp;%FOCUS% jelzőt vagy visszatölt 1&nbsp;%FORCE% jelzőt."
+    },
+    "Count Dooku": {
+      text: "Mielőtt egy hajó 0-2-es távolságban támadó vagy védekező kockákat gurít, ha minden %FORCE% jelződ aktív, elkölthetsz 1&nbsp;%FORCE% jelzőt, hogy megnevezz egy eredményt. Ha a dobás nem tartalmazza megnevezett eredményt, a hajónak meg kell változtatni 1 kockáját arra az eredményre."
+    },
+    "General Grievous": {
+      text: "Amikor védekezel, az 'Eredmények semlegesítése' lépés után, ha 2 vagy több %HIT%/%CRIT% eredmény van, elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy semlegesíts 1 %HIT% vagy %CRIT% eredményt.%LINEBREAK%Miután egy baráti hajó megsemmisül, tölts vissza 1&nbsp;%CHARGE% jelzőt."
+    },
+    "K2-B4": {
+      text: "Amikor egy baráti hajó 0-3-as távolságban védekezik, elkölthet 1 %CALCULATE% jelzőt. Ha így tesz, adjon 1 %EVADE% eredményt a dobásához, hacsak a támadó nem tönt úgy, hogy kap 1 túlterhelés jelzőt."
+    },
+    "DRK-1 Probe Droids": {
+      text: "A Vége fázis alatt elkölthetsz 1&nbsp;%CHARGE% jelzőt, hogy kidobj vagy kilőj 1 DRK-1 kutaszdroidot egy 3-as sebességű sablon segítségével.%LINEBREAK%E a kártya %CHARGE% jelzője nem visszatölthető."
+    },
+    "Kraken": {
+      text: "A Vége fázis alatt kiválaszthatsz akár 3 baráti hajót 0-3-as távolságban. Ha így teszel, ezen hajók nem dobják el 1 %CALCULATE% jelzőjüket."
+    },
+    "TV-94": {
+      text: "Amikor egy baráti hajó 0-3-as távolságban végrehajt egy elsődleges támadást egy a %BULLSEYEARC% tűzívében lévő védekező ellen, ha 2 vagy kevesebb a támadó kockák száma, elkölthet 1 %CALCULATE% jelzőt, hogy hozzáadjon a dobásához 1 %HIT% eredményt."
+    },
+    "Discord Missiles": {
+      text: "Az Ütközet fázis elején elkölthetsz 1 %CALCULATE% jelzőt és 1 %CHARGE% jelzőt, hogy kilőj 1 'buzz droid swarm' jelzőt a [3 %BANKLEFT%], [3 %STRAIGHT%] vagy [3 %BANKRIGHT%] használatával. Ennek a kártyának a %CHARGE% jelzője nem tölthető újra."
+    },
+    "Clone Commander Cody": {
+      text: "Miután végrehajtasz egy támadást ami nem talált, ha 1 vagy több %HIT%/%CRIT% eredményt lett semlegesítve, a védekező kap 1 túlterhelés jelzőt."
+    },
+    "Seventh Fleet Gunner": {
+      text: "Amikor egy másik baráti hajó végrehajt egy elsődleges támadást, ha a védekező a tűzívedben van, elkölthetsz 1 %CHARGE% jelzőt. Ha így teszel a támadó 1-gyel több kockával dob, de maximum 4-gyel. A rendszer fázisban kaphatsz 1 'inaktív fegyverzet' jelzőt, hogy visszatölts 1&nbsp;%CHARGE% jelzőt."
+    },
+    "R4-P44": {
+      text: "Miután teljesen véggrehajtasz egy piros manővert, ha van egy ellenséges hajó a %BULLSEYEARC% tűzívedben, kapsz 1 %CALCULATE% jelzőt."
+    },
+    "Treacherous": {
+      text: "Amikor védekezel, kiválaszthatsz egy a támadást akadályozó hajót és költs el 1 %CHARGE% jelzőt. Ha így teszel, semlegesíts 1 %HIT% vagy %CRIT% eredményt és a kiválasztott hajó kap egy túlterhelés jelzőt. Ha egy hajó 0-3-as távolságban megsemmisül, tölts vissza 1 %CHARGE% jelzőt."
+    },
+    "Soulless One": {
+      text: "Amikor védekezel, ha a támadó a tűzíveden kívül van újradobhatsz 1 védekezőkockát."
     }
   };
   condition_translations = {
@@ -18114,13 +21919,13 @@ exportObj.cardLoaders.Magyar = function() {
       text: 'Mikor ezt a kártyát hozzárendelik egy hajódhoz, ha nincs felfordított sérüléskártya rajta, az ellenfél kikeres a sérüléskártyáidból egy pilóta típusút és felfordítva ráteszi. Aztán megkeveri a paklit. Amikor elszenvednél 1&nbsp;%CRIT% sérülést, ezen a kártyán lévő sérüléskártyát kapod meg. Aztán vedd le ezt a lapot.'
     },
     'Proton Bomb': {
-      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, minden hajó 0–1-es távolságban elszenved 1&nbsp;%CRIT% sérülést.'
+      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, minden hajó és távérzékelő 0–1-es távolságban elszenved 1&nbsp;%CRIT% sérülést.'
     },
     'Seismic Charge': {
-      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, válassz 1 akadály 0–1-es távolságban. Minden hajó 0–1-es távolságra az akadálytól elszenved 1 %HIT% sérülést.'
+      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, válassz 1 akadály 0–1-es távolságban. Minden hajó és távérzékelő 0–1-es távolságra az akadálytól elszenved 1&nbsp;%HIT% sérülést.'
     },
     'Bomblet': {
-      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, minden hajó 0–1-es távolságban dob 2 támadókockával. Minden hajó elszenved 1&nbsp;%HIT% sérülést minden egyes %HIT%/%CRIT% eredmény után.'
+      text: '(Bomba jelző) - Az Aktivációs fázis végén ez az eszköz felrobban. Amikor ez az eszköz felrobban, minden hajó 0–1-es távolságban dob 2 támadókockával. Minden hajó és távérzékelő elszenved 1&nbsp;%HIT% sérülést minden egyes %HIT%/%CRIT% eredmény után.'
     },
     'Loose Cargo': {
       text: '(Űrszemét jelző) - A kidobott rakomány űrszemétnek számít.'
@@ -18130,6 +21935,12 @@ exportObj.cardLoaders.Magyar = function() {
     },
     'Proximity Mine': {
       text: '(Akna jelző) - Miután egy hajó átmozog vagy átfedésbe kerül ezzel az eszközzel, az felrobban. Amikor ez az eszköz felrobban, a hajó dob 2 támadókockával, aztán elszenved 1&nbsp;%HIT%, valamint a dobott eremény szerint 1-1 %HIT%/%CRIT% sérülést.'
+    },
+    'DRK-1 Probe Droid': {
+      text: 'INIT: 0 / MOZGÉKONYSÁG: 3 / HULL: 1 / (távérzékelő)%LINEBREAK%Amikor egy baráti hajó bemér egy objektumot vagy zavar egy ellenséges hajót, mérheti a távolságot tőled. Miután egy ellenséges hajó átfedésbe kerül veled, az dob egy támadókockával. %FOCUS% eredménynél elszenvedsz 1 %HIT% sérülést.%LINEBREAK%Rendszer fázis: a kezdeményezésednek megfelelően arrébb mozgathatod a [2 %BANKLEFT%], [2 %STRAIGHT%] vagy [2 %BANKRIGHT%] sablonnal.'
+    },
+    'Buzz Droid Swarm': {
+      text: 'INIT: 0 / MOZGÉKONYSÁG: 3 / HULL: 1 / (távérzékelő)%LINEBREAK%Miután egy ellenséges hajó átmozog rajtad vagy átfedésbe kerül veled, átteheted annak első vagy hátsó pöckeihez (ilyenkor 0-ás távolságra vagy a hajótól). Nem lehetsz átfedésbe egy objektummal sem ily módon. Ha nem tudod elhelyezni a pöckökhöz, te és a hajó is elszenvedtek 1 %HIT% sérülést.%LINEBREAK%Ütközet fázis: a kezdeményezésednek megfelelően minden 0-ás távolságba nlévő hajó elszenved 1 %CRIT% sérülést.'
     }
   };
   return exportObj.setupTranslationCardData(pilot_translations, upgrade_translations, condition_translations);
@@ -18205,7 +22016,7 @@ exportObj.cardLoaders.Italiano = function() {
       display_name: "Ben Teene",
       text: "Dopo che hai effettuato un attacco, se il difensore è nel tuo %SINGLETURRETARC%, assegna la condizione <strong>Sconquassato</strong> al difensore."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Due Tubi",
       text: "Dopo che hai effettuato un’azione %FOCUS%, puoi trasferire 1 tuo segnalino concentrazione a una nave amica a gittata 1-2."
     },
@@ -18259,7 +22070,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Blue Squadron Recruit": {
       display_name: "Recluta della Squadriglia Blu",
-      text: "<i class = flavor_text>I giovani di tutta la galassia sono cresciuti ascoltando le storie degli atti eroici della Guerra Civile Galattica e molti di loro hanno imparato a volare negli stessi abitacoli in cui i loro genitori combatterono contro l’Impero.</i>%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "<i class = flavor_text>I giovani di tutta la galassia sono cresciuti ascoltando le storie degli atti eroici della Guerra Civile Galattica e molti di loro hanno imparato a volare negli stessi abitacoli in cui i loro genitori combatterono contro l’Impero.</i>%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Blue Squadron Rookie": {
       display_name: "Matricola della Squadriglia Blu",
@@ -18437,7 +22248,7 @@ exportObj.cardLoaders.Italiano = function() {
       display_name: "Edon Kappehl",
       text: "Dopo che hai eseguito completamente una manovra blu o bianca, se non hai sganciato o lanciato un congegno in questo round, puoi sganciare 1 congegno."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Due Tubi",
       text: "Prima di attivarti, se sei concentrato,puoi effettuare 1 azione."
     },
@@ -18543,7 +22354,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Green Squadron Expert": {
       display_name: "Esperto della Squadriglia Verde",
-      text: "<i class = flavor_text>Il frutto di anni di modifiche e collaudi sul campo si è concretizzato nel modello RZ-2, ma i piloti più temerari vedono nella maggiore affidabilità della nave una sfida a spingere le sue prestazioni verso nuovi limiti.</i>%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "<i class = flavor_text>Il frutto di anni di modifiche e collaudi sul campo si è concretizzato nel modello RZ-2, ma i piloti più temerari vedono nella maggiore affidabilità della nave una sfida a spingere le sue prestazioni verso nuovi limiti.</i>%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Green Squadron Pilot": {
       display_name: "Pilota della Squadriglia Verde",
@@ -18551,7 +22362,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Greer Sonnel": {
       display_name: "Greer Sonnel",
-      text: "Dopo che hai eseguito completamente una manovra, puoi ruotare il tuo segnalatore %SINGLETURRETARC%.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "Dopo che hai eseguito completamente una manovra, puoi ruotare il tuo segnalatore %SINGLETURRETARC%.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Guri": {
       display_name: "Guri",
@@ -18795,7 +22606,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "L'ulo L'ampar": {
       display_name: "L’ulo L’ampar",
-      text: "Mentre difendi o effettui un attacco primario, se sei in tensione, <b>devi </b>tirare 1 dado di difesa in meno o 1 dado di attacco aggiuntivo.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "Mentre difendi o effettui un attacco primario, se sei in tensione, <b>devi </b>tirare 1 dado di difesa in meno o 1 dado di attacco aggiuntivo.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Maarek Stele": {
       display_name: "Maarek Stele",
@@ -19079,7 +22890,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Tallissan Lintra": {
       display_name: "Tallissan Lintra",
-      text: "Mentre una nave nemica nel tuo %BULLSEYEARC% effettua un attacco, puoi spendere 1 %CHARGE%. Se lo fai, il difensore tira 1 dado aggiuntivo.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "Mentre una nave nemica nel tuo %BULLSEYEARC% effettua un attacco, puoi spendere 1 %CHARGE%. Se lo fai, il difensore tira 1 dado aggiuntivo.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Talonbane Cobra": {
       display_name: "Talonbane Cobra",
@@ -19167,7 +22978,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Zari Bangel": {
       display_name: "Zari Bangel",
-      text: "Dopo che hai eseguito parzialmente una manovra, non saltare il tuo passo “Effettuare l’Azione”.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o <rotate> rossa."
+      text: "Dopo che hai eseguito parzialmente una manovra, non saltare il tuo passo “Effettuare l’Azione”.%LINEBREAK%<strong>Girostabilizzatori Affinati:</strong> Puoi ruotare il tuo segnalatore %SINGLETURRETARC% solo sui tuoi %FRONTARC% o %REARARC%. Dopo che hai effettuato un’azione, puoi effettuare 1 azione %BOOST% o %ROTATEARC% rossa."
     },
     "Zealous Recruit": {
       display_name: "Recluta Zelante",
@@ -19953,7 +23764,7 @@ exportObj.cardLoaders.Italiano = function() {
     },
     "Rey's Millennium Falcon": {
       display_name: "Millennium Falcon di Rey",
-      text: "<i>CHANGE MECHANGE ME</i>%LINEBREAK%Se possiedi 2 o meno segnalini tensione, puoi eseguire le manovre loop di Segnor [%SLOOPLEFT% o %SLOOPRIGHT%] rosse ed effettuare le azioni %BOOST% e&nbsp;<rotate> anche mentre sei in tensione."
+      text: "<i>CHANGE MECHANGE ME</i>%LINEBREAK%Se possiedi 2 o meno segnalini tensione, puoi eseguire le manovre loop di Segnor [%SLOOPLEFT% o %SLOOPRIGHT%] rosse ed effettuare le azioni %BOOST% e&nbsp;%ROTATEARC% anche mentre sei in tensione."
     },
     "Rigged Cargo Chute": {
       display_name: "Rampa di Carico Attrezzata",
@@ -20178,7 +23989,7 @@ exportObj.cardLoaders.Português = function() {
       display_name: "Ben Teene",
       text: "After you perform an attack, if the defender is in your %SINGLETURRETARC%, assign the <strong>Rattled</strong> condition to the defender."
     },
-    "Benthic Two-Tubes": {
+    "Benthic Two Tubes": {
       display_name: "Benthic Two Tubes",
       text: "Após realizar uma ação %FOCUS%, você pode transferir 1 de suas fichas de foco para uma nave amiga em alcance 1-2."
     },
@@ -20410,7 +24221,7 @@ exportObj.cardLoaders.Português = function() {
       display_name: "Edon Kappehl",
       text: "After you fully execute a blue or white maneuver, if you have not dropped or launched a device this round, you may drop 1 device."
     },
-    "Edrio Two-Tubes": {
+    "Edrio Two Tubes": {
       display_name: "Edrio Two Tubes",
       text: "Antes de ativar, se estiver focado, você pode realizar uma ação."
     },
@@ -22265,7 +26076,7 @@ exportObj.manifestByExpansion = {
       type: 'pilot',
       count: 1
     }, {
-      name: 'Benthic Two-Tubes',
+      name: 'Benthic Two Tubes',
       type: 'pilot',
       count: 1
     }, {
@@ -22281,7 +26092,7 @@ exportObj.manifestByExpansion = {
       type: 'pilot',
       count: 1
     }, {
-      name: 'Edrio Two-Tubes',
+      name: 'Edrio Two Tubes',
       type: 'pilot',
       count: 1
     }, {
@@ -25733,15 +29544,695 @@ exportObj.manifestByExpansion = {
       count: 1
     }
   ],
+  'Servants of Strife Squadron Pack': [
+    {
+      name: 'Belbullab-22 Starfighter',
+      type: 'ship',
+      count: 1
+    }, {
+      name: 'Vulture-class Droid Fighter',
+      type: 'ship',
+      count: 2
+    }, {
+      name: 'General Grievous',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Captain Sear',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Wat Tambor',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Skakoan Ace',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Feethan Ottraw Autopilot',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Trade Federation Drone',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'Separatist Drone',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'DFS-081',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Precise Hunter',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'Haor Chall Prototype',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'Soulless One',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Grappling Struts',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'TV-94',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Kraken',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Composure',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Crack Shot',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Daredevil',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Intimidation',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Juke',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Lone Wolf',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Marksmanship',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Swarm Tactics',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Treacherous',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Trick Shot',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Concussion Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Cluster Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Homing Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Proton Rockets',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Energy-Shell Charges',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Cluster Missiles',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Afterburners',
+      type: 'upgrade',
+      count: 3
+    }, {
+      name: 'Electronic Baffle',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Impervium Plating',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Munitions Failsafe',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Static Discharge Vanes',
+      type: 'upgrade',
+      count: 3
+    }, {
+      name: 'Stealth Device',
+      type: 'upgrade',
+      count: 3
+    }
+  ],
+  'Sith Infiltrator Expansion Pack': [
+    {
+      name: 'Sith Infiltrator',
+      type: 'ship',
+      count: 1
+    }, {
+      name: 'Dark Courier',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '0-66',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Count Dooku',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Darth Maul',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Brilliant Evasion',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Hate',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Adv. Proton Torpedoes',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Heavy Laser Cannon',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Count Dooku',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'General Grievous',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'K2-B4',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'DRK-1 Probe Droids',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Scimitar',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Chancellor Palpatine',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
+  'Vulture-class Droid Fighter Expansion': [
+    {
+      name: 'Vulture-class Droid Fighter',
+      type: 'ship',
+      count: 1
+    }, {
+      name: 'Haor Chall Prototype',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Separatist Drone',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Precise Hunter',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'DFS-311',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Trade Federation Drone',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Grappling Struts',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Energy-Shell Charges',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Discord Missiles',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Munitions Failsafe',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Concussion Missiles',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
+  'Guardians of the Republic Squadron Pack': [
+    {
+      name: 'Delta-7 Aethersprite',
+      type: 'ship',
+      count: 1
+    }, {
+      name: 'V-19 Torrent',
+      type: 'ship',
+      count: 2
+    }, {
+      name: 'Obi-Wan Kenobi',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Plo Koon',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Mace Windu',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Saesee Tiin',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Jedi Knight',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Odd Ball"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Kickback"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Swoop"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Axe"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Tucker"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Blue Squadron Protector',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'Gold Squadron Trooper',
+      type: 'pilot',
+      count: 2
+    }, {
+      name: 'R4 Astromech',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R4-P Astromech',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R5 Astromech',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R4-P17',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Delta-7B',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Calibrated Laser Targeting',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Brilliant Evasion',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Battle Meditation',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Predictive Shot',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Cluster Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Concussion Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Homing Missiles',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Proton Rockets',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Composure',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Crack Shot',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Dedicated',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Expert Handling',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Intimidation',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Juke',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Lone Wolf',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Marksmanship',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Saturation Salvo',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Swarm Tactics',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Trick Shot',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Afterburners',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Electronic Baffle',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Munitions Failsafe',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Spare Parts Canisters',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Static Discharge Vanes',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Stealth Device',
+      type: 'upgrade',
+      count: 2
+    }, {
+      name: 'Synchronized Console',
+      type: 'upgrade',
+      count: 3
+    }
+  ],
+  'ARC-170 Starfighter Expansion': [
+    {
+      name: 'ARC-170',
+      type: 'ship',
+      count: 1
+    }, {
+      name: '"Wolffe"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Sinker"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Odd Ball" (ARC-170)',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Jag"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Squad Seven Veteran',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '104th Battalion Pilot',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Dedicated',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R4-P44',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Chancellor Palpatine',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Clone Commander Cody',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Proton Torpedoes',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Seventh Fleet Gunner',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Synchronized Console',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Expert Handling',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
+  'Delta-7 Aethersprite Expansion': [
+    {
+      name: 'Delta-7 Aethersprite',
+      type: 'ship',
+      count: 1
+    }, {
+      name: 'Anakin Skywalker',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Ahsoka Tano',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Barriss Offee',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Luminara Unduli',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Jedi Knight',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Delta-7B',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Calibrated Laser Targeting',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R4-P Astromech',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'R3 Astromech',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Brilliant Evasion',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Battle Meditation',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Composure',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Dedicated',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Expert Handling',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Juke',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Saturation Salvo',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Swarm Tactics',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Cluster Missiles',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Concussion Missiles',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
+  'Z-95-AF4 Headhunter Expansion Pack': [
+    {
+      name: 'Z-95 Headhunter',
+      type: 'ship',
+      count: 1
+    }, {
+      name: "N'dru Suhlak",
+      type: 'pilot',
+      count: 1
+    }, {
+      name: "Kaa'to Leeachos",
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Black Sun Soldier',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Binayre Pirate',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Crack Shot',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Concussion Missiles',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Cluster Missiles',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: "Deadman's Switch",
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Munitions Failsafe',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
+  'TIE/sk Striker Expansion Pack': [
+    {
+      name: 'TIE Striker',
+      type: 'ship',
+      count: 1
+    }, {
+      name: '"Countdown"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Pure Sabacc"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: '"Duchess"',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Black Squadron Scout',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Planetary Sentinel',
+      type: 'pilot',
+      count: 1
+    }, {
+      name: 'Proton Bombs',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Conner Nets',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Skilled Bombardier',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Trick Shot',
+      type: 'upgrade',
+      count: 1
+    }, {
+      name: 'Intimidation',
+      type: 'upgrade',
+      count: 1
+    }
+  ],
   'Loose Ships': [
     {
       name: 'A-Wing',
       type: 'ship',
       count: 3
-    }, {
-      name: 'ARC-170',
-      type: 'ship',
-      count: 2
     }, {
       name: 'Auzituck Gunship',
       type: 'ship',
@@ -25779,29 +30270,9 @@ exportObj.manifestByExpansion = {
       type: 'ship',
       count: 2
     }, {
-      name: 'TIE Fighter',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'U-Wing',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'X-Wing',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'Y-Wing',
-      type: 'ship',
-      count: 2
-    }, {
       name: 'YT-2400',
       type: 'ship',
       count: 2
-    }, {
-      name: 'Z-95 Headhunter',
-      type: 'ship',
-      count: 4
     }, {
       name: 'Alpha-Class Star Wing',
       type: 'ship',
@@ -25812,10 +30283,6 @@ exportObj.manifestByExpansion = {
       count: 3
     }, {
       name: 'Lambda-Class Shuttle',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'TIE Advanced',
       type: 'ship',
       count: 2
     }, {
@@ -25831,10 +30298,6 @@ exportObj.manifestByExpansion = {
       type: 'ship',
       count: 2
     }, {
-      name: 'TIE Fighter',
-      type: 'ship',
-      count: 4
-    }, {
       name: 'TIE Interceptor',
       type: 'ship',
       count: 3
@@ -25846,10 +30309,6 @@ exportObj.manifestByExpansion = {
       name: 'TIE Punisher',
       type: 'ship',
       count: 2
-    }, {
-      name: 'TIE Striker',
-      type: 'ship',
-      count: 3
     }, {
       name: 'VT-49 Decimator',
       type: 'ship',
@@ -25883,10 +30342,6 @@ exportObj.manifestByExpansion = {
       type: 'ship',
       count: 2
     }, {
-      name: 'Fang Fighter',
-      type: 'ship',
-      count: 3
-    }, {
       name: 'JumpMaster 5000',
       type: 'ship',
       count: 2
@@ -25903,35 +30358,15 @@ exportObj.manifestByExpansion = {
       type: 'ship',
       count: 2
     }, {
-      name: 'Firespray-31',
-      type: 'ship',
-      count: 2
-    }, {
       name: 'StarViper',
       type: 'ship',
       count: 2
     }, {
-      name: 'Y-Wing',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'Z-95 Headhunter',
-      type: 'ship',
-      count: 4
-    }, {
-      name: 'T-70 X-Wing',
-      type: 'ship',
-      count: 3
-    }, {
       name: 'MG-100 StarFortress',
       type: 'ship',
       count: 3
     }, {
       name: 'TIE/SF Fighter',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'TIE/FO Fighter',
       type: 'ship',
       count: 3
     }, {
@@ -25944,89 +30379,6 @@ exportObj.manifestByExpansion = {
       count: 3
     }, {
       name: 'Scavenged YT-1300',
-      type: 'ship',
-      count: 3
-    }
-  ],
-  'Hyperspace': [
-    {
-      name: 'YT-1300',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'U-Wing',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'X-Wing',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'Y-Wing',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'TIE Advanced',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'TIE Fighter',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'TIE Striker',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'TIE Reaper',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'Fang Fighter',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'Firespray-31',
-      type: 'ship',
-      count: 2
-    }, {
-      name: 'Customized YT-1300',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'Escape Craft',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'T-70 X-Wing',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'MG-100 StarFortress',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'RZ-2 A-Wing',
-      type: 'ship',
-      count: 1
-    }, {
-      name: 'Scavenged YT-1300',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'TIE/SF Fighter',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'TIE/FO Fighter',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'Upsilon-Class Command Shuttle',
-      type: 'ship',
-      count: 3
-    }, {
-      name: 'TIE/VN Silencer',
       type: 'ship',
       count: 3
     }
@@ -26166,17 +30518,9 @@ exportObj.Collection = (function() {
     return component_content.append($.trim("<div class=\"row-fluid\">\n    <div class=\"span12\"><h5>Summary</h5></div>\n</div>\n<div class = \"row-fluid\">\n    <ul id=\"counts-summary\" class=\"span12\">\n        " + summary + "\n    </ul>\n</div>"));
   };
 
-  Collection.prototype.fixName = function(name) {
-    if (name.indexOf('"Heavy Scyk" Interceptor') === 0) {
-      return '"Heavy Scyk" Interceptor';
-    } else {
-      return name;
-    }
-  };
-
   Collection.prototype.check = function(where, type, name) {
     var _ref, _ref1, _ref2;
-    return ((_ref = ((_ref1 = ((_ref2 = where[type]) != null ? _ref2 : {})[this.fixName(name)]) != null ? _ref1 : []).length) != null ? _ref : 0) !== 0;
+    return ((_ref = ((_ref1 = ((_ref2 = where[type]) != null ? _ref2 : {})[name]) != null ? _ref1 : []).length) != null ? _ref : 0) !== 0;
   };
 
   Collection.prototype.checkShelf = function(type, name) {
@@ -26189,7 +30533,6 @@ exportObj.Collection = (function() {
 
   Collection.prototype.use = function(type, name) {
     var card, e, _base1, _base2;
-    name = this.fixName(name);
     try {
       card = this.shelf[type][name].pop();
     } catch (_error) {
@@ -26208,7 +30551,6 @@ exportObj.Collection = (function() {
 
   Collection.prototype.release = function(type, name) {
     var card, e, _base1, _base2;
-    name = this.fixName(name);
     try {
       card = this.table[type][name].pop();
     } catch (_error) {
@@ -26534,7 +30876,7 @@ exportObj.setupTranslationSupport = function() {
                     parent: ___iced_passed_deferral
                   });
                   builder.container.trigger('xwing:beforeLanguageLoad', __iced_deferrals.defer({
-                    lineno: 26682
+                    lineno: 32903
                   }));
                   __iced_deferrals._fulfill();
                 })(_next);
@@ -26636,6 +30978,22 @@ exportObj.toTTS = function(txt) {
   }
 };
 
+exportObj.slotsMatching = function(slota, slotb) {
+  if (slota === slotb) {
+    return true;
+  }
+  if (slota !== 'Hardpoint' && slotb !== 'Hardpoint') {
+    return false;
+  }
+  if (slota === 'Torpedo' || slota === 'Cannon' || slota === 'Missile') {
+    return true;
+  }
+  if (slotb === 'Torpedo' || slotb === 'Cannon' || slotb === 'Missile') {
+    return true;
+  }
+  return false;
+};
+
 $.isMobile = function() {
   return navigator.userAgent.match(/(iPhone|iPod|iPad|Android)/i);
 };
@@ -26691,9 +31049,11 @@ SQUAD_DISPLAY_NAME_MAX_LENGTH = 24;
 
 statAndEffectiveStat = function(base_stat, effective_stats, key) {
   if (base_stat != null) {
-    return "" + base_stat + (effective_stats[key] !== base_stat ? " (" + effective_stats[key] + ")" : "");
-  } else {
+    return "" + base_stat + ((effective_stats != null) && (effective_stats[key] != null) && effective_stats[key] !== base_stat ? " (" + effective_stats[key] + ")" : "");
+  } else if ((effective_stats != null) && (effective_stats[key] != null)) {
     return "0 (" + effective_stats[key] + ")";
+  } else {
+    return "0";
   }
 };
 
@@ -26730,6 +31090,7 @@ exportObj.SquadBuilder = (function() {
     this.updatePermaLink = __bind(this.updatePermaLink, this);
     this.getPermaLink = __bind(this.getPermaLink, this);
     this.getPermaLinkParams = __bind(this.getPermaLinkParams, this);
+    var _ref, _ref1, _ref2, _ref3, _ref4;
     this.container = $(args.container);
     this.faction = $.trim(args.faction);
     this.printable_container = $(args.printable_container);
@@ -26737,7 +31098,8 @@ exportObj.SquadBuilder = (function() {
     this.ships = [];
     this.uniques_in_use = {
       Pilot: [],
-      Upgrade: []
+      Upgrade: [],
+      Slot: []
     };
     this.suppress_automatic_new_ship = false;
     this.tooltip_currently_displaying = null;
@@ -26748,8 +31110,8 @@ exportObj.SquadBuilder = (function() {
       ships_or_upgrades: 3
     };
     this.total_points = 0;
-    this.isCustom = false;
-    this.isHyperspace = false;
+    this.isHyperspace = (_ref = (_ref1 = exportObj.builders[0]) != null ? _ref1.isHyperspace : void 0) != null ? _ref : false;
+    this.isQuickbuild = (_ref2 = (_ref3 = exportObj.builders[0]) != null ? _ref3.isQuickbuild : void 0) != null ? _ref2 : false;
     this.maxSmallShipsOfOneType = null;
     this.maxLargeShipsOfOneType = null;
     this.backend = null;
@@ -26758,6 +31120,7 @@ exportObj.SquadBuilder = (function() {
     this.collection = null;
     this.current_obstacles = [];
     this.setupUI();
+    this.game_type_selector.val(((_ref4 = exportObj.builders[0]) != null ? _ref4 : this).game_type_selector.val());
     this.setupEventHandlers();
     window.setInterval(this.updatePermaLink, 250);
     this.isUpdatingPoints = false;
@@ -26765,6 +31128,7 @@ exportObj.SquadBuilder = (function() {
       this.resetCurrentSquad(true);
       this.loadFromSerialized($.getParameterByName('d'));
     } else {
+      this;
       this.resetCurrentSquad();
       this.addShip();
     }
@@ -26832,18 +31196,21 @@ exportObj.SquadBuilder = (function() {
     DEFAULT_RANDOMIZER_SHIPS_OR_UPGRADES = 3;
     this.status_container = $(document.createElement('DIV'));
     this.status_container.addClass('container-fluid');
-    this.status_container.append($.trim('<div class="row-fluid">\n    <div class="span3 squad-name-container">\n        <div class="display-name">\n            <span class="squad-name"></span>\n            <i class="fa fa-pencil"></i>\n        </div>\n        <div class="input-append">\n            <input type="text" maxlength="64" placeholder="Name your squad..." />\n            <button class="btn save"><i class="fa fa-pencil-square-o"></i></button>\n        </div>\n    </div>\n    <div class="span4 points-display-container">\n        Points: <span class="total-points">0</span> / <input type="number" class="desired-points" value="100">\n        <select class="game-type-selector">\n            <option value="standard">Extended</option>\n            <option value="hyperspace">Hyperspace</option>\n            <option value="custom">Custom</option>\n        </select>\n        <span class="points-remaining-container">(<span class="points-remaining"></span>&nbsp;left)</span>\n        <span class="content-warning unreleased-content-used hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n        <span class="content-warning collection-invalid hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n    </div>\n    <div class="span5 pull-right button-container">\n        <div class="btn-group pull-right">\n\n            <button class="btn btn-primary view-as-text"><span class="hidden-phone"><i class="fa fa-print"></i>&nbsp;Print/View as </span>Text</button>\n            <!-- <button class="btn btn-primary print-list hidden-phone hidden-tablet"><i class="fa fa-print"></i>&nbsp;Print</button> -->\n            <a class="btn btn-primary hidden collection"><i class="fa fa-folder-open hidden-phone hidden-tablet"></i>&nbsp;Your Collection</a>\n            \n            <button class="btn btn-primary randomize" ><i class="fa fa-random hidden-phone hidden-tablet"></i>&nbsp;Random!</button>\n            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">\n                <span class="caret"></span>\n            </button>\n            <ul class="dropdown-menu">\n                <li><a class="randomize-options">Randomizer Options</a></li>\n                <li><a class="misc-settings">Misc Settings</a></li>\n            </ul>\n            \n\n        </div>\n    </div>\n</div>\n\n<div class="row-fluid">\n    <div class="span12">\n        <button class="show-authenticated btn btn-primary save-list"><i class="fa fa-floppy-o"></i>&nbsp;Save</button>\n        <button class="show-authenticated btn btn-primary save-list-as"><i class="fa fa-files-o"></i>&nbsp;Save As...</button>\n        <button class="show-authenticated btn btn-primary delete-list disabled"><i class="fa fa-trash-o"></i>&nbsp;Delete</button>\n        <button class="show-authenticated btn btn-primary backend-list-my-squads show-authenticated">Load Squad</button>\n        <button class="btn btn-danger clear-squad">New Squad</button>\n        <span class="show-authenticated backend-status"></span>\n    </div>\n</div>'));
+    this.status_container.append($.trim('<div class="row-fluid">\n    <div class="span3 squad-name-container">\n        <div class="display-name">\n            <span class="squad-name"></span>\n            <i class="fa fa-pencil"></i>\n        </div>\n        <div class="input-append">\n            <input type="text" maxlength="64" placeholder="Name your squad..." />\n            <button class="btn save"><i class="fa fa-pencil-square-o"></i></button>\n        </div>\n    </div>\n    <div class="span4 points-display-container">\n        Points: <span class="total-points">0</span> / <input type="number" class="desired-points" value="200">\n        <select class="game-type-selector">\n            <option value="standard">Extended</option>\n            <option value="hyperspace">Hyperspace</option>\n            <option value="quickbuild">Quickbuild</option>\n        </select>\n        <span class="points-remaining-container">(<span class="points-remaining"></span>&nbsp;left)</span>\n        <span class="content-warning unreleased-content-used hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n        <span class="content-warning loading-failed-container hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n        <span class="content-warning collection-invalid hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n        <span class="content-warning ship-number-invalid-container hidden"><br /><i class="fa fa-exclamation-circle"></i>&nbsp;<span class="translated"></span></span>\n    </div>\n    <div class="span5 pull-right button-container">\n        <div class="btn-group pull-right">\n\n            <button class="btn btn-primary view-as-text"><span class="hidden-phone"><i class="fa fa-print"></i>&nbsp;Print/View as </span>Text</button>\n            <!-- <button class="btn btn-primary print-list hidden-phone hidden-tablet"><i class="fa fa-print"></i>&nbsp;Print</button> -->\n            <a class="btn btn-primary hidden collection"><i class="fa fa-folder-open hidden-phone hidden-tablet"></i>&nbsp;Your Collection</a>\n            \n            <button class="btn btn-primary randomize" ><i class="fa fa-random hidden-phone hidden-tablet"></i>&nbsp;Random!</button>\n            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">\n                <span class="caret"></span>\n            </button>\n            <ul class="dropdown-menu">\n                <li><a class="randomize-options">Randomizer Options</a></li>\n                <li><a class="misc-settings">Misc Settings</a></li>\n            </ul>\n            \n\n        </div>\n    </div>\n</div>\n\n<div class="row-fluid">\n    <div class="span12">\n        <button class="show-authenticated btn btn-primary save-list"><i class="fa fa-floppy-o"></i>&nbsp;Save</button>\n        <button class="show-authenticated btn btn-primary save-list-as"><i class="fa fa-files-o"></i>&nbsp;Save As...</button>\n        <button class="show-authenticated btn btn-primary delete-list disabled"><i class="fa fa-trash-o"></i>&nbsp;Delete</button>\n        <button class="show-authenticated btn btn-primary backend-list-my-squads show-authenticated">Load Squad</button>\n        <button class="btn btn-danger clear-squad">New Squad</button>\n        <span class="show-authenticated backend-status"></span>\n    </div>\n</div>'));
     this.container.append(this.status_container);
     this.list_modal = $(document.createElement('DIV'));
     this.list_modal.addClass('modal hide fade text-list-modal');
     this.container.append(this.list_modal);
-    this.list_modal.append($.trim("<div class=\"modal-header\">\n    <button type=\"button\" class=\"close hidden-print\" data-dismiss=\"modal\" aria-hidden=\"true\">&times;</button>\n\n    <div class=\"hidden-phone hidden-print\">\n        <h3><span class=\"squad-name\"></span> (<span class=\"total-points\"></span>)<h3>\n    </div>\n\n    <div class=\"visible-phone hidden-print\">\n        <h4><span class=\"squad-name\"></span> (<span class=\"total-points\"></span>)<h4>\n    </div>\n\n    <div class=\"visible-print\">\n        <div class=\"fancy-header\">\n            <div class=\"squad-name\"></div>\n            <div class=\"squad-faction\"></div>\n            <div class=\"mask\">\n                <div class=\"outer-circle\">\n                    <div class=\"inner-circle\">\n                        <span class=\"total-points\"></span>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class=\"fancy-under-header\"></div>\n    </div>\n\n</div>\n<div class=\"modal-body\">\n    <div class=\"fancy-list hidden-phone\"></div>\n    <div class=\"simple-list\"></div>\n    <div class=\"reddit-list\">\n        <p>Copy the below and paste it into your reddit post.</p>\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"tts-list\">\n        <p>Copy the below and paste it into the Tabletop Simulator.</p>\n        <textarea></textarea><br><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"bbcode-list\">\n        <p>Copy the BBCode below and paste it into your forum post.</p>\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"html-list\">\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n</div>\n<div class=\"modal-footer hidden-print\">\n    <label class=\"vertical-space-checkbox hidden-phone\">\n        Add space for damage/upgrade cards when printing <input type=\"checkbox\" class=\"toggle-vertical-space\" />\n    </label>\n    <label class=\"maneuver-print-checkbox hidden-phone\">\n        Include Maneuvers Chart <input type=\"checkbox\" class=\"toggle-maneuver-print\" checked=\"checked\" />\n    </label>\n    <label class=\"expanded-shield-hull-print-checkbox hidden-phone\">\n        Expand Shield and Hull <input type=\"checkbox\" class=\"toggle-expanded-shield-hull-print\" />\n    </label>\n    <label class=\"color-print-checkbox hidden-phone\">\n        Print color <input type=\"checkbox\" class=\"toggle-color-print\" checked=\"checked\" />\n    </label>\n    <label class=\"color-skip-text-checkbox hidden-phone\">\n        Skip texts <input type=\"checkbox\" class=\"toggle-skip-text-print\" />\n    </label>\n    <label class=\"qrcode-checkbox hidden-phone\">\n        Include QR codes <input type=\"checkbox\" class=\"toggle-juggler-qrcode\" checked=\"checked\" />\n    </label>\n    <label class=\"obstacles-checkbox hidden-phone\">\n        Include obstacle/damage deck choices <input type=\"checkbox\" class=\"toggle-obstacles\" />\n    </label>\n    <div class=\"btn-group list-display-mode\">\n        <button class=\"btn select-simple-view\">Simple</button>\n        <button class=\"btn select-fancy-view hidden-phone\">Fancy</button>\n        <button class=\"btn select-reddit-view\">Reddit</button>\n        <button class=\"btn select-tts-view\">TTS</button>\n        <button class=\"btn select-bbcode-view\">BBCode</button>\n        <button class=\"btn select-html-view\">HTML</button>\n    </div>\n    <button class=\"btn print-list hidden-phone\"><i class=\"fa fa-print\"></i>&nbsp;Print</button>\n    <button class=\"btn close-print-dialog\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
+    this.list_modal.append($.trim("<div class=\"modal-header\">\n    <button type=\"button\" class=\"close hidden-print\" data-dismiss=\"modal\" aria-hidden=\"true\">&times;</button>\n\n    <div class=\"hidden-phone hidden-print\">\n        <h3><span class=\"squad-name\"></span> (<span class=\"total-points\"></span>)<h3>\n    </div>\n\n    <div class=\"visible-phone hidden-print\">\n        <h4><span class=\"squad-name\"></span> (<span class=\"total-points\"></span>)<h4>\n    </div>\n\n    <div class=\"visible-print\">\n        <div class=\"fancy-header\">\n            <div class=\"squad-name\"></div>\n            <div class=\"squad-faction\"></div>\n            <div class=\"mask\">\n                <div class=\"outer-circle\">\n                    <div class=\"inner-circle\">\n                        <span class=\"total-points\"></span>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class=\"fancy-under-header\"></div>\n    </div>\n\n</div>\n<div class=\"modal-body\">\n    <div class=\"fancy-list hidden-phone\"></div>\n    <div class=\"simple-list\"></div>\n    <div class=\"simplecopy-list\">\n        <p>Copy the below and paste it elsewhere.</p>\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"reddit-list\">\n        <p>Copy the below and paste it into your reddit post.</p>\n        <p>Make sure that the post editor is set to markdown mode.</p>\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"tts-list\">\n        <p>Copy the below and paste it into the Tabletop Simulator.</p>\n        <textarea></textarea><br><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"bbcode-list\">\n        <p>Copy the BBCode below and paste it into your forum post.</p>\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n    <div class=\"html-list\">\n        <textarea></textarea><button class=\"btn btn-copy\">Copy</button>\n    </div>\n</div>\n<div class=\"modal-footer hidden-print\">\n    <label class=\"vertical-space-checkbox hidden-phone\">\n        Add Space for Cards<input type=\"checkbox\" class=\"toggle-vertical-space\" />\n    </label>\n    <label class=\"maneuver-print-checkbox hidden-phone\">\n        Include Maneuvers Chart <input type=\"checkbox\" class=\"toggle-maneuver-print\" checked=\"checked\" />\n    </label>\n    <label class=\"expanded-shield-hull-print-checkbox hidden-phone\">\n        Expand Shield and Hull <input type=\"checkbox\" class=\"toggle-expanded-shield-hull-print\" />\n    </label>\n    <label class=\"color-print-checkbox hidden-phone\">\n        Print Color <input type=\"checkbox\" class=\"toggle-color-print\" checked=\"checked\" />\n    </label>\n    <label class=\"color-skip-text-checkbox hidden-phone\">\n        Skip Card Text <input type=\"checkbox\" class=\"toggle-skip-text-print\" />\n    </label>\n    <label class=\"qrcode-checkbox hidden-phone\">\n        Include QR codes <input type=\"checkbox\" class=\"toggle-juggler-qrcode\" checked=\"checked\" />\n    </label>\n    <label class=\"obstacles-checkbox hidden-phone\">\n        Include Obstacle Choices <input type=\"checkbox\" class=\"toggle-obstacles\" />\n    </label>\n    <div class=\"btn-group list-display-mode\">\n        <button class=\"btn select-simple-view\">Simple</button>\n        <button class=\"btn select-fancy-view hidden-phone\">Fancy</button>\n        <button class=\"btn select-simplecopy-view\">Text</button>\n        <button class=\"btn select-reddit-view\">Reddit</button>\n        <button class=\"btn select-tts-view\">TTS</button>\n        <button class=\"btn select-bbcode-view\">BBCode</button>\n        <button class=\"btn select-html-view\">HTML</button>\n    </div>\n    <button class=\"btn print-list hidden-phone\"><i class=\"fa fa-print\"></i>&nbsp;Print</button>\n    <button class=\"btn close-print-dialog\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
     this.fancy_container = $(this.list_modal.find('div.modal-body .fancy-list'));
     this.fancy_total_points_container = $(this.list_modal.find('div.modal-header .total-points'));
     this.simple_container = $(this.list_modal.find('div.modal-body .simple-list'));
     this.reddit_container = $(this.list_modal.find('div.modal-body .reddit-list'));
     this.reddit_textarea = $(this.reddit_container.find('textarea'));
     this.reddit_textarea.attr('readonly', 'readonly');
+    this.simplecopy_container = $(this.list_modal.find('div.modal-body .simplecopy-list'));
+    this.simplecopy_textarea = $(this.simplecopy_container.find('textarea'));
+    this.simplecopy_textarea.attr('readonly', 'readonly');
     this.tts_container = $(this.list_modal.find('div.modal-body .tts-list'));
     this.tts_textarea = $(this.tts_container.find('textarea'));
     this.tts_textarea.attr('readonly', 'readonly');
@@ -26884,6 +31251,7 @@ exportObj.SquadBuilder = (function() {
           _this.list_display_mode = 'simple';
           _this.simple_container.show();
           _this.fancy_container.hide();
+          _this.simplecopy_container.hide();
           _this.reddit_container.hide();
           _this.tts_container.hide();
           _this.bbcode_container.hide();
@@ -26909,6 +31277,7 @@ exportObj.SquadBuilder = (function() {
           _this.list_display_mode = 'fancy';
           _this.fancy_container.show();
           _this.simple_container.hide();
+          _this.simplecopy_container.hide();
           _this.reddit_container.hide();
           _this.tts_container.hide();
           _this.bbcode_container.hide();
@@ -26933,6 +31302,7 @@ exportObj.SquadBuilder = (function() {
           _this.select_reddit_view_button.addClass('btn-inverse');
           _this.list_display_mode = 'reddit';
           _this.reddit_container.show();
+          _this.simplecopy_container.hide();
           _this.bbcode_container.hide();
           _this.tts_container.hide();
           _this.htmlview_container.hide();
@@ -26940,6 +31310,34 @@ exportObj.SquadBuilder = (function() {
           _this.fancy_container.hide();
           _this.reddit_textarea.select();
           _this.reddit_textarea.focus();
+          _this.toggle_vertical_space_container.hide();
+          _this.toggle_color_print_container.hide();
+          _this.toggle_color_skip_text.hide();
+          _this.toggle_maneuver_dial_container.hide();
+          _this.toggle_expanded_shield_hull_container.hide();
+          _this.toggle_qrcode_container.hide();
+          _this.toggle_obstacle_container.hide();
+          return _this.btn_print_list.disabled = true;
+        }
+      };
+    })(this));
+    this.select_simplecopy_view_button = $(this.list_modal.find('.select-simplecopy-view'));
+    this.select_simplecopy_view_button.click((function(_this) {
+      return function(e) {
+        _this.select_simplecopy_view_button.blur();
+        if (_this.list_display_mode !== 'simplecopy') {
+          _this.list_modal.find('.list-display-mode .btn').removeClass('btn-inverse');
+          _this.select_simplecopy_view_button.addClass('btn-inverse');
+          _this.list_display_mode = 'simplecopy';
+          _this.reddit_container.hide();
+          _this.simplecopy_container.show();
+          _this.bbcode_container.hide();
+          _this.tts_container.hide();
+          _this.htmlview_container.hide();
+          _this.simple_container.hide();
+          _this.fancy_container.hide();
+          _this.simplecopy_textarea.select();
+          _this.simplecopy_textarea.focus();
           _this.toggle_vertical_space_container.hide();
           _this.toggle_color_print_container.hide();
           _this.toggle_color_skip_text.hide();
@@ -26963,6 +31361,7 @@ exportObj.SquadBuilder = (function() {
           _this.bbcode_container.hide();
           _this.htmlview_container.hide();
           _this.simple_container.hide();
+          _this.simplecopy_container.hide();
           _this.reddit_container.hide();
           _this.fancy_container.hide();
           _this.tts_textarea.select();
@@ -26987,6 +31386,7 @@ exportObj.SquadBuilder = (function() {
           _this.select_bbcode_view_button.addClass('btn-inverse');
           _this.list_display_mode = 'bbcode';
           _this.bbcode_container.show();
+          _this.simplecopy_container.hide();
           _this.reddit_container.hide();
           _this.tts_container.hide();
           _this.htmlview_container.hide();
@@ -27014,6 +31414,7 @@ exportObj.SquadBuilder = (function() {
           _this.select_html_view_button.addClass('btn-inverse');
           _this.list_display_mode = 'html';
           _this.reddit_container.hide();
+          _this.simplecopy_container.hide();
           _this.tts_container.hide();
           _this.bbcode_container.hide();
           _this.htmlview_container.show();
@@ -27061,19 +31462,20 @@ exportObj.SquadBuilder = (function() {
     this.game_type_selector = $(this.status_container.find('.game-type-selector'));
     this.game_type_selector.change((function(_this) {
       return function(e) {
-        return _this.onGameTypeChanged(_this.game_type_selector.val());
+        return $(window).trigger('xwing:gameTypeChanged', _this.game_type_selector.val());
       };
     })(this));
     this.desired_points_input = $(this.points_container.find('.desired-points'));
     this.desired_points_input.change((function(_this) {
       return function(e) {
-        _this.game_type_selector.val('custom');
-        return _this.onGameTypeChanged('custom');
+        return _this.onPointsUpdated($.noop);
       };
     })(this));
     this.points_remaining_span = $(this.points_container.find('.points-remaining'));
     this.points_remaining_container = $(this.points_container.find('.points-remaining-container'));
     this.unreleased_content_used_container = $(this.points_container.find('.unreleased-content-used'));
+    this.loading_failed_container = $(this.points_container.find('.loading-failed-container'));
+    this.ship_number_invalid_container = $(this.points_container.find('.ship-number-invalid-container'));
     this.collection_invalid_container = $(this.points_container.find('.collection-invalid'));
     this.view_list_button = $(this.status_container.find('div.button-container button.view-as-text'));
     this.randomize_button = $(this.status_container.find('div.button-container button.randomize'));
@@ -27265,7 +31667,7 @@ exportObj.SquadBuilder = (function() {
     this.choose_obstacles_modal = $(document.createElement('DIV'));
     this.choose_obstacles_modal.addClass('modal hide fade choose-obstacles-modal');
     this.container.append(this.choose_obstacles_modal);
-    this.choose_obstacles_modal.append($.trim("<div class=\"modal-header\">\n    <label class='choose-obstacles-description'>Choose up to three obstacles, to include in the permalink for use in external programs</label>\n</div>\n<div class=\"modal-body\">\n    <div class=\"obstacle-select-container\" style=\"float:left\">\n        <select multiple class='obstacle-select' size=\"18\">\n            <option class=\"coreasteroid0-select\" value=\"coreasteroid0\">Core Asteroid 0</option>\n            <option class=\"coreasteroid1-select\" value=\"coreasteroid1\">Core Asteroid 1</option>\n            <option class=\"coreasteroid2-select\" value=\"coreasteroid2\">Core Asteroid 2</option>\n            <option class=\"coreasteroid3-select\" value=\"coreasteroid3\">Core Asteroid 3</option>\n            <option class=\"coreasteroid4-select\" value=\"coreasteroid4\">Core Asteroid 4</option>\n            <option class=\"coreasteroid5-select\" value=\"coreasteroid5\">Core Asteroid 5</option>\n            <option class=\"yt2400debris0-select\" value=\"yt2400debris0\">YT2400 Debris 0</option>\n            <option class=\"yt2400debris1-select\" value=\"yt2400debris1\">YT2400 Debris 1</option>\n            <option class=\"yt2400debris2-select\" value=\"yt2400debris2\">YT2400 Debris 2</option>\n            <option class=\"vt49decimatordebris0-select\" value=\"vt49decimatordebris0\">VT49 Debris 0</option>\n            <option class=\"vt49decimatordebris1-select\" value=\"vt49decimatordebris1\">VT49 Debris 1</option>\n            <option class=\"vt49decimatordebris2-select\" value=\"vt49decimatordebris2\">VT49 Debris 2</option>\n            <option class=\"core2asteroid0-select\" value=\"core2asteroid0\">Force Awakens Asteroid 0</option>\n            <option class=\"core2asteroid1-select\" value=\"core2asteroid1\">Force Awakens Asteroid 1</option>\n            <option class=\"core2asteroid2-select\" value=\"core2asteroid2\">Force Awakens Asteroid 2</option>\n            <option class=\"core2asteroid3-select\" value=\"core2asteroid3\">Force Awakens Asteroid 3</option>\n            <option class=\"core2asteroid4-select\" value=\"core2asteroid4\">Force Awakens Asteroid 4</option>\n            <option class=\"core2asteroid5-select\" value=\"core2asteroid5\">Force Awakens Asteroid 5</option>\n        </select>\n    </div>\n    <div class=\"obstacle-image-container\" style=\"display:none;\">\n        <img class=\"obstacle-image\" src=\"images/core2asteroid0.png\" />\n    </div>\n</div>\n<div class=\"modal-footer hidden-print\">\n    <button class=\"btn close-print-dialog\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
+    this.choose_obstacles_modal.append($.trim("<div class=\"modal-header\">\n    <label class='choose-obstacles-description'>Choose up to three obstacles, to include in the permalink for use in external programs</label>\n</div>\n<div class=\"modal-body\">\n    <div class=\"obstacle-select-container\" style=\"float:left\">\n        <select multiple class='obstacle-select' size=\"18\">\n            <option class=\"coreasteroid0-select\" value=\"coreasteroid0\">Core Asteroid 0</option>\n            <option class=\"coreasteroid1-select\" value=\"coreasteroid1\">Core Asteroid 1</option>\n            <option class=\"coreasteroid2-select\" value=\"coreasteroid2\">Core Asteroid 2</option>\n            <option class=\"coreasteroid3-select\" value=\"coreasteroid3\">Core Asteroid 3</option>\n            <option class=\"coreasteroid4-select\" value=\"coreasteroid4\">Core Asteroid 4</option>\n            <option class=\"coreasteroid5-select\" value=\"coreasteroid5\">Core Asteroid 5</option>\n            <option class=\"yt2400debris0-select\" value=\"yt2400debris0\">YT2400 Debris 0</option>\n            <option class=\"yt2400debris1-select\" value=\"yt2400debris1\">YT2400 Debris 1</option>\n            <option class=\"yt2400debris2-select\" value=\"yt2400debris2\">YT2400 Debris 2</option>\n            <option class=\"vt49decimatordebris0-select\" value=\"vt49decimatordebris0\">VT49 Debris 0</option>\n            <option class=\"vt49decimatordebris1-select\" value=\"vt49decimatordebris1\">VT49 Debris 1</option>\n            <option class=\"vt49decimatordebris2-select\" value=\"vt49decimatordebris2\">VT49 Debris 2</option>\n            <option class=\"core2asteroid0-select\" value=\"core2asteroid0\">Force Awakens Asteroid 0</option>\n            <option class=\"core2asteroid1-select\" value=\"core2asteroid1\">Force Awakens Asteroid 1</option>\n            <option class=\"core2asteroid2-select\" value=\"core2asteroid2\">Force Awakens Asteroid 2</option>\n            <option class=\"core2asteroid3-select\" value=\"core2asteroid3\">Force Awakens Asteroid 3</option>\n            <option class=\"core2asteroid4-select\" value=\"core2asteroid4\">Force Awakens Asteroid 4</option>\n            <option class=\"core2asteroid5-select\" value=\"core2asteroid5\">Force Awakens Asteroid 5</option>\n            <option class=\"gascloud1-select\" value=\"gascloud1\">Gas Cloud 1</option>\n            <option class=\"gascloud2-select\" value=\"gascloud2\">Gas Cloud 2</option>\n            <option class=\"gascloud3-select\" value=\"gascloud3\">Gas Cloud 3</option>\n        </select>\n    </div>\n    <div class=\"obstacle-image-container\" style=\"display:none;\">\n        <img class=\"obstacle-image\" src=\"images/core2asteroid0.png\" />\n    </div>\n</div>\n<div class=\"modal-footer hidden-print\">\n    <button class=\"btn close-print-dialog\" data-dismiss=\"modal\" aria-hidden=\"true\">Close</button>\n</div>"));
     this.obstacles_select = this.choose_obstacles_modal.find('.obstacle-select');
     this.obstacles_select_image = this.choose_obstacles_modal.find('.obstacle-image-container');
     this.backend_list_squads_button = $(this.container.find('button.backend-list-my-squads'));
@@ -27287,7 +31689,7 @@ exportObj.SquadBuilder = (function() {
         if ((_this.backend != null) && !_this.backend_save_list_button.hasClass('disabled')) {
           additional_data = {
             points: _this.total_points,
-            description: _this.describeSquad(),
+            description: _this.describeSquad() + ', Squad saved: ' + (new Date()).toLocaleString(),
             cards: _this.listCards(),
             notes: _this.notes.val().substr(0, 1024),
             obstacles: _this.getObstacles()
@@ -27305,7 +31707,7 @@ exportObj.SquadBuilder = (function() {
                   return results = arguments[0];
                 };
               })(),
-              lineno: 27485
+              lineno: 33767
             }));
             __iced_deferrals._fulfill();
           })(function() {
@@ -27344,7 +31746,7 @@ exportObj.SquadBuilder = (function() {
     this.obstacles_container = content_container.find('.obstacles-container');
     this.notes_container = $(content_container.find('.notes-container'));
     this.notes = $(this.notes_container.find('textarea.squad-notes'));
-    this.info_container.append($.trim("<div class=\"well well-small info-well\">\n    <span class=\"info-name\"></span>\n    <br />\n    <span class=\"info-sources\"></span>\n    <br />\n    <span class=\"info-collection\"></span>\n    <table>\n        <tbody>\n            <tr class=\"info-ship\">\n                <td class=\"info-header\">Ship</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-base\">\n                <td class=\"info-header\">Base</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-skill\">\n                <td class=\"info-header\">Initiative</td>\n                <td class=\"info-data info-skill\"></td>\n            </tr>\n            <tr class=\"info-energy\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-energy xwing-miniatures-font-energy\"></i></td>\n                <td class=\"info-data info-energy\"></td>\n            </tr>\n            <tr class=\"info-attack\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-frontarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-fullfront\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-fullfrontarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-bullseye\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-bullseyearc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-back\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-reararc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-turret\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-singleturretarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-doubleturret\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-doubleturretarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-agility\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i></td>\n                <td class=\"info-data info-agility\"></td>\n            </tr>\n            <tr class=\"info-hull\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull\"></i></td>\n                <td class=\"info-data info-hull\"></td>\n            </tr>\n            <tr class=\"info-shields\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield\"></i></td>\n                <td class=\"info-data info-shields\"></td>\n            </tr>\n            <tr class=\"info-force\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-force xwing-miniatures-font-forcecharge\"></i></td>\n                <td class=\"info-data info-force\"></td>\n            </tr>\n            <tr class=\"info-charge\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-charge xwing-miniatures-font-charge\"></i></td>\n                <td class=\"info-data info-charge\"></td>\n            </tr>\n            <tr class=\"info-range\">\n                <td class=\"info-header\">Range</td>\n                <td class=\"info-data info-range\"></td><td class=\"info-rangebonus\"><i class=\"xwing-miniatures-font red header-range xwing-miniatures-font-rangebonusindicator\"></i></td>\n            </tr>\n            <tr class=\"info-actions\">\n                <td class=\"info-header\">Actions</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-actions-red\">\n                <td></td>\n                <td class=\"info-data-red\"></td>\n            </tr>\n            <tr class=\"info-upgrades\">\n                <td class=\"info-header\">Upgrades</td>\n                <td class=\"info-data\"></td>\n            </tr>\n        </tbody>\n    </table>\n    <p class=\"info-text\" />\n    <p class=\"info-maneuvers\" />\n</div>"));
+    this.info_container.append($.trim("<div class=\"well well-small info-well\">\n    <span class=\"info-name\"></span>\n    <br />\n    <span class=\"info-collection\"></span>\n    <span class=\"info-solitary\"><br />Solitary</span>\n    <table>\n        <tbody>\n            <tr class=\"info-ship\">\n                <td class=\"info-header\">Ship</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-base\">\n                <td class=\"info-header\">Base</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-skill\">\n                <td class=\"info-header\">Initiative</td>\n                <td class=\"info-data info-skill\"></td>\n            </tr>\n            <tr class=\"info-energy\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-energy xwing-miniatures-font-energy\"></i></td>\n                <td class=\"info-data info-energy\"></td>\n            </tr>\n            <tr class=\"info-attack\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-frontarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-fullfront\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-fullfrontarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-bullseye\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-bullseyearc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-back\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-reararc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-turret\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-singleturretarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-attack-doubleturret\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-attack xwing-miniatures-font-doubleturretarc\"></i></td>\n                <td class=\"info-data info-attack\"></td>\n            </tr>\n            <tr class=\"info-agility\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i></td>\n                <td class=\"info-data info-agility\"></td>\n            </tr>\n            <tr class=\"info-hull\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull\"></i></td>\n                <td class=\"info-data info-hull\"></td>\n            </tr>\n            <tr class=\"info-shields\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield\"></i></td>\n                <td class=\"info-data info-shields\"></td>\n            </tr>\n            <tr class=\"info-force\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-force xwing-miniatures-font-forcecharge\"></i></td>\n                <td class=\"info-data info-force\"></td>\n            </tr>\n            <tr class=\"info-charge\">\n                <td class=\"info-header\"><i class=\"xwing-miniatures-font header-charge xwing-miniatures-font-charge\"></i></td>\n                <td class=\"info-data info-charge\"></td>\n            </tr>\n            <tr class=\"info-range\">\n                <td class=\"info-header\">Range</td>\n                <td class=\"info-data info-range\"></td><td class=\"info-rangebonus\"><i class=\"xwing-miniatures-font red header-range xwing-miniatures-font-rangebonusindicator\"></i></td>\n            </tr>\n            <tr class=\"info-actions\">\n                <td class=\"info-header\">Actions</td>\n                <td class=\"info-data\"></td>\n            </tr>\n            <tr class=\"info-actions-red\">\n                <td></td>\n                <td class=\"info-data-red\"></td>\n            </tr>\n            <tr class=\"info-upgrades\">\n                <td class=\"info-header\">Upgrades</td>\n                <td class=\"info-data\"></td>\n            </tr>\n        </tbody>\n    </table>\n    <p class=\"info-text\" />\n    <p class=\"info-maneuvers\" />\n    <br />\n    <span class=\"info-header info-sources\">Sources</span>: \n    <span class=\"info-data info-sources\"></span>\n</div>"));
     this.info_container.hide();
     this.print_list_button = $(this.container.find('button.print-list'));
     this.container.find('[rel=tooltip]').tooltip();
@@ -27385,8 +31787,12 @@ exportObj.SquadBuilder = (function() {
         }
       };
     })(this)).on('xwing-backend:squadLoadRequested', (function(_this) {
-      return function(e, squad) {
-        return _this.onSquadLoadRequested(squad);
+      return function(e, squad, cb) {
+        if (cb == null) {
+          cb = $.noop;
+        }
+        _this.onSquadLoadRequested(squad);
+        return cb();
       };
     })(this)).on('xwing-backend:squadDirtinessChanged', (function(_this) {
       return function(e) {
@@ -27479,6 +31885,13 @@ exportObj.SquadBuilder = (function() {
           return cb(_this);
         }
       };
+    })(this)).on('xwing:gameTypeChanged', (function(_this) {
+      return function(e, gameType, cb) {
+        if (cb == null) {
+          cb = $.noop;
+        }
+        return _this.onGameTypeChanged(gameType, cb);
+      };
     })(this));
     this.obstacles_select.change((function(_this) {
       return function(e) {
@@ -27521,7 +31934,7 @@ exportObj.SquadBuilder = (function() {
     })(this));
     this.print_list_button.click((function(_this) {
       return function(e) {
-        var container, dial, expanded_hull_and_shield, faction, query, ship, text, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _ref3, _ref4;
+        var container, expanded_hull_and_shield, faction, query, ship, text, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
         e.preventDefault();
         _this.printable_container.find('.printable-header').html(_this.list_modal.find('.modal-header').html());
         _this.printable_container.find('.printable-body').text('');
@@ -27546,22 +31959,18 @@ exportObj.SquadBuilder = (function() {
                 text.hidden = true;
               }
             }
-            if (!_this.list_modal.find('.toggle-maneuver-print').prop('checked')) {
-              _ref2 = _this.printable_container.find('.fancy-dial');
-              for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-                dial = _ref2[_k];
-                dial.hidden = true;
-              }
+            if (_this.list_modal.find('.toggle-maneuver-print').prop('checked')) {
+              _this.printable_container.find('.printable-body').append(_this.getSquadDialsAsHTML());
             }
             expanded_hull_and_shield = _this.list_modal.find('.toggle-expanded-shield-hull-print').prop('checked');
-            _ref3 = _this.printable_container.find('.expanded-hull-or-shield');
-            for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
-              container = _ref3[_l];
+            _ref2 = _this.printable_container.find('.expanded-hull-or-shield');
+            for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+              container = _ref2[_k];
               container.hidden = !expanded_hull_and_shield;
             }
-            _ref4 = _this.printable_container.find('.simple-hull-or-shield');
-            for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
-              container = _ref4[_m];
+            _ref3 = _this.printable_container.find('.simple-hull-or-shield');
+            for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
+              container = _ref3[_l];
               container.hidden = expanded_hull_and_shield;
             }
             faction = (function() {
@@ -27576,18 +31985,22 @@ exportObj.SquadBuilder = (function() {
                   return 'resistance';
                 case 'First Order':
                   return 'firstorder';
+                case 'Galactic Republic':
+                  return 'galacticrepublic';
+                case 'Separatist Alliance':
+                  return 'separatistalliance';
               }
             }).call(_this);
             _this.printable_container.find('.squad-faction').html("<i class=\"xwing-miniatures-font xwing-miniatures-font-" + faction + "\"></i>");
         }
         _this.printable_container.find('.printable-body').append($.trim("<div class=\"print-conditions\"></div>"));
         _this.printable_container.find('.printable-body .print-conditions').html(_this.condition_container.html());
-        _this.printable_container.find('.printable-body').append($.trim("<h5 class=\"print-notes\">Notes:</h5>\n<pre class=\"print-notes\"></pre>\n<div class=\"version\">Points Version: Jan 28th, 2019</div>"));
         if ($.trim(_this.notes.val()) !== '') {
+          _this.printable_container.find('.printable-body').append($.trim("<h5 class=\"print-notes\">Notes:</h5>\n<pre class=\"print-notes\"></pre>\n<div class=\"version\">Points Version: Mar 21st, 2019</div>"));
           _this.printable_container.find('.printable-body pre.print-notes').text(_this.notes.val());
         }
         if (_this.list_modal.find('.toggle-obstacles').prop('checked')) {
-          _this.printable_container.find('.printable-body').append($.trim("<div class=\"obstacles\">\n    <div>Mark the three obstacles you are using.</div>\n    <img class=\"obstacle-silhouettes\" src=\"images/xws-obstacles.png\" />\n    <div>Mark which damage deck you are using.</div>\n    <div><i class=\"fa fa-square-o\"></i>Original Core Set&nbsp;&nbsp&nbsp;<i class=\"fa fa-square-o\"></i>The Force Awakens Core Set</div>\n</div>"));
+          _this.printable_container.find('.printable-body').append($.trim("<div class=\"obstacles\">\n    <div>Mark the three obstacles you are using.</div>\n    <img class=\"obstacle-silhouettes\" src=\"images/xws-obstacles.png\" />\n</div>"));
         }
         query = _this.getPermaLinkParams(['sn', 'obs']);
         if ((query != null) && _this.list_modal.find('.toggle-juggler-qrcode').prop('checked')) {
@@ -27676,40 +32089,45 @@ exportObj.SquadBuilder = (function() {
   };
 
   SquadBuilder.prototype.onGameTypeChanged = function(gametype, cb) {
-    var oldHyperspace;
+    var oldHyperspace, oldQuickbuild, old_id;
     if (cb == null) {
       cb = $.noop;
     }
+    this.game_type_selector.val(gametype);
     oldHyperspace = this.isHyperspace;
+    oldQuickbuild = this.isQuickbuild;
     switch (gametype) {
       case 'standard':
         this.isHyperspace = false;
-        this.isCustom = false;
+        this.isQuickbuild = false;
         this.desired_points_input.val(200);
         this.maxSmallShipsOfOneType = null;
         this.maxLargeShipsOfOneType = null;
         break;
       case 'hyperspace':
         this.isHyperspace = true;
-        this.isCustom = false;
+        this.isQuickbuild = false;
         this.desired_points_input.val(200);
         this.maxSmallShipsOfOneType = null;
         this.maxLargeShipsOfOneType = null;
         break;
-      case 'custom':
+      case 'quickbuild':
         this.isHyperspace = false;
-        this.isCustom = true;
+        this.isQuickbuild = true;
+        this.desired_points_input.val(8);
         this.maxSmallShipsOfOneType = null;
         this.maxLargeShipsOfOneType = null;
     }
-    if (oldHyperspace !== this.isHyperspace) {
+    if ((oldHyperspace !== this.isHyperspace) || (oldQuickbuild !== this.isQuickbuild)) {
+      old_id = this.current_squad.id;
       this.newSquadFromScratch($.trim(this.current_squad.name));
+      this.current_squad.id = old_id;
     }
-    return this.onPointsUpdated(cb);
+    return cb();
   };
 
   SquadBuilder.prototype.onPointsUpdated = function(cb) {
-    var bbcode_ships, conditions, conditions_set, htmlview_ships, i, points_left, reddit_ships, ship, ship_uses_unreleased_content, tts_ships, unreleased_content_used, _i, _j, _k, _len, _len1, _ref, _ref1, _ref2;
+    var bbcode_ships, conditions, conditions_set, htmlview_ships, i, points_left, reddit_ships, ship, ship_uses_unreleased_content, simplecopy_ships, tts_ships, unreleased_content_used, _i, _j, _k, _len, _len1, _ref, _ref1, _ref2;
     if (cb == null) {
       cb = $.noop;
     }
@@ -27735,6 +32153,7 @@ exportObj.SquadBuilder = (function() {
     this.fancy_total_points_container.text(this.total_points);
     this.fancy_container.text('');
     this.simple_container.html('<table class="simple-table"></table>');
+    simplecopy_ships = [];
     reddit_ships = [];
     tts_ships = [];
     bbcode_ships = [];
@@ -27745,6 +32164,7 @@ exportObj.SquadBuilder = (function() {
       if (ship.pilot != null) {
         this.fancy_container.append(ship.toHTML());
         this.simple_container.find('table').append(ship.toTableRow());
+        simplecopy_ships.push(ship.toSimpleCopy());
         reddit_ships.push(ship.toRedditText());
         tts_ships.push(ship.toTTSText());
         bbcode_ships.push(ship.toBBCode());
@@ -27752,9 +32172,10 @@ exportObj.SquadBuilder = (function() {
       }
     }
     this.htmlview_container.find('textarea').val($.trim("" + (htmlview_ships.join('<br />')) + "\n<br />\n<b><i>Total: " + this.total_points + "</i></b>\n<br />\n<a href=\"" + (this.getPermaLink()) + "\">View in Yet Another Squad Builder 2.0</a>"));
-    this.reddit_container.find('textarea').val($.trim("" + (reddit_ships.join("    \n")) + "\n\n\n**Total:** *" + this.total_points + "*    \n\n\n\n[View in Yet Another Squad Builder 2.0](" + (this.getPermaLink()) + ")    \n"));
+    this.reddit_container.find('textarea').val($.trim("" + (reddit_ships.join("    \n")) + "    \n**Total:** *" + this.total_points + "*    \n    \n[View in Yet Another Squad Builder 2.0](" + (this.getPermaLink()) + ")"));
+    this.simplecopy_container.find('textarea').val($.trim("" + (simplecopy_ships.join("")) + "    \nTotal: " + this.total_points + "    \n    \nView in Yet Another Squad Builder 2.0: " + (this.getPermaLink())));
     this.tts_container.find('textarea').val($.trim("" + (tts_ships.join(""))));
-    this.bbcode_container.find('textarea').val($.trim("" + (bbcode_ships.join("\n\n")) + "\n\n[b][i]Total: " + this.total_points + "[/i][/b]\n\n[url=" + (this.getPermaLink()) + "]View in Yet Another Squad Builder 2.0[/url]"));
+    this.bbcode_container.find('textarea').val($.trim("" + (bbcode_ships.join("\n\n")) + "\n[b][i]Total: " + this.total_points + "[/i][/b]\n\n[url=" + (this.getPermaLink()) + "]View in Yet Another Squad Builder 2.0[/url]"));
     this.checkCollection();
     if (typeof Set !== "undefined" && Set !== null) {
       conditions_set = new Set();
@@ -27800,13 +32221,19 @@ exportObj.SquadBuilder = (function() {
     this.notes.val((_ref = squad.additional_data.notes) != null ? _ref : '');
     this.backend_status.fadeOut('slow');
     this.current_squad.dirty = false;
-    return this.container.trigger('xwing-backend:squadDirtinessChanged');
+    this.container.trigger('xwing-backend:squadDirtinessChanged');
+    return this.container.trigger('xwing-backend:squadNameChanged');
   };
 
   SquadBuilder.prototype.onSquadDirtinessChanged = function() {
     this.backend_save_list_button.toggleClass('disabled', !(this.current_squad.dirty && this.total_points > 0));
     this.backend_save_list_as_button.toggleClass('disabled', this.total_points === 0);
-    return this.backend_delete_list_button.toggleClass('disabled', this.current_squad.id == null);
+    this.backend_delete_list_button.toggleClass('disabled', this.current_squad.id == null);
+    if (this.ships.length > 1) {
+      return $('meta[property="og:description"]').attr("content", "X-Wing Squadron by YASB 2.0: " + this.current_squad.name + ": " + this.describeSquad());
+    } else {
+      return $('meta[property="og:description"]').attr("content", "YASB 2.0 is a simple, fast, and easy to use squad builder for X-Wing Miniatures by Fantasy Flight Games.");
+    }
   };
 
   SquadBuilder.prototype.onSquadNameChanged = function() {
@@ -27818,7 +32245,17 @@ exportObj.SquadBuilder = (function() {
     }
     this.squad_name_placeholder.text('');
     this.squad_name_placeholder.append(short_name);
-    return this.squad_name_input.val(this.current_squad.name);
+    this.squad_name_input.val(this.current_squad.name);
+    if (!this.container.is(':visible')) {
+      return;
+    }
+    if (this.current_squad.name !== "Unnamed Squadron" && this.current_squad.name !== "Unsaved Squadron") {
+      if (document.title !== "YASB 2.0 - " + this.current_squad.name) {
+        return document.title = "YASB 2.0 - " + this.current_squad.name;
+      }
+    } else {
+      return document.title = "YASB 2.0";
+    }
   };
 
   SquadBuilder.prototype.removeAllShips = function() {
@@ -27851,25 +32288,26 @@ exportObj.SquadBuilder = (function() {
   };
 
   SquadBuilder.prototype.serialize = function() {
-    var game_type_abbrev, serialization_version, ship;
-    serialization_version = 5;
+    var game_type_abbrev, selected_points, serialization_version, ship;
+    serialization_version = 6;
     game_type_abbrev = (function() {
       switch (this.game_type_selector.val()) {
         case 'standard':
           return 's';
         case 'hyperspace':
           return 'h';
-        case 'custom':
-          return "c=" + ($.trim(this.desired_points_input.val()));
+        case 'quickbuild':
+          return 'q';
       }
     }).call(this);
-    return "v" + serialization_version + "!" + game_type_abbrev + "!" + (((function() {
+    selected_points = $.trim(this.desired_points_input.val());
+    return "v" + serialization_version + "!" + game_type_abbrev + "=" + selected_points + "!" + (((function() {
       var _i, _len, _ref, _results;
       _ref = this.ships;
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         ship = _ref[_i];
-        if (ship.pilot != null) {
+        if ((ship.pilot != null) && (!this.isQuickbuild || ship.primary)) {
           _results.push(ship.toSerialized());
         }
       }
@@ -27877,8 +32315,14 @@ exportObj.SquadBuilder = (function() {
     }).call(this)).join(';'));
   };
 
+  SquadBuilder.prototype.changeGameTypeOnSquadLoad = function(gametype) {
+    if (this.game_type_selector.val() !== gametype) {
+      return $(window).trigger('xwing:gameTypeChanged', gametype);
+    }
+  };
+
   SquadBuilder.prototype.loadFromSerialized = function(serialized) {
-    var game_type_abbrev, matches, new_ship, re, serialized_ship, serialized_ships, ship, ships_with_unmet_dependencies, version, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
+    var desired_points, game_type_abbrev, game_type_and_point_abbrev, matches, new_ship, re, serialized_ship, serialized_ships, ship, ships_with_unmet_dependencies, version, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
     this.suppress_automatic_new_ship = true;
     this.removeAllShips();
     re = /^v(\d+)!(.*)/;
@@ -27889,20 +32333,44 @@ exportObj.SquadBuilder = (function() {
         case 3:
         case 4:
         case 5:
-          _ref = matches[2].split('!'), game_type_abbrev = _ref[0], serialized_ships = _ref[1];
-          switch (game_type_abbrev) {
-            case 's':
-              this.game_type_selector.val('standard');
-              this.game_type_selector.change();
-              break;
-            case 'h':
-              this.game_type_selector.val('hyperspace');
-              this.game_type_selector.change();
-              break;
-            default:
-              this.game_type_selector.val('custom');
-              this.desired_points_input.val(parseInt(game_type_abbrev.split('=')[1]));
-              this.desired_points_input.change();
+        case 6:
+        case 7:
+          _ref = matches[2].split('!'), game_type_and_point_abbrev = _ref[0], serialized_ships = _ref[1];
+          if (serialized_ships == null) {
+            this.loading_failed_container.toggleClass('hidden', false);
+            return;
+          }
+          if (version === 6) {
+            desired_points = parseInt(game_type_and_point_abbrev.split('=')[1]);
+            game_type_abbrev = game_type_and_point_abbrev.split('=')[0];
+            switch (game_type_abbrev) {
+              case 's':
+                this.changeGameTypeOnSquadLoad('standard');
+                break;
+              case 'h':
+                this.changeGameTypeOnSquadLoad('hyperspace');
+                break;
+              case 'q':
+                this.changeGameTypeOnSquadLoad('quickbuild');
+            }
+            this.desired_points_input.val(desired_points);
+            this.desired_points_input.change();
+          } else {
+            switch (game_type_and_point_abbrev) {
+              case 's':
+                this.changeGameTypeOnSquadLoad('standard');
+                break;
+              case 'h':
+                this.changeGameTypeOnSquadLoad('hyperspace');
+                break;
+              case 'q':
+                this.changeGameTypeOnSquadLoad('quickbuild');
+                break;
+              default:
+                this.changeGameTypeOnSquadLoad('standard');
+                this.desired_points_input.val(parseInt(game_type_and_point_abbrev.split('=')[1]));
+                this.desired_points_input.change();
+            }
           }
           ships_with_unmet_dependencies = [];
           _ref1 = serialized_ships.split(';');
@@ -27980,6 +32448,9 @@ exportObj.SquadBuilder = (function() {
           }
         }
       }
+      if (unique.solitary != null) {
+        this.uniques_in_use['Slot'].push(unique.slot);
+      }
       this.uniques_in_use[type].push(unique);
     } else {
       throw new Error("Unique " + type + " '" + unique.name + "' already claimed");
@@ -27988,17 +32459,29 @@ exportObj.SquadBuilder = (function() {
   };
 
   SquadBuilder.prototype.releaseUnique = function(unique, type, cb) {
-    var idx, u, uniques, _i, _len, _ref;
+    var idx, u, uniques, _i, _j, _len, _len1, _ref;
     idx = this.uniqueIndex(unique, type);
     if (idx >= 0) {
       _ref = this.uniques_in_use;
       for (type in _ref) {
         uniques = _ref[type];
-        this.uniques_in_use[type] = [];
-        for (_i = 0, _len = uniques.length; _i < _len; _i++) {
-          u = uniques[_i];
-          if (u.canonical_name.getXWSBaseName() !== unique.canonical_name.getXWSBaseName()) {
-            this.uniques_in_use[type].push(u);
+        if (type === 'Slot') {
+          if (unique.solitary != null) {
+            this.uniques_in_use[type] = [];
+            for (_i = 0, _len = uniques.length; _i < _len; _i++) {
+              u = uniques[_i];
+              if (u !== unique.slot) {
+                this.uniques_in_use[type].push(u.slot);
+              }
+            }
+          }
+        } else {
+          this.uniques_in_use[type] = [];
+          for (_j = 0, _len1 = uniques.length; _j < _len1; _j++) {
+            u = uniques[_j];
+            if (u.canonical_name.getXWSBaseName() !== unique.canonical_name.getXWSBaseName()) {
+              this.uniques_in_use[type].push(u);
+            }
           }
         }
       }
@@ -28015,39 +32498,52 @@ exportObj.SquadBuilder = (function() {
       container: this.ship_container
     });
     this.ships.push(new_ship);
+    this.ship_number_invalid_container.toggleClass('hidden', this.ships.length < 10 && this.ships.length > 2);
     return new_ship;
   };
 
-  SquadBuilder.prototype.removeShip = function(ship) {
+  SquadBuilder.prototype.removeShip = function(ship, cb) {
     var ___iced_passed_deferral, __iced_deferrals, __iced_k;
     __iced_k = __iced_k_noop;
     ___iced_passed_deferral = iced.findDeferral(arguments);
+    if (cb == null) {
+      cb = $.noop;
+    }
     (function(_this) {
       return (function(__iced_k) {
-        __iced_deferrals = new iced.Deferrals(__iced_k, {
-          parent: ___iced_passed_deferral,
-          funcname: "SquadBuilder.removeShip"
-        });
-        ship.destroy(__iced_deferrals.defer({
-          lineno: 28152
-        }));
-        __iced_deferrals._fulfill();
+        if ((ship != null ? ship.destroy : void 0) != null) {
+          (function(__iced_k) {
+            __iced_deferrals = new iced.Deferrals(__iced_k, {
+              parent: ___iced_passed_deferral,
+              funcname: "SquadBuilder.removeShip"
+            });
+            ship.destroy(__iced_deferrals.defer({
+              lineno: 34490
+            }));
+            __iced_deferrals._fulfill();
+          })(function() {
+            (function(__iced_k) {
+              __iced_deferrals = new iced.Deferrals(__iced_k, {
+                parent: ___iced_passed_deferral,
+                funcname: "SquadBuilder.removeShip"
+              });
+              _this.container.trigger('xwing:pointsUpdated', __iced_deferrals.defer({
+                lineno: 34491
+              }));
+              __iced_deferrals._fulfill();
+            })(function() {
+              _this.current_squad.dirty = true;
+              _this.container.trigger('xwing-backend:squadDirtinessChanged');
+              return __iced_k(_this.ship_number_invalid_container.toggleClass('hidden', _this.ships.length < 10 && _this.ships.length > 2));
+            });
+          });
+        } else {
+          return __iced_k();
+        }
       });
     })(this)((function(_this) {
       return function() {
-        (function(__iced_k) {
-          __iced_deferrals = new iced.Deferrals(__iced_k, {
-            parent: ___iced_passed_deferral,
-            funcname: "SquadBuilder.removeShip"
-          });
-          _this.container.trigger('xwing:pointsUpdated', __iced_deferrals.defer({
-            lineno: 28153
-          }));
-          __iced_deferrals._fulfill();
-        })(function() {
-          _this.current_squad.dirty = true;
-          return _this.container.trigger('xwing-backend:squadDirtinessChanged');
-        });
+        return cb();
       };
     })(this));
   };
@@ -28096,7 +32592,7 @@ exportObj.SquadBuilder = (function() {
       ship_data = _ref[ship_name];
       if (this.isOurFaction(ship_data.factions) && (this.matcher(ship_data.name, term) || (ship_data.display_name && this.matcher(ship_data.display_name, term)))) {
         if (this.isItemAvailable(ship_data, true)) {
-          if (!ship_data.huge || this.isCustom) {
+          if (!ship_data.huge) {
             if (ship_data.display_name) {
               ships.push({
                 id: ship_data.name,
@@ -28145,59 +32641,175 @@ exportObj.SquadBuilder = (function() {
     return cheap_ships;
   };
 
-  SquadBuilder.prototype.getAvailablePilotsForShipIncluding = function(ship, include_pilot, term, sorted) {
-    var available_faction_pilots, eligible_faction_pilots, pilot, pilot_name, retval;
+  SquadBuilder.prototype.getAvailablePilotsForShipIncluding = function(ship, include_pilot, term, sorted, ship_selector) {
+    var allowed_quickbuilds_containing_uniques_in_use, available_faction_pilots, eligible_faction_pilots, id, include_pilot_pilot, include_quickbuild, include_upgrade, include_upgrade_name, other, pilot, pilot_name, quickbuild, quickbuilds_matching_ship_and_faction, retval, uniques_in_use_by_pilot_in_use, upgrade, upgradedata, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3;
     if (term == null) {
       term = '';
     }
     if (sorted == null) {
       sorted = true;
     }
-    available_faction_pilots = (function() {
-      var _ref, _results;
-      _ref = exportObj.pilots;
-      _results = [];
-      for (pilot_name in _ref) {
-        pilot = _ref[pilot_name];
-        if (((ship == null) || pilot.ship === ship) && this.isOurFaction(pilot.faction) && (this.matcher(pilot_name, term) || (pilot.display_name && this.matcher(pilot.display_name, term))) && (this.isItemAvailable(pilot))) {
-          _results.push(pilot);
-        }
-      }
-      return _results;
-    }).call(this);
-    eligible_faction_pilots = (function() {
-      var _results;
-      _results = [];
-      for (pilot_name in available_faction_pilots) {
-        pilot = available_faction_pilots[pilot_name];
-        if (((pilot.unique == null) || __indexOf.call(this.uniques_in_use['Pilot'], pilot) < 0 || pilot.canonical_name.getXWSBaseName() === (include_pilot != null ? include_pilot.canonical_name.getXWSBaseName() : void 0)) && ((pilot.restriction_func == null) || pilot.restriction_func({
-          builder: this
-        }, pilot))) {
-          _results.push(pilot);
-        }
-      }
-      return _results;
-    }).call(this);
-    if ((include_pilot != null) && (include_pilot.unique != null) && (this.matcher(include_pilot.name, term) || (include_pilot.display_name && this.matcher(include_pilot.display_name, term)))) {
-      eligible_faction_pilots.push(include_pilot);
+    if (ship_selector == null) {
+      ship_selector = null;
     }
-    retval = (function() {
-      var _i, _len, _ref, _results;
-      _results = [];
-      for (_i = 0, _len = available_faction_pilots.length; _i < _len; _i++) {
-        pilot = available_faction_pilots[_i];
-        _results.push({
-          id: pilot.id,
-          text: "" + ((((_ref = exportObj.settings) != null ? _ref.initiative_prefix : void 0) != null) && exportObj.settings.initiative_prefix ? pilot.skill + ' - ' : '') + (pilot.display_name ? pilot.display_name : pilot.name) + " (" + pilot.points + ")",
-          points: pilot.points,
-          ship: pilot.ship,
-          name: pilot.name,
-          display_name: pilot.display_name,
-          disabled: __indexOf.call(eligible_faction_pilots, pilot) < 0
-        });
+    retval = [];
+    if (!this.isQuickbuild) {
+      available_faction_pilots = (function() {
+        var _ref, _results;
+        _ref = exportObj.pilots;
+        _results = [];
+        for (pilot_name in _ref) {
+          pilot = _ref[pilot_name];
+          if (((ship == null) || pilot.ship === ship) && this.isOurFaction(pilot.faction) && (this.matcher(pilot_name, term) || (pilot.display_name && this.matcher(pilot.display_name, term))) && (this.isItemAvailable(pilot))) {
+            _results.push(pilot);
+          }
+        }
+        return _results;
+      }).call(this);
+      eligible_faction_pilots = (function() {
+        var _results;
+        _results = [];
+        for (pilot_name in available_faction_pilots) {
+          pilot = available_faction_pilots[pilot_name];
+          if (((pilot.unique == null) || __indexOf.call(this.uniques_in_use['Pilot'], pilot) < 0 || pilot.canonical_name.getXWSBaseName() === (include_pilot != null ? include_pilot.canonical_name.getXWSBaseName() : void 0)) && ((pilot.max_per_squad == null) || this.countPilots(pilot.canonical_name) < pilot.max_per_squad || pilot.canonical_name.getXWSBaseName() === (include_pilot != null ? include_pilot.canonical_name.getXWSBaseName() : void 0)) && ((pilot.restriction_func == null) || pilot.restriction_func({
+            builder: this
+          }, pilot))) {
+            _results.push(pilot);
+          }
+        }
+        return _results;
+      }).call(this);
+      if ((include_pilot != null) && (include_pilot.unique != null) && (this.matcher(include_pilot.name, term) || (include_pilot.display_name && this.matcher(include_pilot.display_name, term)))) {
+        eligible_faction_pilots.push(include_pilot);
       }
-      return _results;
-    })();
+      retval = (function() {
+        var _i, _len, _ref, _results;
+        _results = [];
+        for (_i = 0, _len = available_faction_pilots.length; _i < _len; _i++) {
+          pilot = available_faction_pilots[_i];
+          _results.push({
+            id: pilot.id,
+            text: "" + ((((_ref = exportObj.settings) != null ? _ref.initiative_prefix : void 0) != null) && exportObj.settings.initiative_prefix ? pilot.skill + ' - ' : '') + (pilot.display_name ? pilot.display_name : pilot.name) + " (" + pilot.points + ")",
+            points: pilot.points,
+            ship: pilot.ship,
+            name: pilot.name,
+            display_name: pilot.display_name,
+            disabled: __indexOf.call(eligible_faction_pilots, pilot) < 0
+          });
+        }
+        return _results;
+      })();
+    } else {
+      quickbuilds_matching_ship_and_faction = (function() {
+        var _ref, _results;
+        _ref = exportObj.quickbuildsById;
+        _results = [];
+        for (id in _ref) {
+          quickbuild = _ref[id];
+          if (((ship == null) || quickbuild.ship === ship) && this.isOurFaction(quickbuild.faction) && (this.matcher(quickbuild.pilot, term) || ((exportObj.pilots[quickbuild.pilot].display_name != null) && this.matcher(exportObj.pilots[quickbuild.pilot].display_name, term)))) {
+            _results.push(quickbuild);
+          }
+        }
+        return _results;
+      }).call(this);
+      uniques_in_use_by_pilot_in_use = [];
+      if ((include_pilot != null) && include_pilot !== -1) {
+        include_quickbuild = exportObj.quickbuildsById[include_pilot];
+        include_pilot_pilot = exportObj.pilots[include_quickbuild.pilot];
+        if (include_pilot_pilot.unique != null) {
+          uniques_in_use_by_pilot_in_use.push(include_pilot_pilot);
+          _ref = exportObj.pilotsByUniqueName[include_pilot_pilot.canonical_name.getXWSBaseName()] || [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            other = _ref[_i];
+            if (other != null) {
+              uniques_in_use_by_pilot_in_use.push(other);
+            }
+          }
+        }
+        _ref2 = (_ref1 = include_quickbuild.upgrades) != null ? _ref1 : [];
+        for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+          include_upgrade_name = _ref2[_j];
+          include_upgrade = exportObj.upgrades[include_upgrade_name];
+          if (include_upgrade.unique != null) {
+            uniques_in_use_by_pilot_in_use.push(other);
+            _ref3 = exportObj.pilotsByUniqueName[include_upgrade.canonical_name.getXWSBaseName()] || [];
+            for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
+              other = _ref3[_k];
+              if (other != null) {
+                uniques_in_use_by_pilot_in_use.push(other);
+              }
+            }
+          }
+          if (include_upgrade.solitary != null) {
+            uniques_in_use_by_pilot_in_use.push(include_upgrade.slot);
+          }
+        }
+      }
+      allowed_quickbuilds_containing_uniques_in_use = [];
+      ({
+        loop: (function() {
+          var _ref4, _ref5, _ref6, _ref7, _ref8, _results;
+          _results = [];
+          for (id in quickbuilds_matching_ship_and_faction) {
+            quickbuild = quickbuilds_matching_ship_and_faction[id];
+            if ((((_ref4 = exportObj.pilots[quickbuild.pilot]) != null ? _ref4.unique : void 0) != null) && (_ref5 = exportObj.pilots[quickbuild.pilot], __indexOf.call(this.uniques_in_use.Pilot, _ref5) >= 0) && !(_ref6 = exportObj.pilots[quickbuild.pilot], __indexOf.call(uniques_in_use_by_pilot_in_use, _ref6) >= 0)) {
+              allowed_quickbuilds_containing_uniques_in_use.push(quickbuild.id);
+              continue;
+            }
+            if ((((_ref7 = exportObj.pilots[quickbuild.pilot]) != null ? _ref7.max_per_squad : void 0) != null) && this.countPilots(exportObj.pilots[quickbuild.pilot].canonical_name) >= exportObj.pilots[quickbuild.pilot].max_per_squad && !(_ref8 = exportObj.pilots[quickbuild.pilot], __indexOf.call(uniques_in_use_by_pilot_in_use, _ref8) >= 0)) {
+              allowed_quickbuilds_containing_uniques_in_use.push(quickbuild.id);
+              continue;
+            }
+            if (quickbuild.upgrades != null) {
+              _results.push((function() {
+                var _l, _len3, _ref10, _ref11, _ref12, _ref13, _ref9, _results1;
+                _ref9 = quickbuild.upgrades;
+                _results1 = [];
+                for (_l = 0, _len3 = _ref9.length; _l < _len3; _l++) {
+                  upgrade = _ref9[_l];
+                  upgradedata = exportObj.upgrades[upgrade];
+                  if (upgradedata == null) {
+                    console.log("There was an Issue including the upgrade " + upgrade + " in some quickbuild. Please report that Issue!");
+                    continue;
+                  }
+                  if ((upgradedata.unique != null) && __indexOf.call(this.uniques_in_use.Upgrade, upgradedata) >= 0 && !(__indexOf.call(uniques_in_use_by_pilot_in_use, upgradedata) >= 0)) {
+                    if (ship_selector === null || !(__indexOf.call(exportObj.quickbuildsById[ship_selector.quickbuildId].upgrades, upgrade) >= 0 || (ship_selector.linkedShip && __indexOf.call((_ref10 = exportObj.quickbuildsById[(_ref11 = ship_selector.linkedShip) != null ? _ref11.quickbuildId : void 0].upgrades) != null ? _ref10 : [], upgrade) >= 0))) {
+                      allowed_quickbuilds_containing_uniques_in_use.push(quickbuild.id);
+                      break;
+                    }
+                  }
+                  if ((upgradedata.solitary != null) && (_ref12 = upgradedata.slot, __indexOf.call(this.uniques_in_use['Slot'], _ref12) >= 0) && !(_ref13 = upgradedata.slot, __indexOf.call(uniques_in_use_by_pilot_in_use, _ref13) >= 0)) {
+                    allowed_quickbuilds_containing_uniques_in_use.push(quickbuild.id);
+                    break;
+                  } else {
+                    _results1.push(void 0);
+                  }
+                }
+                return _results1;
+              }).call(this));
+            } else {
+              _results.push(void 0);
+            }
+          }
+          return _results;
+        }).call(this)
+      });
+      retval = (function() {
+        var _l, _len3, _ref4, _ref5, _results;
+        _results = [];
+        for (_l = 0, _len3 = quickbuilds_matching_ship_and_faction.length; _l < _len3; _l++) {
+          quickbuild = quickbuilds_matching_ship_and_faction[_l];
+          _results.push({
+            id: quickbuild.id,
+            text: "" + ((((_ref4 = exportObj.settings) != null ? _ref4.initiative_prefix : void 0) != null) && exportObj.settings.initiative_prefix ? exportObj.pilots[quickbuild.pilot].skill + ' - ' : '') + (exportObj.pilots[quickbuild.pilot].display_name ? exportObj.pilots[quickbuild.pilot].display_name : quickbuild.pilot) + quickbuild.suffix + " (" + quickbuild.threat + ")",
+            points: quickbuild.threat,
+            ship: quickbuild.ship,
+            disabled: (_ref5 = quickbuild.id, __indexOf.call(allowed_quickbuilds_containing_uniques_in_use, _ref5) >= 0)
+          });
+        }
+        return _results;
+      })();
+    }
     if (sorted) {
       retval = retval.sort(exportObj.sortHelper);
     }
@@ -28220,6 +32832,19 @@ exportObj.SquadBuilder = (function() {
         if ((upgrade != null ? (_ref2 = upgrade.data) != null ? _ref2.canonical_name : void 0 : void 0) === canonical_name) {
           count++;
         }
+      }
+    }
+    return count;
+  };
+
+  SquadBuilder.prototype.countPilots = function(canonical_name) {
+    var count, ship, _i, _len, _ref, _ref1;
+    count = 0;
+    _ref = this.ships;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      ship = _ref[_i];
+      if ((ship != null ? (_ref1 = ship.pilot) != null ? _ref1.canonical_name.getXWSBaseName() : void 0 : void 0) === canonical_name.getXWSBaseName()) {
+        count++;
       }
     }
     return count;
@@ -28267,7 +32892,7 @@ exportObj.SquadBuilder = (function() {
       _results = [];
       for (upgrade_name in _ref) {
         upgrade = _ref[upgrade_name];
-        if (upgrade.slot === slot && (this.matcher(upgrade_name, term) || (upgrade.display_name && this.matcher(upgrade.display_name, term))) && ((upgrade.ship == null) || this.isShip(upgrade.ship, ship.data.name)) && ((upgrade.faction == null) || this.isOurFaction(upgrade.faction)) && (this.isItemAvailable(upgrade))) {
+        if (exportObj.slotsMatching(upgrade.slot, slot) && (this.matcher(upgrade_name, term) || (upgrade.display_name && this.matcher(upgrade.display_name, term))) && ((upgrade.ship == null) || this.isShip(upgrade.ship, ship.data.name)) && ((upgrade.faction == null) || this.isOurFaction(upgrade.faction)) && (this.isItemAvailable(upgrade))) {
           _results.push(upgrade);
         }
       }
@@ -28287,11 +32912,11 @@ exportObj.SquadBuilder = (function() {
       })();
     }
     eligible_upgrades = (function() {
-      var _results;
+      var _ref, _results;
       _results = [];
       for (upgrade_name in available_upgrades) {
         upgrade = available_upgrades[upgrade_name];
-        if (((upgrade.unique == null) || __indexOf.call(this.uniques_in_use['Upgrade'], upgrade) < 0) && (!((ship != null) && (upgrade.restriction_func != null)) || upgrade.restriction_func(ship, this_upgrade_obj)) && __indexOf.call(upgrades_in_use, upgrade) < 0 && ((upgrade.max_per_squad == null) || ship.builder.countUpgrades(upgrade.canonical_name) < upgrade.max_per_squad)) {
+        if (((upgrade.unique == null) || __indexOf.call(this.uniques_in_use['Upgrade'], upgrade) < 0) && (!((ship != null) && (upgrade.restriction_func != null)) || upgrade.restriction_func(ship, this_upgrade_obj)) && __indexOf.call(upgrades_in_use, upgrade) < 0 && ((upgrade.max_per_squad == null) || ship.builder.countUpgrades(upgrade.canonical_name) < upgrade.max_per_squad) && ((upgrade.solitary == null) || ((_ref = upgrade.slot, __indexOf.call(this.uniques_in_use['Slot'], _ref) < 0) || ((include_upgrade != null ? include_upgrade.solitary : void 0) != null)))) {
           _results.push(upgrade);
         }
       }
@@ -28345,6 +32970,25 @@ exportObj.SquadBuilder = (function() {
     } else {
       return retval;
     }
+  };
+
+  SquadBuilder.prototype.getSquadDialsAsHTML = function() {
+    var added_dials, dialHTML, maneuvers_modified, maneuvers_unmodified, ship, _i, _len, _ref, _ref1, _ref2;
+    dialHTML = "";
+    added_dials = {};
+    _ref = this.ships;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      ship = _ref[_i];
+      if (ship.pilot != null) {
+        maneuvers_unmodified = ship.data.maneuvers;
+        maneuvers_modified = ship.effectiveStats().maneuvers;
+        if ((added_dials[ship.data.name] == null) || !(_ref1 = maneuvers_modified.toString(), __indexOf.call(added_dials[ship.data.name], _ref1) >= 0)) {
+          added_dials[ship.data.name] = ((_ref2 = added_dials[ship.data.name]) != null ? _ref2 : []).concat([maneuvers_modified.toString()]);
+          dialHTML += '<div class="fancy-dial">' + ("<h4 class=\"ship-name-dial\">" + (ship.data.display_name != null ? ship.data.display_name : ship.data.name)) + ("" + (maneuvers_modified.toString() !== maneuvers_unmodified.toString() ? " (upgraded)" : "") + "</h4>") + this.getManeuverTableHTML(maneuvers_modified, maneuvers_unmodified) + '</div>';
+        }
+      }
+    }
+    return "<div class=\"print-dials-container\">\n    " + dialHTML + "\n</div>";
   };
 
   SquadBuilder.prototype.getManeuverTableHTML = function(maneuvers, baseManeuvers) {
@@ -28493,43 +33137,218 @@ exportObj.SquadBuilder = (function() {
     return outTable;
   };
 
-  SquadBuilder.prototype.showTooltip = function(type, data, additional_opts) {
-    var a, action, addon_count, count, effective_stats, extra_actions, extra_actions_red, pilot_count, point_info, ship, ship_count, slot, source, uniquedots, _i, _j, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref22, _ref23, _ref24, _ref25, _ref26, _ref27, _ref28, _ref29, _ref3, _ref30, _ref31, _ref32, _ref33, _ref34, _ref35, _ref36, _ref37, _ref38, _ref39, _ref4, _ref40, _ref41, _ref42, _ref43, _ref44, _ref45, _ref46, _ref47, _ref48, _ref49, _ref5, _ref50, _ref51, _ref52, _ref53, _ref54, _ref55, _ref56, _ref57, _ref58, _ref6, _ref7, _ref8, _ref9, _results, _results1;
+  SquadBuilder.prototype.showTooltip = function(type, data, additional_opts, container) {
+    var a, action, addon_count, cls, count, effective_stats, extra_actions, extra_actions_red, first, ini, inis, name, pilot, pilot_count, point_info, possible_inis, ship, ship_count, slot, slot_types, source, sources, state, uniquedots, upgrade, _i, _j, _k, _l, _len, _len1, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref22, _ref23, _ref24, _ref25, _ref26, _ref27, _ref28, _ref29, _ref3, _ref30, _ref31, _ref32, _ref33, _ref34, _ref35, _ref36, _ref37, _ref38, _ref39, _ref4, _ref40, _ref41, _ref42, _ref43, _ref44, _ref45, _ref46, _ref47, _ref48, _ref49, _ref5, _ref50, _ref51, _ref52, _ref53, _ref54, _ref55, _ref56, _ref57, _ref58, _ref59, _ref6, _ref60, _ref7, _ref8, _ref9, _results, _results1;
+    if (container == null) {
+      container = this.info_container;
+    }
     if (data !== this.tooltip_currently_displaying) {
       switch (type) {
         case 'Ship':
-          this.info_container.find('.info-sources').text(((function() {
-            var _i, _len, _ref, _results;
-            _ref = data.pilot.sources;
+          possible_inis = [];
+          slot_types = {};
+          for (slot in exportObj.upgradesBySlotCanonicalName) {
+            slot_types[slot] = -1;
+          }
+          _ref = exportObj.pilots;
+          for (name in _ref) {
+            pilot = _ref[name];
+            if (pilot.ship !== data.name) {
+              continue;
+            }
+            if (!(_ref1 = pilot.skill, __indexOf.call(possible_inis, _ref1) >= 0)) {
+              possible_inis.push(pilot.skill);
+            }
+            for (slot in slot_types) {
+              state = slot_types[slot];
+              switch (pilot.slots.filter((function(_this) {
+                    return function(item) {
+                      return item === slot;
+                    };
+                  })(this)).length) {
+                case 1:
+                  switch (state) {
+                    case -1:
+                      slot_types[slot] = 1;
+                      break;
+                    case 0:
+                      slot_types[slot] = 2;
+                      break;
+                    case 3:
+                      slot_types[slot] = 4;
+                  }
+                  break;
+                case 0:
+                  switch (state) {
+                    case -1:
+                      slot_types[slot] = 0;
+                      break;
+                    case 1:
+                      slot_types[slot] = 2;
+                      break;
+                    case 3:
+                    case 4:
+                      slot_types[slot] = 5;
+                  }
+                  break;
+                case 2:
+                  switch (state) {
+                    case -1:
+                      slot_types[slot] = 3;
+                      break;
+                    case 0:
+                    case 2:
+                      slot_types[slot] = 5;
+                      break;
+                    case 1:
+                      slot_types[slot] = 4;
+                  }
+              }
+            }
+          }
+          possible_inis.sort();
+          container.find('.info-type').text(type);
+          container.find('.info-name').html("" + (data.display_name ? data.display_name : data.name) + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
+          if (((_ref2 = this.collection) != null ? _ref2.counts : void 0) != null) {
+            ship_count = (_ref3 = (_ref4 = this.collection.counts) != null ? (_ref5 = _ref4.ship) != null ? _ref5[data.name] : void 0 : void 0) != null ? _ref3 : 0;
+            container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " in your collection.");
+          } else {
+            container.find('.info-collection').text('');
+          }
+          first = true;
+          inis = String(possible_inis[0]);
+          for (_i = 0, _len = possible_inis.length; _i < _len; _i++) {
+            ini = possible_inis[_i];
+            if (!first) {
+              inis += ", " + ini;
+            }
+            first = false;
+          }
+          container.find('tr.info-skill td.info-data').text(inis);
+          container.find('tr.info-skill').show();
+          container.find('tr.info-attack td.info-data').text(data.attack);
+          container.find('tr.info-attack-bullseye td.info-data').text(data.attackbull);
+          container.find('tr.info-attack-fullfront td.info-data').text(data.attackf);
+          container.find('tr.info-attack-back td.info-data').text(data.attackb);
+          container.find('tr.info-attack-turret td.info-data').text(data.attackt);
+          container.find('tr.info-attack-doubleturret td.info-data').text(data.attackdt);
+          container.find('tr.info-attack').toggle(data.attack != null);
+          container.find('tr.info-attack-bullseye').toggle(data.attackbull != null);
+          container.find('tr.info-attack-fullfront').toggle(data.attackf != null);
+          container.find('tr.info-attack-back').toggle(data.attackb != null);
+          container.find('tr.info-attack-turret').toggle(data.attackt != null);
+          container.find('tr.info-attack-doubleturret').toggle(data.attackdt != null);
+          _ref6 = container.find('tr.info-attack td.info-header i.xwing-miniatures-font')[0].classList;
+          for (_j = 0, _len1 = _ref6.length; _j < _len1; _j++) {
+            cls = _ref6[_j];
+            if (cls.startsWith('xwing-miniatures-font-attack')) {
+              container.find('tr.info-attack td.info-header i.xwing-miniatures-font').removeClass(cls);
+            }
+          }
+          container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref7 = data.attack_icon) != null ? _ref7 : 'xwing-miniatures-font-attack');
+          container.find('tr.info-energy td.info-data').text(data.energy);
+          container.find('tr.info-energy').toggle(data.energy != null);
+          container.find('tr.info-range').hide();
+          container.find('tr.info-agility td.info-data').text(data.agility);
+          container.find('tr.info-agility').show();
+          container.find('tr.info-hull td.info-data').text(data.hull);
+          container.find('tr.info-hull').show();
+          container.find('tr.info-shields td.info-data').text(data.shields);
+          container.find('tr.info-shields').show();
+          container.find('tr.info-force').hide();
+          container.find('tr.info-charge').hide();
+          container.find('tr.info-actions td.info-data').html(((((function() {
+            var _k, _len2, _ref8, _results;
+            _ref8 = data.actions;
             _results = [];
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              source = _ref[_i];
+            for (_k = 0, _len2 = _ref8.length; _k < _len2; _k++) {
+              action = _ref8[_k];
+              _results.push(exportObj.translate(this.language, 'action', action));
+            }
+            return _results;
+          }).call(this)).join(', ')).replace(/, <r><i class="xwing-miniatures-font xwing-miniatures-font-linked red">/g, ' <r><i class="xwing-miniatures-font xwing-miniatures-font-linked red">').replace(/, <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <r><i class="xwing-miniatures-font xwing-miniatures-font-linked">')).replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked red">/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked red">').replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked">/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked">'));
+          container.find('tr.info-actions').show();
+          if (data.actionsred != null) {
+            container.find('tr.info-actions-red td.info-data-red').html(((function() {
+              var _k, _len2, _ref8, _results;
+              _ref8 = data.actionsred;
+              _results = [];
+              for (_k = 0, _len2 = _ref8.length; _k < _len2; _k++) {
+                action = _ref8[_k];
+                _results.push(exportObj.translate(this.language, 'action', action));
+              }
+              return _results;
+            }).call(this)).join(', '));
+            container.find('tr.info-actions-red').show();
+          } else {
+            container.find('tr.info-actions-red').hide();
+          }
+          container.find('tr.info-upgrades').show();
+          container.find('tr.info-upgrades td.info-data').html(((function() {
+            var _results;
+            _results = [];
+            for (slot in slot_types) {
+              state = slot_types[slot];
+              _results.push(state === 1 ? exportObj.translate(this.language, 'sloticon', slot) : (state === 2 ? '(' + exportObj.translate(this.language, 'sloticon', slot) + ')' : (state === 3 ? exportObj.translate(this.language, 'sloticon', slot) + exportObj.translate(this.language, 'sloticon', slot) : (state === 4 ? exportObj.translate(this.language, 'sloticon', slot) + '(' + exportObj.translate(this.language, 'sloticon', slot) + ')' : (state === 5 ? '(' + exportObj.translate(this.language, 'sloticon', slot) + exportObj.translate(this.language, 'sloticon', slot) + ')' : void 0)))));
+            }
+            return _results;
+          }).call(this)).join(' ') || 'None');
+          container.find('p.info-text').hide();
+          container.find('p.info-maneuvers').show();
+          container.find('p.info-maneuvers').html(this.getManeuverTableHTML(data.maneuvers, data.maneuvers));
+          sources = ((function() {
+            var _k, _len2, _ref8, _results;
+            _ref8 = data.sources;
+            _results = [];
+            for (_k = 0, _len2 = _ref8.length; _k < _len2; _k++) {
+              source = _ref8[_k];
+              _results.push(exportObj.translate(this.language, 'sources', source));
+            }
+            return _results;
+          }).call(this)).sort();
+          container.find('.info-sources.info-data').text((sources.length > 1) || (!(__indexOf.call(sources, 'Loose Ships') >= 0)) ? (sources.length > 0 ? sources.join(', ') : exportObj.translate(this.language, 'ui', 'unreleased')) : "Only available from 1st edition");
+          container.find('.info-sources').show();
+          break;
+        case 'Pilot':
+          container.find('.info-type').text(type);
+          container.find('.info-sources.info-data').text(((function() {
+            var _k, _len2, _ref8, _results;
+            _ref8 = data.sources;
+            _results = [];
+            for (_k = 0, _len2 = _ref8.length; _k < _len2; _k++) {
+              source = _ref8[_k];
               _results.push(exportObj.translate(this.language, 'sources', source));
             }
             return _results;
           }).call(this)).sort().join(', '));
-          if (((_ref = this.collection) != null ? _ref.counts : void 0) != null) {
-            ship_count = (_ref1 = (_ref2 = this.collection.counts) != null ? (_ref3 = _ref2.ship) != null ? _ref3[data.data.name] : void 0 : void 0) != null ? _ref1 : 0;
-            pilot_count = (_ref4 = (_ref5 = this.collection.counts) != null ? (_ref6 = _ref5.pilot) != null ? _ref6[data.pilot.name] : void 0 : void 0) != null ? _ref4 : 0;
-            this.info_container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " and " + pilot_count + " pilot card" + (pilot_count > 1 ? 's' : '') + " in your collection.");
+          container.find('.info-sources').show();
+          if (((_ref8 = this.collection) != null ? _ref8.counts : void 0) != null) {
+            pilot_count = (_ref9 = (_ref10 = this.collection.counts) != null ? (_ref11 = _ref10.pilot) != null ? _ref11[data.name] : void 0 : void 0) != null ? _ref9 : 0;
+            ship_count = (_ref12 = (_ref13 = this.collection.counts.ship) != null ? _ref13[data.ship] : void 0) != null ? _ref12 : 0;
+            container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " and " + pilot_count + " pilot card" + (pilot_count > 1 ? 's' : '') + " in your collection.");
           } else {
-            this.info_container.find('.info-collection').text('');
+            container.find('.info-collection').text('');
           }
-          effective_stats = data.effectiveStats();
-          extra_actions = $.grep(effective_stats.actions, function(el, i) {
-            var _ref7, _ref8;
-            return __indexOf.call((_ref7 = (_ref8 = data.pilot.ship_override) != null ? _ref8.actions : void 0) != null ? _ref7 : data.data.actions, el) < 0;
-          });
-          extra_actions_red = $.grep(effective_stats.actionsred, function(el, i) {
-            var _ref7, _ref8;
-            return __indexOf.call((_ref7 = (_ref8 = data.pilot.ship_override) != null ? _ref8.actionsred : void 0) != null ? _ref7 : data.data.actionsred, el) < 0;
-          });
-          if (data.pilot.unique != null) {
+          if ((additional_opts != null ? additional_opts.effectiveStats : void 0) != null) {
+            effective_stats = additional_opts.effectiveStats();
+            extra_actions = $.grep(effective_stats.actions, function(el, i) {
+              var _ref14, _ref15;
+              return __indexOf.call((_ref14 = (_ref15 = data.ship_override) != null ? _ref15.actions : void 0) != null ? _ref14 : additional_opts.data.actions, el) < 0;
+            });
+            extra_actions_red = $.grep(effective_stats.actionsred, function(el, i) {
+              var _ref14, _ref15;
+              return __indexOf.call((_ref14 = (_ref15 = data.ship_override) != null ? _ref15.actionsred : void 0) != null ? _ref14 : additional_opts.data.actionsred, el) < 0;
+            });
+          } else {
+            extra_actions = [];
+            extra_actions_red = [];
+          }
+          if (data.unique != null) {
             uniquedots = "&middot;&nbsp;";
-          } else if (data.pilot.restricted != null) {
+          } else if (data.max_per_squad != null) {
             count = 0;
             uniquedots = "";
-            while (count < data.pilot.restricted) {
+            while (count < data.max_per_squad) {
               uniquedots = uniquedots.concat("&middot;");
               ++count;
             }
@@ -28537,136 +33356,131 @@ exportObj.SquadBuilder = (function() {
           } else {
             uniquedots = "";
           }
-          this.info_container.find('.info-name').html("" + uniquedots + (data.pilot.display_name ? data.pilot.display_name : data.pilot.name) + " " + (exportObj.isReleased(data.pilot) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
-          this.info_container.find('p.info-text').html((_ref7 = data.pilot.text) != null ? _ref7 : '');
-          this.info_container.find('tr.info-ship td.info-data').text(data.pilot.ship);
-          this.info_container.find('tr.info-ship').show();
-          if (data.data.large != null) {
-            this.info_container.find('tr.info-base td.info-data').text("Large");
-          } else if (data.data.medium != null) {
-            this.info_container.find('tr.info-base td.info-data').text("Medium");
+          container.find('.info-name').html("" + uniquedots + (data.display_name ? data.display_name : data.name) + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
+          container.find('p.info-text').html((_ref14 = data.text) != null ? _ref14 : '');
+          container.find('p.info-text').show();
+          ship = exportObj.ships[data.ship];
+          container.find('tr.info-ship td.info-data').text(data.ship);
+          container.find('tr.info-ship').show();
+          container.find('.info-solitary').hide;
+          if (ship.large != null) {
+            container.find('tr.info-base td.info-data').text("Large");
+          } else if (ship.medium != null) {
+            container.find('tr.info-base td.info-data').text("Medium");
           } else {
-            this.info_container.find('tr.info-base td.info-data').text("Small");
+            container.find('tr.info-base td.info-data').text("Small");
           }
-          this.info_container.find('tr.info-base').show();
-          this.info_container.find('tr.info-skill td.info-data').text(statAndEffectiveStat(data.pilot.skill, effective_stats, 'skill'));
-          this.info_container.find('tr.info-skill').show();
-          this.info_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref8 = data.data.attack_icon) != null ? _ref8 : 'xwing-miniatures-font-attack');
-          this.info_container.find('tr.info-attack td.info-data').text(statAndEffectiveStat((_ref9 = (_ref10 = data.pilot.ship_override) != null ? _ref10.attack : void 0) != null ? _ref9 : data.data.attack, effective_stats, 'attack'));
-          this.info_container.find('tr.info-attack').toggle(effective_stats.attack != null);
-          this.info_container.find('tr.info-attack-fullfront td.info-data').text(statAndEffectiveStat((_ref11 = (_ref12 = data.pilot.ship_override) != null ? _ref12.attackf : void 0) != null ? _ref11 : data.data.attackf, effective_stats, 'attackf'));
-          this.info_container.find('tr.info-attack-fullfront').toggle(effective_stats.attackf != null);
-          this.info_container.find('tr.info-attack-bullseye').hide();
-          this.info_container.find('tr.info-attack-back td.info-data').text(statAndEffectiveStat((_ref13 = (_ref14 = data.pilot.ship_override) != null ? _ref14.attackb : void 0) != null ? _ref13 : data.data.attackb, effective_stats, 'attackb'));
-          this.info_container.find('tr.info-attack-back').toggle(effective_stats.attackb != null);
-          this.info_container.find('tr.info-attack-turret td.info-data').text(statAndEffectiveStat((_ref15 = (_ref16 = data.pilot.ship_override) != null ? _ref16.attackt : void 0) != null ? _ref15 : data.data.attackt, effective_stats, 'attackt'));
-          this.info_container.find('tr.info-attack-turret').toggle(effective_stats.attackt != null);
-          this.info_container.find('tr.info-attack-doubleturret td.info-data').text(statAndEffectiveStat((_ref17 = (_ref18 = data.pilot.ship_override) != null ? _ref18.attackdt : void 0) != null ? _ref17 : data.data.attackdt, effective_stats, 'attackdt'));
-          this.info_container.find('tr.info-attack-doubleturret').toggle(effective_stats.attackdt != null);
-          this.info_container.find('tr.info-energy td.info-data').text(statAndEffectiveStat((_ref19 = (_ref20 = data.pilot.ship_override) != null ? _ref20.energy : void 0) != null ? _ref19 : data.data.energy, effective_stats, 'energy'));
-          this.info_container.find('tr.info-energy').toggle((((_ref21 = data.pilot.ship_override) != null ? _ref21.energy : void 0) != null) || (data.data.energy != null));
-          this.info_container.find('tr.info-range').hide();
-          this.info_container.find('td.info-rangebonus').hide();
-          this.info_container.find('tr.info-agility td.info-data').text(statAndEffectiveStat((_ref22 = (_ref23 = data.pilot.ship_override) != null ? _ref23.agility : void 0) != null ? _ref22 : data.data.agility, effective_stats, 'agility'));
-          this.info_container.find('tr.info-agility').show();
-          this.info_container.find('tr.info-hull td.info-data').text(statAndEffectiveStat((_ref24 = (_ref25 = data.pilot.ship_override) != null ? _ref25.hull : void 0) != null ? _ref24 : data.data.hull, effective_stats, 'hull'));
-          this.info_container.find('tr.info-hull').show();
-          this.info_container.find('tr.info-shields td.info-data').text(statAndEffectiveStat((_ref26 = (_ref27 = data.pilot.ship_override) != null ? _ref27.shields : void 0) != null ? _ref26 : data.data.shields, effective_stats, 'shields'));
-          this.info_container.find('tr.info-shields').show();
-          if ((effective_stats.force > 0) || (data.pilot.force != null)) {
-            this.info_container.find('tr.info-force td.info-data').html(statAndEffectiveStat((_ref28 = (_ref29 = data.pilot.ship_override) != null ? _ref29.force : void 0) != null ? _ref28 : data.pilot.force, effective_stats, 'force') + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-            this.info_container.find('tr.info-force').show();
+          container.find('tr.info-base').show();
+          container.find('tr.info-skill td.info-data').text(statAndEffectiveStat(data.skill, effective_stats, 'skill'));
+          container.find('tr.info-skill').show();
+          container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref15 = ship.attack_icon) != null ? _ref15 : 'xwing-miniatures-font-attack');
+          container.find('tr.info-attack td.info-data').text(statAndEffectiveStat((_ref16 = (_ref17 = data.ship_override) != null ? _ref17.attack : void 0) != null ? _ref16 : ship.attack, effective_stats, 'attack'));
+          container.find('tr.info-attack').toggle((ship.attack != null) || ((effective_stats != null ? effective_stats.attack : void 0) != null));
+          container.find('tr.info-attack-fullfront td.info-data').text(statAndEffectiveStat((_ref18 = (_ref19 = data.ship_override) != null ? _ref19.attackf : void 0) != null ? _ref18 : ship.attackf, effective_stats, 'attackf'));
+          container.find('tr.info-attack-fullfront').toggle((ship.attackf != null) || ((effective_stats != null ? effective_stats.attackf : void 0) != null));
+          container.find('tr.info-attack-bullseye').hide();
+          container.find('tr.info-attack-back td.info-data').text(statAndEffectiveStat((_ref20 = (_ref21 = data.ship_override) != null ? _ref21.attackb : void 0) != null ? _ref20 : ship.attackb, effective_stats, 'attackb'));
+          container.find('tr.info-attack-back').toggle((ship.attackb != null) || ((effective_stats != null ? effective_stats.attackb : void 0) != null));
+          container.find('tr.info-attack-turret td.info-data').text(statAndEffectiveStat((_ref22 = (_ref23 = data.ship_override) != null ? _ref23.attackt : void 0) != null ? _ref22 : ship.attackt, effective_stats, 'attackt'));
+          container.find('tr.info-attack-turret').toggle((ship.attackt != null) || ((effective_stats != null ? effective_stats.attackt : void 0) != null));
+          container.find('tr.info-attack-doubleturret td.info-data').text(statAndEffectiveStat((_ref24 = (_ref25 = data.ship_override) != null ? _ref25.attackdt : void 0) != null ? _ref24 : ship.attackdt, effective_stats, 'attackdt'));
+          container.find('tr.info-attack-doubleturret').toggle((ship.attackdt != null) || ((effective_stats != null ? effective_stats.attackdt : void 0) != null));
+          container.find('tr.info-energy td.info-data').text(statAndEffectiveStat((_ref26 = (_ref27 = data.ship_override) != null ? _ref27.energy : void 0) != null ? _ref26 : ship.energy, effective_stats, 'energy'));
+          container.find('tr.info-energy').toggle((((_ref28 = data.ship_override) != null ? _ref28.energy : void 0) != null) || (ship.energy != null));
+          container.find('tr.info-range').hide();
+          container.find('td.info-rangebonus').hide();
+          container.find('tr.info-agility td.info-data').text(statAndEffectiveStat((_ref29 = (_ref30 = data.ship_override) != null ? _ref30.agility : void 0) != null ? _ref29 : ship.agility, effective_stats, 'agility'));
+          container.find('tr.info-agility').show();
+          container.find('tr.info-hull td.info-data').text(statAndEffectiveStat((_ref31 = (_ref32 = data.ship_override) != null ? _ref32.hull : void 0) != null ? _ref31 : ship.hull, effective_stats, 'hull'));
+          container.find('tr.info-hull').show();
+          container.find('tr.info-shields td.info-data').text(statAndEffectiveStat((_ref33 = (_ref34 = data.ship_override) != null ? _ref34.shields : void 0) != null ? _ref33 : ship.shields, effective_stats, 'shields'));
+          container.find('tr.info-shields').show();
+          if ((((effective_stats != null ? effective_stats.force : void 0) != null) && effective_stats.force > 0) || (data.force != null)) {
+            container.find('tr.info-force td.info-data').html(statAndEffectiveStat((_ref35 = (_ref36 = data.ship_override) != null ? _ref36.force : void 0) != null ? _ref35 : data.force, effective_stats, 'force') + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
+            container.find('tr.info-force').show();
           } else {
-            this.info_container.find('tr.info-force').hide();
+            container.find('tr.info-force').hide();
           }
-          if (data.pilot.charge != null) {
-            if (data.pilot.recurring != null) {
-              this.info_container.find('tr.info-charge td.info-data').html(data.pilot.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
+          if (data.charge != null) {
+            if (data.recurring != null) {
+              container.find('tr.info-charge td.info-data').html(data.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
             } else {
-              this.info_container.find('tr.info-charge td.info-data').text(data.pilot.charge);
+              container.find('tr.info-charge td.info-data').text(data.charge);
             }
-            this.info_container.find('tr.info-charge').show();
+            container.find('tr.info-charge').show();
           } else {
-            this.info_container.find('tr.info-charge').hide();
+            container.find('tr.info-charge').hide();
           }
-          this.info_container.find('tr.info-actions td.info-data').html((((function() {
-            var _i, _len, _ref30, _ref31, _ref32, _results;
-            _ref32 = ((_ref30 = (_ref31 = data.pilot.ship_override) != null ? _ref31.actions : void 0) != null ? _ref30 : data.data.actions).concat((function() {
-              var _j, _len, _results1;
+          container.find('tr.info-actions td.info-data').html((((function() {
+            var _k, _len2, _ref37, _ref38, _ref39, _results;
+            _ref39 = ((_ref37 = (_ref38 = data.ship_override) != null ? _ref38.actions : void 0) != null ? _ref37 : ship.actions).concat((function() {
+              var _l, _len2, _results1;
               _results1 = [];
-              for (_j = 0, _len = extra_actions.length; _j < _len; _j++) {
-                action = extra_actions[_j];
+              for (_l = 0, _len2 = extra_actions.length; _l < _len2; _l++) {
+                action = extra_actions[_l];
                 _results1.push("" + (exportObj.translate(this.language, 'action', action)));
               }
               return _results1;
             }).call(this));
             _results = [];
-            for (_i = 0, _len = _ref32.length; _i < _len; _i++) {
-              a = _ref32[_i];
+            for (_k = 0, _len2 = _ref39.length; _k < _len2; _k++) {
+              a = _ref39[_k];
               _results.push(exportObj.translate(this.language, 'action', a));
             }
             return _results;
           }).call(this)).join(', ')).replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked'));
-          if (data.data.actionsred != null) {
-            this.info_container.find('tr.info-actions-red td.info-data-red').html(((function() {
-              var _i, _len, _ref30, _ref31, _ref32, _results;
-              _ref32 = ((_ref30 = (_ref31 = data.pilot.ship_override) != null ? _ref31.actionsred : void 0) != null ? _ref30 : data.data.actionsred).concat((function() {
-                var _j, _len, _results1;
+          if (ship.actionsred != null) {
+            container.find('tr.info-actions-red td.info-data-red').html(((function() {
+              var _k, _len2, _ref37, _ref38, _ref39, _results;
+              _ref39 = ((_ref37 = (_ref38 = data.ship_override) != null ? _ref38.actionsred : void 0) != null ? _ref37 : ship.actionsred).concat((function() {
+                var _l, _len2, _results1;
                 _results1 = [];
-                for (_j = 0, _len = extra_actions_red.length; _j < _len; _j++) {
-                  action = extra_actions_red[_j];
+                for (_l = 0, _len2 = extra_actions_red.length; _l < _len2; _l++) {
+                  action = extra_actions_red[_l];
                   _results1.push("<strong>" + (exportObj.translate(this.language, 'action', action)) + "</strong>");
                 }
                 return _results1;
               }).call(this));
               _results = [];
-              for (_i = 0, _len = _ref32.length; _i < _len; _i++) {
-                a = _ref32[_i];
+              for (_k = 0, _len2 = _ref39.length; _k < _len2; _k++) {
+                a = _ref39[_k];
                 _results.push(exportObj.translate(this.language, 'action', a));
               }
               return _results;
             }).call(this)).join(', '));
           }
-          this.info_container.find('tr.info-actions-red').toggle(data.data.actionsred != null);
-          this.info_container.find('tr.info-actions').show();
-          this.info_container.find('tr.info-upgrades').show();
-          this.info_container.find('tr.info-upgrades td.info-data').html(((function() {
-            var _i, _len, _ref30, _results;
-            _ref30 = data.pilot.slots;
-            _results = [];
-            for (_i = 0, _len = _ref30.length; _i < _len; _i++) {
-              slot = _ref30[_i];
-              _results.push(exportObj.translate(this.language, 'sloticon', slot));
-            }
-            return _results;
-          }).call(this)).join(' ') || 'None');
-          this.info_container.find('p.info-maneuvers').show();
-          this.info_container.find('p.info-maneuvers').html(this.getManeuverTableHTML(effective_stats.maneuvers, data.data.maneuvers));
-          break;
-        case 'Pilot':
-          this.info_container.find('.info-sources').text(((function() {
-            var _i, _len, _ref30, _results;
-            _ref30 = data.sources;
-            _results = [];
-            for (_i = 0, _len = _ref30.length; _i < _len; _i++) {
-              source = _ref30[_i];
-              _results.push(exportObj.translate(this.language, 'sources', source));
-            }
-            return _results;
-          }).call(this)).sort().join(', '));
-          if (((_ref30 = this.collection) != null ? _ref30.counts : void 0) != null) {
-            pilot_count = (_ref31 = (_ref32 = this.collection.counts) != null ? (_ref33 = _ref32.pilot) != null ? _ref33[data.name] : void 0 : void 0) != null ? _ref31 : 0;
-            ship_count = (_ref34 = (_ref35 = this.collection.counts.ship) != null ? _ref35[additional_opts.ship] : void 0) != null ? _ref34 : 0;
-            this.info_container.find('.info-collection').text("You have " + ship_count + " ship model" + (ship_count > 1 ? 's' : '') + " and " + pilot_count + " pilot card" + (pilot_count > 1 ? 's' : '') + " in your collection.");
+          container.find('tr.info-actions-red').toggle(ship.actionsred != null);
+          container.find('tr.info-actions').show();
+          if (this.isQuickbuild) {
+            container.find('tr.info-upgrades').hide();
           } else {
-            this.info_container.find('.info-collection').text('');
+            container.find('tr.info-upgrades').show();
+            container.find('tr.info-upgrades td.info-data').html(((function() {
+              var _k, _len2, _ref37, _results;
+              _ref37 = data.slots;
+              _results = [];
+              for (_k = 0, _len2 = _ref37.length; _k < _len2; _k++) {
+                slot = _ref37[_k];
+                _results.push(exportObj.translate(this.language, 'sloticon', slot));
+              }
+              return _results;
+            }).call(this)).join(' ') || 'None');
           }
-          if (data.unique != null) {
+          container.find('p.info-maneuvers').show();
+          container.find('p.info-maneuvers').html(this.getManeuverTableHTML((_ref37 = effective_stats != null ? effective_stats.maneuvers : void 0) != null ? _ref37 : ship.maneuvers, ship.maneuvers));
+          break;
+        case 'Quickbuild':
+          container.find('.info-type').text('Quickbuild');
+          container.find('.info-sources').hide();
+          container.find('.info-collection').text('');
+          pilot = exportObj.pilots[data.pilot];
+          ship = exportObj.ships[data.ship];
+          if (pilot.unique != null) {
             uniquedots = "&middot;&nbsp;";
-          } else if (data.restricted != null) {
+          } else if (pilot.max_per_squad != null) {
             count = 0;
             uniquedots = "";
-            while (count < data.restricted) {
+            while (count < data.max_per_squad) {
               uniquedots = uniquedots.concat("&middot;");
               ++count;
             }
@@ -28674,129 +33488,145 @@ exportObj.SquadBuilder = (function() {
           } else {
             uniquedots = "";
           }
-          this.info_container.find('.info-name').html("" + uniquedots + (data.display_name ? data.display_name : data.name) + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
-          this.info_container.find('p.info-text').html((_ref36 = data.text) != null ? _ref36 : '');
-          ship = exportObj.ships[data.ship];
-          this.info_container.find('tr.info-ship td.info-data').text(data.ship);
-          this.info_container.find('tr.info-ship').show();
+          container.find('.info-name').html("" + uniquedots + (pilot.display_name ? pilot.display_name : pilot.name) + (data.suffix != null ? data.suffix : "") + (exportObj.isReleased(pilot) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
+          container.find('p.info-text').html((_ref38 = pilot.text) != null ? _ref38 : '');
+          container.find('p.info-text').show();
+          container.find('tr.info-ship td.info-data').text(data.ship);
+          container.find('tr.info-ship').show();
+          container.find('.info-solitary').hide();
           if (ship.large != null) {
-            this.info_container.find('tr.info-base td.info-data').text("Large");
+            container.find('tr.info-base td.info-data').text("Large");
           } else if (ship.medium != null) {
-            this.info_container.find('tr.info-base td.info-data').text("Medium");
+            container.find('tr.info-base td.info-data').text("Medium");
           } else {
-            this.info_container.find('tr.info-base td.info-data').text("Small");
+            container.find('tr.info-base td.info-data').text("Small");
           }
-          this.info_container.find('tr.info-base').show();
-          this.info_container.find('tr.info-skill td.info-data').text(data.skill);
-          this.info_container.find('tr.info-skill').show();
-          this.info_container.find('tr.info-attack td.info-data').text((_ref37 = (_ref38 = data.ship_override) != null ? _ref38.attack : void 0) != null ? _ref37 : ship.attack);
-          this.info_container.find('tr.info-attack').toggle((((_ref39 = data.ship_override) != null ? _ref39.attack : void 0) != null) || (ship.attack != null));
-          this.info_container.find('tr.info-attack-fullfront td.info-data').text(ship.attackf);
-          this.info_container.find('tr.info-attack-fullfront').toggle(ship.attackf != null);
-          this.info_container.find('tr.info-attack-bullseye').hide();
-          this.info_container.find('tr.info-attack-back td.info-data').text(ship.attackb);
-          this.info_container.find('tr.info-attack-back').toggle(ship.attackb != null);
-          this.info_container.find('tr.info-attack-turret td.info-data').text(ship.attackt);
-          this.info_container.find('tr.info-attack-turret').toggle(ship.attackt != null);
-          this.info_container.find('tr.info-attack-doubleturret td.info-data').text(ship.attackdt);
-          this.info_container.find('tr.info-attack-doubleturret').toggle(ship.attackdt != null);
-          this.info_container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref40 = ship.attack_icon) != null ? _ref40 : 'xwing-miniatures-font-frontarc');
-          this.info_container.find('tr.info-energy td.info-data').text((_ref41 = (_ref42 = data.ship_override) != null ? _ref42.energy : void 0) != null ? _ref41 : ship.energy);
-          this.info_container.find('tr.info-energy').toggle((((_ref43 = data.ship_override) != null ? _ref43.energy : void 0) != null) || (ship.energy != null));
-          this.info_container.find('tr.info-range').hide();
-          this.info_container.find('td.info-rangebonus').hide();
-          this.info_container.find('tr.info-agility td.info-data').text((_ref44 = (_ref45 = data.ship_override) != null ? _ref45.agility : void 0) != null ? _ref44 : ship.agility);
-          this.info_container.find('tr.info-agility').show();
-          this.info_container.find('tr.info-hull td.info-data').text((_ref46 = (_ref47 = data.ship_override) != null ? _ref47.hull : void 0) != null ? _ref46 : ship.hull);
-          this.info_container.find('tr.info-hull').show();
-          this.info_container.find('tr.info-shields td.info-data').text((_ref48 = (_ref49 = data.ship_override) != null ? _ref49.shields : void 0) != null ? _ref48 : ship.shields);
-          this.info_container.find('tr.info-shields').show();
+          container.find('tr.info-base').show();
+          container.find('tr.info-skill td.info-data').text(pilot.skill);
+          container.find('tr.info-skill').show();
+          container.find('tr.info-attack td.info-data').text((_ref39 = (_ref40 = pilot.ship_override) != null ? _ref40.attack : void 0) != null ? _ref39 : ship.attack);
+          container.find('tr.info-attack').toggle((((_ref41 = pilot.ship_override) != null ? _ref41.attack : void 0) != null) || (ship.attack != null));
+          container.find('tr.info-attack-fullfront td.info-data').text(ship.attackf);
+          container.find('tr.info-attack-fullfront').toggle(ship.attackf != null);
+          container.find('tr.info-attack-bullseye').hide();
+          container.find('tr.info-attack-back td.info-data').text(ship.attackb);
+          container.find('tr.info-attack-back').toggle(ship.attackb != null);
+          container.find('tr.info-attack-turret td.info-data').text(ship.attackt);
+          container.find('tr.info-attack-turret').toggle(ship.attackt != null);
+          container.find('tr.info-attack-doubleturret td.info-data').text(ship.attackdt);
+          container.find('tr.info-attack-doubleturret').toggle(ship.attackdt != null);
+          container.find('tr.info-attack td.info-header i.xwing-miniatures-font').addClass((_ref42 = ship.attack_icon) != null ? _ref42 : 'xwing-miniatures-font-frontarc');
+          container.find('tr.info-energy td.info-data').text((_ref43 = (_ref44 = pilot.ship_override) != null ? _ref44.energy : void 0) != null ? _ref43 : ship.energy);
+          container.find('tr.info-energy').toggle((((_ref45 = pilot.ship_override) != null ? _ref45.energy : void 0) != null) || (ship.energy != null));
+          container.find('tr.info-range').hide();
+          container.find('td.info-rangebonus').hide();
+          container.find('tr.info-agility td.info-data').text((_ref46 = (_ref47 = pilot.ship_override) != null ? _ref47.agility : void 0) != null ? _ref46 : ship.agility);
+          container.find('tr.info-agility').show();
+          container.find('tr.info-hull td.info-data').text((_ref48 = (_ref49 = pilot.ship_override) != null ? _ref49.hull : void 0) != null ? _ref48 : ship.hull);
+          container.find('tr.info-hull').show();
+          container.find('tr.info-shields td.info-data').text((_ref50 = (_ref51 = pilot.ship_override) != null ? _ref51.shields : void 0) != null ? _ref50 : ship.shields);
+          container.find('tr.info-shields').show();
           if (((effective_stats != null ? effective_stats.force : void 0) != null) || (data.force != null)) {
-            this.info_container.find('tr.info-force td.info-data').html(((_ref50 = (_ref51 = data.ship_override) != null ? _ref51.force : void 0) != null ? _ref50 : data.force) + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-            this.info_container.find('tr.info-force').show();
+            container.find('tr.info-force td.info-data').html(((_ref52 = (_ref53 = pilot.ship_override) != null ? _ref53.force : void 0) != null ? _ref52 : pilot.force) + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
+            container.find('tr.info-force').show();
           } else {
-            this.info_container.find('tr.info-force').hide();
+            container.find('tr.info-force').hide();
           }
           if (data.charge != null) {
             if (data.recurring != null) {
-              this.info_container.find('tr.info-charge td.info-data').html(data.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
+              container.find('tr.info-charge td.info-data').html(pilot.charge + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
             } else {
-              this.info_container.find('tr.info-charge td.info-data').text(data.charge);
+              container.find('tr.info-charge td.info-data').text(pilot.charge);
             }
-            this.info_container.find('tr.info-charge').show();
+            container.find('tr.info-charge').show();
           } else {
-            this.info_container.find('tr.info-charge').hide();
+            container.find('tr.info-charge').hide();
           }
-          this.info_container.find('tr.info-actions td.info-data').html((((function() {
-            var _i, _len, _ref52, _ref53, _ref54, _results;
-            _ref54 = (_ref52 = (_ref53 = data.ship_override) != null ? _ref53.actions : void 0) != null ? _ref52 : exportObj.ships[data.ship].actions;
+          container.find('tr.info-actions td.info-data').html((((function() {
+            var _k, _len2, _ref54, _ref55, _ref56, _results;
+            _ref56 = (_ref54 = (_ref55 = pilot.ship_override) != null ? _ref55.actions : void 0) != null ? _ref54 : exportObj.ships[data.ship].actions;
             _results = [];
-            for (_i = 0, _len = _ref54.length; _i < _len; _i++) {
-              action = _ref54[_i];
+            for (_k = 0, _len2 = _ref56.length; _k < _len2; _k++) {
+              action = _ref56[_k];
               _results.push(exportObj.translate(this.language, 'action', action));
             }
             return _results;
           }).call(this)).join(', ')).replace(/, <i class="xwing-miniatures-font xwing-miniatures-font-linked/g, ' <i class="xwing-miniatures-font xwing-miniatures-font-linked'));
           if (ships[data.ship].actionsred != null) {
-            this.info_container.find('tr.info-actions-red td.info-data-red').html(((function() {
-              var _i, _len, _ref52, _ref53, _ref54, _results;
-              _ref54 = (_ref52 = (_ref53 = data.ship_override) != null ? _ref53.actionsred : void 0) != null ? _ref52 : exportObj.ships[data.ship].actionsred;
+            container.find('tr.info-actions-red td.info-data-red').html(((function() {
+              var _k, _len2, _ref54, _ref55, _ref56, _results;
+              _ref56 = (_ref54 = (_ref55 = pilot.ship_override) != null ? _ref55.actionsred : void 0) != null ? _ref54 : exportObj.ships[data.ship].actionsred;
               _results = [];
-              for (_i = 0, _len = _ref54.length; _i < _len; _i++) {
-                action = _ref54[_i];
+              for (_k = 0, _len2 = _ref56.length; _k < _len2; _k++) {
+                action = _ref56[_k];
                 _results.push(exportObj.translate(this.language, 'action', action));
               }
               return _results;
             }).call(this)).join(', '));
-            this.info_container.find('tr.info-actions-red').show();
+            container.find('tr.info-actions-red').show();
           } else {
-            this.info_container.find('tr.info-actions-red').hide();
+            container.find('tr.info-actions-red').hide();
           }
-          this.info_container.find('tr.info-actions').show();
-          this.info_container.find('tr.info-upgrades').show();
-          this.info_container.find('tr.info-upgrades td.info-data').html(((function() {
-            var _i, _len, _ref52, _results;
-            _ref52 = data.slots;
+          container.find('tr.info-actions').show();
+          container.find('tr.info-upgrades').show();
+          container.find('tr.info-upgrades td.info-data').html(((function() {
+            var _k, _len2, _ref54, _ref55, _results;
+            _ref55 = (_ref54 = data.upgrades) != null ? _ref54 : [];
             _results = [];
-            for (_i = 0, _len = _ref52.length; _i < _len; _i++) {
-              slot = _ref52[_i];
-              _results.push(exportObj.translate(this.language, 'sloticon', slot));
+            for (_k = 0, _len2 = _ref55.length; _k < _len2; _k++) {
+              upgrade = _ref55[_k];
+              _results.push(exportObj.upgrades[upgrade].display_name != null ? exportObj.upgrades[upgrade].display_name : upgrade);
             }
             return _results;
-          }).call(this)).join(' ') || 'None');
-          this.info_container.find('p.info-maneuvers').show();
-          this.info_container.find('p.info-maneuvers').html(this.getManeuverTableHTML(ship.maneuvers, ship.maneuvers));
+          })()).join(', ') || 'None');
+          container.find('p.info-maneuvers').show();
+          container.find('p.info-maneuvers').html(this.getManeuverTableHTML(ship.maneuvers, ship.maneuvers));
           break;
         case 'Addon':
-          this.info_container.find('.info-sources').text(((function() {
-            var _i, _len, _ref52, _results;
-            _ref52 = data.sources;
+          container.find('.info-type').text(additional_opts.addon_type);
+          container.find('.info-sources.info-data').text(((function() {
+            var _k, _len2, _ref54, _results;
+            _ref54 = data.sources;
             _results = [];
-            for (_i = 0, _len = _ref52.length; _i < _len; _i++) {
-              source = _ref52[_i];
+            for (_k = 0, _len2 = _ref54.length; _k < _len2; _k++) {
+              source = _ref54[_k];
               _results.push(exportObj.translate(this.language, 'sources', source));
             }
             return _results;
           }).call(this)).sort().join(', '));
-          if (((_ref52 = this.collection) != null ? _ref52.counts : void 0) != null) {
-            addon_count = (_ref53 = (_ref54 = this.collection.counts) != null ? (_ref55 = _ref54[additional_opts.addon_type.toLowerCase()]) != null ? _ref55[data.name] : void 0 : void 0) != null ? _ref53 : 0;
-            this.info_container.find('.info-collection').text("You have " + addon_count + " in your collection.");
+          container.find('.info-sources').show();
+          if (data.unique != null) {
+            uniquedots = "&middot;&nbsp;";
+          } else if (data.max_per_squad != null) {
+            count = 0;
+            uniquedots = "";
+            while (count < data.max_per_squad) {
+              uniquedots = uniquedots.concat("&middot;");
+              ++count;
+            }
+            uniquedots = uniquedots.concat("&nbsp;");
           } else {
-            this.info_container.find('.info-collection').text('');
+            uniquedots = "";
           }
-          this.info_container.find('.info-name').html("" + (data.unique ? "&middot;&nbsp;" : "") + (data.display_name ? data.display_name : data.name) + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
+          if (((_ref54 = this.collection) != null ? _ref54.counts : void 0) != null) {
+            addon_count = (_ref55 = (_ref56 = this.collection.counts) != null ? (_ref57 = _ref56[additional_opts.addon_type.toLowerCase()]) != null ? _ref57[data.name] : void 0 : void 0) != null ? _ref55 : 0;
+            container.find('.info-collection').text("You have " + addon_count + " in your collection.");
+          } else {
+            container.find('.info-collection').text('');
+          }
+          container.find('.info-name').html("" + uniquedots + (data.display_name ? data.display_name : data.name) + (exportObj.isReleased(data) ? "" : " (" + (exportObj.translate(this.language, 'ui', 'unreleased')) + ")"));
           if (data.pointsarray != null) {
             point_info = "<i>Point cost " + data.pointsarray + " when ";
             if ((data.variableagility != null) && data.variableagility) {
               point_info += "agility is " + (function() {
                 _results = [];
-                for (var _i = 0, _ref56 = data.pointsarray.length - 1; 0 <= _ref56 ? _i <= _ref56 : _i >= _ref56; 0 <= _ref56 ? _i++ : _i--){ _results.push(_i); }
+                for (var _k = 0, _ref58 = data.pointsarray.length - 1; 0 <= _ref58 ? _k <= _ref58 : _k >= _ref58; 0 <= _ref58 ? _k++ : _k--){ _results.push(_k); }
                 return _results;
               }).apply(this);
             } else if ((data.variableinit != null) && data.variableinit) {
               point_info += "initiative is " + (function() {
                 _results1 = [];
-                for (var _j = 0, _ref57 = data.pointsarray.length - 1; 0 <= _ref57 ? _j <= _ref57 : _j >= _ref57; 0 <= _ref57 ? _j++ : _j--){ _results1.push(_j); }
+                for (var _l = 0, _ref59 = data.pointsarray.length - 1; 0 <= _ref59 ? _l <= _ref59 : _l >= _ref59; 0 <= _ref59 ? _l++ : _l--){ _results1.push(_l); }
                 return _results1;
               }).apply(this);
             } else if ((data.variablebase != null) && data.variablebase) {
@@ -28804,65 +33634,71 @@ exportObj.SquadBuilder = (function() {
             }
             point_info += "</i><br/><br/>";
           }
-          this.info_container.find('p.info-text').html((point_info != null ? point_info : '') + ((_ref58 = data.text) != null ? _ref58 : ''));
-          this.info_container.find('tr.info-ship').hide();
-          this.info_container.find('tr.info-base').hide();
-          this.info_container.find('tr.info-skill').hide();
-          if (data.energy != null) {
-            this.info_container.find('tr.info-energy td.info-data').text(data.energy);
-            this.info_container.find('tr.info-energy').show();
+          if (data.solitary != null) {
+            container.find('.info-solitary').show();
           } else {
-            this.info_container.find('tr.info-energy').hide();
+            container.find('.info-solitary').hide();
+          }
+          container.find('p.info-text').html((point_info != null ? point_info : '') + ((_ref60 = data.text) != null ? _ref60 : ''));
+          container.find('p.info-text').show();
+          container.find('tr.info-ship').hide();
+          container.find('tr.info-base').hide();
+          container.find('tr.info-skill').hide();
+          if (data.energy != null) {
+            container.find('tr.info-energy td.info-data').text(data.energy);
+            container.find('tr.info-energy').show();
+          } else {
+            container.find('tr.info-energy').hide();
           }
           if (data.attack != null) {
-            this.info_container.find('tr.info-attack td.info-data').text(data.attack);
-            this.info_container.find('tr.info-attack').show();
+            container.find('tr.info-attack td.info-data').text(data.attack);
+            container.find('tr.info-attack').show();
           } else {
-            this.info_container.find('tr.info-attack').hide();
+            container.find('tr.info-attack').hide();
           }
           if (data.attackt != null) {
-            this.info_container.find('tr.info-attack-turret td.info-data').text(data.attackt);
-            this.info_container.find('tr.info-attack-turret').show();
+            container.find('tr.info-attack-turret td.info-data').text(data.attackt);
+            container.find('tr.info-attack-turret').show();
           } else {
-            this.info_container.find('tr.info-attack-turret').hide();
+            container.find('tr.info-attack-turret').hide();
           }
           if (data.attackbull != null) {
-            this.info_container.find('tr.info-attack-bullseye td.info-data').text(data.attackbull);
-            this.info_container.find('tr.info-attack-bullseye').show();
+            container.find('tr.info-attack-bullseye td.info-data').text(data.attackbull);
+            container.find('tr.info-attack-bullseye').show();
           } else {
-            this.info_container.find('tr.info-attack-bullseye').hide();
+            container.find('tr.info-attack-bullseye').hide();
           }
-          this.info_container.find('tr.info-attack-fullfront').hide();
-          this.info_container.find('tr.info-attack-back').hide();
-          this.info_container.find('tr.info-attack-doubleturret').hide();
+          container.find('tr.info-attack-fullfront').hide();
+          container.find('tr.info-attack-back').hide();
+          container.find('tr.info-attack-doubleturret').hide();
           if (data.recurring != null) {
-            this.info_container.find('tr.info-charge td.info-data').html(data.charge + "<i class=\"xwing-miniatures-font xwing-miniatures-font-recurring\"></i>");
+            container.find('tr.info-charge td.info-data').html(data.charge + "<i class=\"xwing-miniatures-font xwing-miniatures-font-recurring\"></i>");
           } else {
-            this.info_container.find('tr.info-charge td.info-data').text(data.charge);
+            container.find('tr.info-charge td.info-data').text(data.charge);
           }
-          this.info_container.find('tr.info-charge').toggle(data.charge != null);
+          container.find('tr.info-charge').toggle(data.charge != null);
           if (data.range != null) {
-            this.info_container.find('tr.info-range td.info-data').text(data.range);
-            this.info_container.find('tr.info-range').show();
+            container.find('tr.info-range td.info-data').text(data.range);
+            container.find('tr.info-range').show();
           } else {
-            this.info_container.find('tr.info-range').hide();
+            container.find('tr.info-range').hide();
           }
           if (data.rangebonus != null) {
-            this.info_container.find('td.info-rangebonus').show();
+            container.find('td.info-rangebonus').show();
           } else {
-            this.info_container.find('td.info-rangebonus').hide();
+            container.find('td.info-rangebonus').hide();
           }
-          this.info_container.find('tr.info-force td.info-data').html(data.force + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
-          this.info_container.find('tr.info-force').toggle(data.force != null);
-          this.info_container.find('tr.info-agility').hide();
-          this.info_container.find('tr.info-hull').hide();
-          this.info_container.find('tr.info-shields').hide();
-          this.info_container.find('tr.info-actions').hide();
-          this.info_container.find('tr.info-actions-red').hide();
-          this.info_container.find('tr.info-upgrades').hide();
-          this.info_container.find('p.info-maneuvers').hide();
+          container.find('tr.info-force td.info-data').html(data.force + '<i class="xwing-miniatures-font xwing-miniatures-font-recurring"></i>');
+          container.find('tr.info-force').toggle(data.force != null);
+          container.find('tr.info-agility').hide();
+          container.find('tr.info-hull').hide();
+          container.find('tr.info-shields').hide();
+          container.find('tr.info-actions').hide();
+          container.find('tr.info-actions-red').hide();
+          container.find('tr.info-upgrades').hide();
+          container.find('p.info-maneuvers').hide();
       }
-      this.info_container.show();
+      container.show();
       return this.tooltip_currently_displaying = data;
     }
   };
@@ -28898,8 +33734,11 @@ exportObj.SquadBuilder = (function() {
           if (available_ships.length > 0) {
             ship_type = available_ships[$.randomInt(available_ships.length)].name;
             available_pilots = this.getAvailablePilotsForShipIncluding(ship_type);
+            if (available_pilots.length === 0) {
+              return;
+            }
             pilot = available_pilots[$.randomInt(available_pilots.length)];
-            if (!pilot.disabled && exportObj.pilotsById[pilot.id].sources.intersects(data.allowed_sources)) {
+            if (!pilot.disabled && (this.isQuickbuild ? exportObj.pilots[exportObj.quickbuildsById[pilot.id].pilot] : exportObj.pilotsById[pilot.id]).sources.intersects(data.allowed_sources)) {
               new_ship = this.addShip();
               new_ship.setPilotById(pilot.id);
             }
@@ -29267,19 +34106,23 @@ exportObj.SquadBuilder = (function() {
   };
 
   SquadBuilder.prototype.loadFromXWS = function(xws, cb) {
-    var addon, addon_added, addons, err, error, i, key, new_ship, p, pilot, pilotxws, possible_pilot, possible_pilots, shipname, slot, success, upgrade, upgrade_canonical, upgrade_canonicals, upgrade_type, version_list, x, xws_faction, _, _base1, _i, _j, _k, _l, _len, _len1, _len2, _len3, _m, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
+    var addons, error, key, new_ship, pilot, pilotxws, possible_pilot, possible_pilots, serialized_squad, slot, success, upgrade, upgrade_canonical, upgrade_canonicals, upgrade_type, version_list, x, xws_faction, _base1, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
     success = null;
     error = null;
-    version_list = (function() {
-      var _i, _len, _ref, _results;
-      _ref = xws.version.split('.');
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        x = _ref[_i];
-        _results.push(parseInt(x));
-      }
-      return _results;
-    })();
+    if (xws.version != null) {
+      version_list = (function() {
+        var _i, _len, _ref, _results;
+        _ref = xws.version.split('.');
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          x = _ref[_i];
+          _results.push(parseInt(x));
+        }
+        return _results;
+      })();
+    } else {
+      version_list = [0, 2];
+    }
     switch (false) {
       case !(version_list > [0, 1]):
         xws_faction = exportObj.fromXWSFaction[xws.faction];
@@ -29297,6 +34140,9 @@ exportObj.SquadBuilder = (function() {
         }
         this.suppress_automatic_new_ship = true;
         this.removeAllShips();
+        success = true;
+        error = "";
+        serialized_squad = "v7!s=200!";
         _ref = xws.pilots;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           pilot = _ref[_i];
@@ -29311,7 +34157,7 @@ exportObj.SquadBuilder = (function() {
             break;
           }
           if (exportObj.pilotsByUniqueName[pilotxws] && exportObj.pilotsByUniqueName[pilotxws].length === 1) {
-            shipname = exportObj.pilotsByUniqueName[pilotxws][0].ship;
+            serialized_squad += exportObj.pilotsByUniqueName[pilotxws][0].id;
           } else {
             _ref1 = exportObj.pilotsByUniqueName;
             for (key in _ref1) {
@@ -29319,29 +34165,13 @@ exportObj.SquadBuilder = (function() {
               for (_j = 0, _len1 = possible_pilots.length; _j < _len1; _j++) {
                 possible_pilot = possible_pilots[_j];
                 if ((possible_pilot.xws && possible_pilot.xws === pilotxws) || (!possible_pilot.xws && key === pilotxws)) {
-                  shipname = possible_pilot.ship;
+                  serialized_squad += possible_pilot.id;
+                  break;
                 }
               }
             }
           }
-          try {
-            new_ship.setPilot(((function() {
-              var _base1, _k, _len2, _ref2, _results;
-              _ref2 = ((_base1 = exportObj.pilotsByFactionXWS[this.faction])[pilotxws] != null ? _base1[pilotxws] : _base1[pilotxws] = exportObj.pilotsByFactionCanonicalName[this.faction][pilotxws]);
-              _results = [];
-              for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-                p = _ref2[_k];
-                if (p.ship === shipname) {
-                  _results.push(p);
-                }
-              }
-              return _results;
-            }).call(this))[0], true);
-          } catch (_error) {
-            err = _error;
-            console.error(err.message);
-            continue;
-          }
+          serialized_squad += ":";
           addons = [];
           _ref3 = (_ref2 = pilot.upgrades) != null ? _ref2 : {};
           for (upgrade_type in _ref3) {
@@ -29350,63 +34180,23 @@ exportObj.SquadBuilder = (function() {
               upgrade_canonical = upgrade_canonicals[_k];
               slot = null;
               slot = (_ref4 = exportObj.fromXWSUpgrade[upgrade_type]) != null ? _ref4 : upgrade_type.capitalize();
-              addon = (_base1 = exportObj.upgradesBySlotXWSName[slot])[upgrade_canonical] != null ? _base1[upgrade_canonical] : _base1[upgrade_canonical] = exportObj.upgradesBySlotCanonicalName[slot][upgrade_canonical];
-              if (addon != null) {
-                addons.push({
-                  type: slot,
-                  data: addon,
-                  slot: slot
-                });
+              upgrade = (_base1 = exportObj.upgradesBySlotXWSName[slot])[upgrade_canonical] != null ? _base1[upgrade_canonical] : _base1[upgrade_canonical] = exportObj.upgradesBySlotCanonicalName[slot][upgrade_canonical];
+              if (upgrade == null) {
+                console.log("Failed to load xws upgrade: " + upgrade_canonical);
+                error += "Skipped upgrade " + upgrade_canonical;
+                success = false;
+                continue;
               }
+              serialized_squad += upgrade.id;
+              serialized_squad += ",";
             }
           }
-          if (addons.length > 0) {
-            for (_ = _l = 0; _l < 1000; _ = ++_l) {
-              addon = addons.shift();
-              addon_added = false;
-              _ref5 = new_ship.upgrades;
-              for (i = _m = 0, _len3 = _ref5.length; _m < _len3; i = ++_m) {
-                upgrade = _ref5[i];
-                if (upgrade.slot !== addon.slot || (upgrade.data != null)) {
-                  continue;
-                }
-                upgrade.setData(addon.data);
-                addon_added = true;
-                break;
-              }
-              if (addon_added) {
-                if (addons.length === 0) {
-                  break;
-                }
-              } else {
-                if (addons.length === 0) {
-                  success = false;
-                  error = "Could not add " + addon.data.name + " to " + new_ship;
-                  break;
-                } else {
-                  addons.push(addon);
-                }
-              }
-            }
-            if (addons.length > 0) {
-              success = false;
-              error = "Could not add all upgrades";
-              break;
-            }
-          }
+          serialized_squad += ":;";
         }
-        this.suppress_automatic_new_ship = false;
-        this.addShip();
-        success = true;
-        break;
-      default:
-        success = false;
-        error = "Invalid or unsupported XWS version";
-    }
-    if (success) {
-      this.current_squad.dirty = true;
-      this.container.trigger('xwing-backend:squadNameChanged');
-      this.container.trigger('xwing-backend:squadDirtinessChanged');
+        this.loadFromSerialized(serialized_squad);
+        this.current_squad.dirty = true;
+        this.container.trigger('xwing-backend:squadNameChanged');
+        this.container.trigger('xwing-backend:squadDirtinessChanged');
     }
     return cb({
       success: success,
@@ -29424,12 +34214,17 @@ Ship = (function() {
     this.container = args.container;
     this.pilot = null;
     this.data = null;
+    this.quickbuildId = -1;
+    this.linkedShip = null;
+    this.primary = true;
     this.upgrades = [];
     this.setupUI();
   }
 
   Ship.prototype.destroy = function(cb) {
-    var idx;
+    var idx, ___iced_passed_deferral, __iced_deferrals, __iced_k;
+    __iced_k = __iced_k_noop;
+    ___iced_passed_deferral = iced.findDeferral(arguments);
     this.resetPilot();
     this.resetAddons();
     this.teardownUI();
@@ -29438,18 +34233,40 @@ Ship = (function() {
       throw new Error("Ship not registered with builder");
     }
     this.builder.ships.splice(idx, 1);
-    return cb();
+    (function(_this) {
+      return (function(__iced_k) {
+        if (_this.linkedShip !== null) {
+          _this.linkedShip.linkedShip = null;
+          (function(__iced_k) {
+            __iced_deferrals = new iced.Deferrals(__iced_k, {
+              parent: ___iced_passed_deferral,
+              funcname: "Ship.destroy"
+            });
+            _this.builder.removeShip(_this.linkedShip, __iced_deferrals.defer({
+              lineno: 35654
+            }));
+            __iced_deferrals._fulfill();
+          })(__iced_k);
+        } else {
+          return __iced_k();
+        }
+      });
+    })(this)((function(_this) {
+      return function() {
+        return cb();
+      };
+    })(this));
   };
 
   Ship.prototype.copyFrom = function(other) {
-    var available_pilots, i, other_conferred_addons, other_upgrade, other_upgrades, pilot_data, upgrade, _i, _j, _k, _len, _len1, _len2, _name, _ref, _ref1, _ref2, _ref3;
+    var available_pilots, i, no_uniques_involved, other_conferred_addons, other_upgrade, other_upgrades, pilot_data, upgrade, _i, _j, _k, _l, _len, _len1, _len2, _len3, _name, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
     if (other === this) {
       throw new Error("Cannot copy from self");
     }
     if (!((other.pilot != null) && (other.data != null))) {
       return;
     }
-    if (other.pilot.unique) {
+    if (other.pilot.unique || ((other.pilot.max_per_squad != null) && this.builder.countPilots(other.pilot.canonical_name) >= other.pilot.max_per_squad)) {
       available_pilots = (function() {
         var _i, _len, _ref, _results;
         _ref = this.builder.getAvailablePilotsForShipIncluding(other.data.name);
@@ -29464,34 +34281,66 @@ Ship = (function() {
       }).call(this);
       if (available_pilots.length > 0) {
         this.setPilotById(available_pilots[0].id, true);
-        other_upgrades = {};
-        _ref = other.upgrades;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          upgrade = _ref[_i];
-          if (((upgrade != null ? upgrade.data : void 0) != null) && !upgrade.data.unique && ((upgrade.data.max_per_squad == null) || this.builder.countUpgrades(upgrade.data.canonical_name) < upgrade.data.max_per_squad)) {
-            if (other_upgrades[_name = upgrade.slot] == null) {
-              other_upgrades[_name] = [];
+        if (!this.builder.isQuickbuild) {
+          other_upgrades = {};
+          _ref = other.upgrades;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            upgrade = _ref[_i];
+            if (((upgrade != null ? upgrade.data : void 0) != null) && !upgrade.data.unique && ((upgrade.data.max_per_squad == null) || this.builder.countUpgrades(upgrade.data.canonical_name) < upgrade.data.max_per_squad)) {
+              if (other_upgrades[_name = upgrade.slot] == null) {
+                other_upgrades[_name] = [];
+              }
+              other_upgrades[upgrade.slot].push(upgrade);
             }
-            other_upgrades[upgrade.slot].push(upgrade);
           }
-        }
-        _ref1 = this.upgrades;
-        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-          upgrade = _ref1[_j];
-          other_upgrade = ((_ref2 = other_upgrades[upgrade.slot]) != null ? _ref2 : []).shift();
-          if (other_upgrade != null) {
-            upgrade.setById(other_upgrade.data.id);
+          _ref1 = this.upgrades;
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            upgrade = _ref1[_j];
+            other_upgrade = ((_ref2 = other_upgrades[upgrade.slot]) != null ? _ref2 : []).shift();
+            if (other_upgrade != null) {
+              upgrade.setById(other_upgrade.data.id);
+            }
           }
         }
       } else {
         return;
       }
+    } else if (this.builder.isQuickbuild) {
+      no_uniques_involved = true;
+      _ref3 = other.upgrades;
+      for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
+        upgrade = _ref3[_k];
+        if (((((_ref4 = upgrade.data) != null ? _ref4.unique : void 0) != null) && upgrade.data.unique) || ((((_ref5 = upgrade.data) != null ? _ref5.max_per_squad : void 0) != null) && this.builder.countUpgrades(upgrade.data.canonical_name) >= upgrade.data.max_per_squad) || (((_ref6 = upgrade.data) != null ? _ref6.solitary : void 0) != null)) {
+          no_uniques_involved = false;
+          available_pilots = (function() {
+            var _l, _len3, _ref7, _results;
+            _ref7 = this.builder.getAvailablePilotsForShipIncluding(other.data.name);
+            _results = [];
+            for (_l = 0, _len3 = _ref7.length; _l < _len3; _l++) {
+              pilot_data = _ref7[_l];
+              if (!pilot_data.disabled) {
+                _results.push(pilot_data);
+              }
+            }
+            return _results;
+          }).call(this);
+          if (available_pilots.length > 0) {
+            this.setPilotById(available_pilots[0].id, true);
+            break;
+          } else {
+            return;
+          }
+        }
+      }
+      if (no_uniques_involved) {
+        this.setPilotById(other.quickbuildId);
+      }
     } else {
       this.setPilotById(other.pilot.id, true);
       other_conferred_addons = [];
-      _ref3 = other.upgrades;
-      for (i = _k = 0, _len2 = _ref3.length; _k < _len2; i = ++_k) {
-        other_upgrade = _ref3[i];
+      _ref7 = other.upgrades;
+      for (i = _l = 0, _len3 = _ref7.length; _l < _len3; i = ++_l) {
+        other_upgrade = _ref7[i];
         if ((other_upgrade.data != null) && __indexOf.call(other_conferred_addons, other_upgrade) < 0 && !other_upgrade.data.unique && i < this.upgrades.length && ((other_upgrade.data.max_per_squad == null) || this.builder.countUpgrades(other_upgrade.data.canonical_name) < other_upgrade.data.max_per_squad)) {
           this.upgrades[i].setById(other_upgrade.data.id);
         }
@@ -29504,21 +34353,53 @@ Ship = (function() {
   };
 
   Ship.prototype.setShipType = function(ship_type) {
-    var cls, result, _i, _len, _ref, _ref1;
+    var cls, pilot, quickbuild_id, result, _i, _len, _ref, _ref1;
     this.pilot_selector.data('select2').container.show();
     if (ship_type !== ((_ref = this.pilot) != null ? _ref.ship : void 0)) {
-      this.setPilot(((function() {
-        var _i, _len, _ref1, _results;
-        _ref1 = this.builder.getAvailablePilotsForShipIncluding(ship_type);
-        _results = [];
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          result = _ref1[_i];
-          if (!exportObj.pilotsById[result.id].unique) {
-            _results.push(exportObj.pilotsById[result.id]);
+      if (!this.builder.isQuickbuild) {
+        pilot = ((function() {
+          var _i, _len, _ref1, _results;
+          _ref1 = this.builder.getAvailablePilotsForShipIncluding(ship_type);
+          _results = [];
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            result = _ref1[_i];
+            if (!exportObj.pilotsById[result.id].unique) {
+              _results.push(exportObj.pilotsById[result.id]);
+            }
           }
+          return _results;
+        }).call(this))[0];
+        if (pilot) {
+          this.setPilot(pilot);
+        } else {
+          this.setPilot(((function() {
+            var _i, _len, _ref1, _ref2, _results;
+            _ref1 = this.builder.getAvailablePilotsForShipIncluding(ship_type);
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              result = _ref1[_i];
+              if (((exportObj.pilotsById[result.id].restriction_func == null) || exportObj.pilotsById[result.id].restriction_func(this)) && !(_ref2 = exportObj.pilotsById[result.id], __indexOf.call(this.builder.uniques_in_use.Pilot, _ref2) >= 0)) {
+                _results.push(exportObj.pilotsById[result.id]);
+              }
+            }
+            return _results;
+          }).call(this))[0]);
         }
-        return _results;
-      }).call(this))[0]);
+      } else {
+        quickbuild_id = ((function() {
+          var _i, _len, _ref1, _results;
+          _ref1 = this.builder.getAvailablePilotsForShipIncluding(ship_type);
+          _results = [];
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            result = _ref1[_i];
+            if (!result.disabled) {
+              _results.push(result.id);
+            }
+          }
+          return _results;
+        }).call(this))[0];
+        this.setPilotById(quickbuild_id);
+      }
     }
     _ref1 = this.row.attr('class').split(/\s+/);
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -29533,14 +34414,96 @@ Ship = (function() {
   };
 
   Ship.prototype.setPilotById = function(id, noautoequip) {
+    var new_pilot, quickbuild, ___iced_passed_deferral, __iced_deferrals, __iced_k;
+    __iced_k = __iced_k_noop;
+    ___iced_passed_deferral = iced.findDeferral(arguments);
     if (noautoequip == null) {
       noautoequip = false;
     }
-    return this.setPilot(exportObj.pilotsById[parseInt(id)], noautoequip);
-  };
-
-  Ship.prototype.setPilotByName = function(name) {
-    return this.setPilot(exportObj.pilots[$.trim(name)]);
+    if (!this.builder.isQuickbuild) {
+      return __iced_k(this.setPilot(exportObj.pilotsById[parseInt(id)], noautoequip));
+    } else {
+      (function(_this) {
+        return (function(__iced_k) {
+          if (id !== _this.quickbuildId) {
+            _this.quickbuildId = id;
+            _this.builder.current_squad.dirty = true;
+            _this.resetPilot();
+            _this.resetAddons();
+            (function(__iced_k) {
+              if ((id != null) && id > -1) {
+                quickbuild = exportObj.quickbuildsById[parseInt(id)];
+                new_pilot = exportObj.pilots[quickbuild.pilot];
+                _this.data = exportObj.ships[quickbuild.ship];
+                _this.builder.isUpdatingPoints = true;
+                (function(__iced_k) {
+                  if ((new_pilot != null ? new_pilot.unique : void 0) != null) {
+                    (function(__iced_k) {
+                      __iced_deferrals = new iced.Deferrals(__iced_k, {
+                        parent: ___iced_passed_deferral,
+                        funcname: "Ship.setPilotById"
+                      });
+                      _this.builder.container.trigger('xwing:claimUnique', [
+                        new_pilot, 'Pilot', __iced_deferrals.defer({
+                          lineno: 35762
+                        })
+                      ]);
+                      __iced_deferrals._fulfill();
+                    })(__iced_k);
+                  } else {
+                    return __iced_k();
+                  }
+                })(function() {
+                  _this.pilot = new_pilot;
+                  if (_this.pilot != null) {
+                    _this.setupAddons();
+                  }
+                  _this.copy_button.show();
+                  _this.setShipType(_this.pilot.ship);
+                  (function(__iced_k) {
+                    if (_this.linkedShip) {
+                      (function(__iced_k) {
+                        if (quickbuild.linkedId != null) {
+                          _this.linkedShip.setPilotById(quickbuild.linkedId);
+                          return __iced_k(_this.linkedShip.primary = false);
+                        } else {
+                          _this.linkedShip.linkedShip = null;
+                          (function(__iced_k) {
+                            __iced_deferrals = new iced.Deferrals(__iced_k, {
+                              parent: ___iced_passed_deferral,
+                              funcname: "Ship.setPilotById"
+                            });
+                            _this.builder.removeShip(_this.linkedShip, __iced_deferrals.defer({
+                              lineno: 35778
+                            }));
+                            __iced_deferrals._fulfill();
+                          })(function() {
+                            return __iced_k(_this.linkedShip = null);
+                          });
+                        }
+                      })(__iced_k);
+                    } else {
+                      return __iced_k(quickbuild.linkedId != null ? (_this.linkedShip = _this.builder.ships.slice(-1)[0], _this.linkedShip.data !== null ? _this.linkedShip = _this.builder.addShip() : _this.builder.addShip(), _this.linkedShip.linkedShip = _this, _this.linkedShip.setPilotById(quickbuild.linkedId), _this.linkedShip.primary = false) : void 0);
+                    }
+                  })(function() {
+                    _this.primary = true;
+                    _this.builder.isUpdatingPoints = false;
+                    return __iced_k(_this.builder.container.trigger('xwing:pointsUpdated'));
+                  });
+                });
+              } else {
+                return __iced_k(_this.copy_button.hide());
+              }
+            })(function() {
+              _this.builder.container.trigger('xwing:pointsUpdated');
+              return __iced_k(_this.builder.container.trigger('xwing-backend:squadDirtinessChanged'));
+            });
+          } else {
+            return __iced_k();
+          }
+        });
+      })(this)(__iced_k);
+    }
   };
 
   Ship.prototype.setPilot = function(new_pilot, noautoequip) {
@@ -29581,7 +34544,7 @@ Ship = (function() {
                   });
                   _this.builder.container.trigger('xwing:claimUnique', [
                     new_pilot, 'Pilot', __iced_deferrals.defer({
-                      lineno: 29200
+                      lineno: 35820
                     })
                   ]);
                   __iced_deferrals._fulfill();
@@ -29605,7 +34568,7 @@ Ship = (function() {
                   _ref3 = _this.upgrades;
                   for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
                     upgrade = _ref3[_k];
-                    if (upgrade.slot === auto_equip_upgrade.slot) {
+                    if (exportObj.slotsMatching(upgrade.slot, auto_equip_upgrade.slot)) {
                       upgrade.setData(auto_equip_upgrade);
                     }
                   }
@@ -29655,7 +34618,7 @@ Ship = (function() {
             });
             _this.builder.container.trigger('xwing:releaseUnique', [
               _this.pilot, 'Pilot', __iced_deferrals.defer({
-                lineno: 29225
+                lineno: 35845
               })
             ]);
             __iced_deferrals._fulfill();
@@ -29672,18 +34635,40 @@ Ship = (function() {
   };
 
   Ship.prototype.setupAddons = function() {
-    var slot, _i, _len, _ref, _ref1, _results;
-    _ref1 = (_ref = this.pilot.slots) != null ? _ref : [];
-    _results = [];
-    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-      slot = _ref1[_i];
-      _results.push(this.upgrades.push(new exportObj.Upgrade({
-        ship: this,
-        container: this.addon_container,
-        slot: slot
-      })));
+    var slot, upgrade, upgrade_data, upgrade_name, _i, _j, _len, _len1, _ref, _ref1, _ref2, _ref3, _results, _results1;
+    if (!this.builder.isQuickbuild) {
+      _ref1 = (_ref = this.pilot.slots) != null ? _ref : [];
+      _results = [];
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        slot = _ref1[_i];
+        _results.push(this.upgrades.push(new exportObj.Upgrade({
+          ship: this,
+          container: this.addon_container,
+          slot: slot
+        })));
+      }
+      return _results;
+    } else {
+      _ref3 = (_ref2 = exportObj.quickbuildsById[this.quickbuildId].upgrades) != null ? _ref2 : [];
+      _results1 = [];
+      for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
+        upgrade_name = _ref3[_j];
+        upgrade_data = exportObj.upgrades[upgrade_name];
+        if (upgrade_data == null) {
+          console.log("Unknown Upgrade: " + upgrade_name);
+          continue;
+        }
+        upgrade = new exportObj.QuickbuildUpgrade({
+          ship: this,
+          container: this.addon_container,
+          slot: upgrade_data.slot,
+          upgrade: upgrade_data
+        });
+        upgrade.setData(upgrade_data);
+        _results1.push(this.upgrades.push(upgrade));
+      }
+      return _results1;
     }
-    return _results;
   };
 
   Ship.prototype.resetAddons = function() {
@@ -29702,7 +34687,7 @@ Ship = (function() {
           upgrade = _ref[_i];
           if (upgrade != null) {
             upgrade.destroy(__iced_deferrals.defer({
-              lineno: 29239
+              lineno: 35874
             }));
           }
         }
@@ -29716,20 +34701,31 @@ Ship = (function() {
   };
 
   Ship.prototype.getPoints = function() {
-    var points, upgrade, _i, _len, _ref, _ref1, _ref2;
-    points = (_ref = (_ref1 = this.pilot) != null ? _ref1.points : void 0) != null ? _ref : 0;
-    _ref2 = this.upgrades;
-    for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-      upgrade = _ref2[_i];
-      points += upgrade.getPoints();
-    }
-    this.points_container.find('span').text(points);
-    if (points > 0) {
-      this.points_container.fadeTo('fast', 1);
+    var points, threat, upgrade, _i, _len, _ref, _ref1, _ref2, _ref3, _ref4;
+    if (!this.builder.isQuickbuild) {
+      points = (_ref = (_ref1 = this.pilot) != null ? _ref1.points : void 0) != null ? _ref : 0;
+      _ref2 = this.upgrades;
+      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+        upgrade = _ref2[_i];
+        points += upgrade.getPoints();
+      }
+      this.points_container.find('span').text(points);
+      if (points > 0) {
+        this.points_container.fadeTo('fast', 1);
+      } else {
+        this.points_container.fadeTo(0, 0);
+      }
+      return points;
     } else {
-      this.points_container.fadeTo(0, 0);
+      threat = this.primary ? (_ref3 = (_ref4 = exportObj.quickbuildsById[this.quickbuildId]) != null ? _ref4.threat : void 0) != null ? _ref3 : 0 : 0;
+      this.points_container.find('span').text(threat);
+      if (threat > 0) {
+        this.points_container.fadeTo('fast', 1);
+      } else {
+        this.points_container.fadeTo(0, 0);
+      }
+      return threat;
     }
-    return points;
   };
 
   Ship.prototype.updateSelections = function() {
@@ -29750,7 +34746,7 @@ Ship = (function() {
       }
       this.pilot_selector.select2('data', {
         id: this.pilot.id,
-        text: "" + ((((_ref = exportObj.settings) != null ? _ref.initiative_prefix : void 0) != null) && exportObj.settings.initiative_prefix ? this.pilot.skill + ' - ' : '') + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " (" + this.pilot.points + ")"
+        text: "" + ((((_ref = exportObj.settings) != null ? _ref.initiative_prefix : void 0) != null) && exportObj.settings.initiative_prefix ? this.pilot.skill + ' - ' : '') + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + (this.quickbuildId !== -1 ? exportObj.quickbuildsById[this.quickbuildId].suffix : "") + " (" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + ")"
       });
       this.pilot_selector.data('select2').container.show();
       _ref1 = this.upgrades;
@@ -29822,6 +34818,29 @@ Ship = (function() {
         return _this.setShipType(_this.ship_selector.val());
       };
     })(this));
+    this.ship_selector.data('select2').results.on('mousemove-filtered', (function(_this) {
+      return function(e) {
+        var select2_data;
+        select2_data = $(e.target).closest('.select2-result').data('select2-data');
+        if ((select2_data != null ? select2_data.id : void 0) != null) {
+          return _this.builder.showTooltip('Ship', exportObj.ships[select2_data.id]);
+        }
+      };
+    })(this));
+    this.ship_selector.data('select2').container.on('mouseover', (function(_this) {
+      return function(e) {
+        if (_this.pilot) {
+          return _this.builder.showTooltip('Ship', exportObj.ships[_this.pilot.ship]);
+        }
+      };
+    })(this));
+    this.ship_selector.data('select2').container.on('touchmove', (function(_this) {
+      return function(e) {
+        if (_this.pilot) {
+          return _this.builder.showTooltip('Ship', exportObj.ships[_this.pilot.ship]);
+        }
+      };
+    })(this));
     this.row.attr('id', "row-" + (this.ship_selector.data('select2').container.attr('id')));
     this.pilot_selector.select2({
       width: '100%',
@@ -29831,22 +34850,28 @@ Ship = (function() {
           _this.builder.checkCollection();
           return query.callback({
             more: false,
-            results: _this.builder.getAvailablePilotsForShipIncluding(_this.ship_selector.val(), _this.pilot, query.term)
+            results: _this.builder.getAvailablePilotsForShipIncluding(_this.ship_selector.val(), (!_this.builder.isQuickbuild ? _this.pilot : _this.quickbuildId), query.term, true, _this)
           });
         };
       })(this),
       minimumResultsForSearch: $.isMobile() ? -1 : 0,
       formatResultCssClass: (function(_this) {
         return function(obj) {
-          var not_in_collection, _ref;
+          var name, not_in_collection, _ref, _ref1, _ref2;
           if ((_this.builder.collection != null) && (_this.builder.collection.checks.collectioncheck === "true")) {
             not_in_collection = false;
-            if (obj.id === ((_ref = _this.pilot) != null ? _ref.id : void 0)) {
-              if (!(_this.builder.collection.checkShelf('pilot', obj.name) || _this.builder.collection.checkTable('pilot', obj.name))) {
+            name = "";
+            if (_this.builder.isQuickbuild) {
+              name = (_ref = (_ref1 = exportObj.quickbuildsById[obj.id]) != null ? _ref1.pilot : void 0) != null ? _ref : "unknown pilot";
+            } else {
+              name = obj.name;
+            }
+            if (obj.id === ((_ref2 = _this.pilot) != null ? _ref2.id : void 0)) {
+              if (!(_this.builder.collection.checkShelf('pilot', name) || _this.builder.collection.checkTable('pilot', name))) {
                 not_in_collection = true;
               }
             } else {
-              not_in_collection = !_this.builder.collection.checkShelf('pilot', obj.name);
+              not_in_collection = !_this.builder.collection.checkShelf('pilot', name);
             }
             if (not_in_collection) {
               return 'select2-result-not-in-collection';
@@ -29871,24 +34896,30 @@ Ship = (function() {
       return function(e) {
         var select2_data, _ref;
         select2_data = $(e.target).closest('.select2-result').data('select2-data');
-        if ((select2_data != null ? select2_data.id : void 0) != null) {
-          return _this.builder.showTooltip('Pilot', exportObj.pilotsById[select2_data.id], {
-            ship: (_ref = _this.data) != null ? _ref.name : void 0
-          });
+        if (_this.builder.isQuickbuild) {
+          if ((select2_data != null ? select2_data.id : void 0) != null) {
+            return _this.builder.showTooltip('Quickbuild', exportObj.quickbuildsById[select2_data.id], {
+              ship: (_ref = _this.data) != null ? _ref.name : void 0
+            });
+          }
+        } else {
+          if ((select2_data != null ? select2_data.id : void 0) != null) {
+            return _this.builder.showTooltip('Pilot', exportObj.pilotsById[select2_data.id]);
+          }
         }
       };
     })(this));
     this.pilot_selector.data('select2').container.on('mouseover', (function(_this) {
       return function(e) {
-        if (_this.data != null) {
-          return _this.builder.showTooltip('Ship', _this);
+        if (_this.pilot) {
+          return _this.builder.showTooltip('Pilot', _this.pilot, _this);
         }
       };
     })(this));
     this.pilot_selector.data('select2').container.on('touchmove', (function(_this) {
       return function(e) {
-        if (_this.data != null) {
-          return _this.builder.showTooltip('Ship', _this);
+        if (_this.pilot) {
+          return _this.builder.showTooltip('Ship', _this.pilot, _this);
         }
 
         /*if @data? 
@@ -29915,16 +34946,9 @@ Ship = (function() {
     this.copy_button = $(this.row.find('button.copy-pilot'));
     this.copy_button.click((function(_this) {
       return function(e) {
-        var clone, count;
+        var clone;
         clone = _this.builder.ships[_this.builder.ships.length - 1];
-        if (_this.pilot.restricted) {
-          count = 0;
-          if (count < _this.pilot.restricted) {
-            return clone.copyFrom(_this);
-          }
-        } else {
-          return clone.copyFrom(_this);
-        }
+        return clone.copyFrom(_this);
       };
     })(this));
     return this.copy_button.hide();
@@ -29944,7 +34968,7 @@ Ship = (function() {
   };
 
   Ship.prototype.toHTML = function() {
-    var HalfPoints, Threshold, action, action_bar, action_bar_red, action_icons, action_icons_red, actionred, attackHTML, attack_icon, attackbHTML, attackdtHTML, attackfHTML, attacktHTML, chargeHTML, dialHTML, effective_stats, energyHTML, forceHTML, html, hullIconHTML, points, shieldIconHTML, slotted_upgrades, upgrade, _, _i, _j, _k, _l, _len, _len1, _len2, _m, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref22, _ref23, _ref24, _ref25, _ref26, _ref27, _ref28, _ref29, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+    var HalfPoints, Threshold, action, action_bar, action_bar_red, action_icons, action_icons_red, actionred, attackHTML, attack_icon, attackbHTML, attackdtHTML, attackfHTML, attacktHTML, chargeHTML, effective_stats, energyHTML, forceHTML, html, hullIconHTML, points, shieldIconHTML, slotted_upgrades, upgrade, _, _i, _j, _k, _l, _len, _len1, _len2, _m, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref18, _ref19, _ref2, _ref20, _ref21, _ref22, _ref23, _ref24, _ref25, _ref26, _ref27, _ref28, _ref29, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
     effective_stats = this.effectiveStats();
     action_icons = [];
     action_icons_red = [];
@@ -29959,6 +34983,8 @@ Ship = (function() {
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-focus\"></i> ";
           case 'Evade':
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-evade\"></i> ";
+          case 'F-Evade':
+            return "<i class=\"xwing-miniatures-font force xwing-miniatures-font-evade\"></i> ";
           case 'Barrel Roll':
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-barrelroll\"></i> ";
           case 'Lock':
@@ -29967,6 +34993,8 @@ Ship = (function() {
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-boost\"></i> ";
           case 'Coordinate':
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-coordinate\"></i> ";
+          case 'F-Coordinate':
+            return "<i class=\"xwing-miniatures-font force xwing-miniatures-font-coordinate\"></i> ";
           case 'Jam':
             return "<i class=\"xwing-miniatures-font xwing-miniatures-font-jam\"></i> ";
           case 'Reinforce':
@@ -30085,9 +35113,7 @@ Ship = (function() {
         hullIconHTML += "<i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull expanded-hull-or-shield\"></i>";
       }
     }
-    html = $.trim("<div class=\"fancy-pilot-header\">\n    <div class=\"pilot-header-text\">" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " <i class=\"xwing-miniatures-ship xwing-miniatures-ship-" + this.data.xws + "\"></i><span class=\"fancy-ship-type\"> " + (this.data.display_name ? this.data.display_name : this.data.name) + "</span></div>\n    <div class=\"mask\">\n        <div class=\"outer-circle\">\n            <div class=\"inner-circle pilot-points\">" + this.pilot.points + "</div>\n        </div>\n    </div>\n</div>\n<div class=\"fancy-pilot-stats\">\n    <div class=\"pilot-stats-content\">\n        <span class=\"info-data info-skill\">INI " + (statAndEffectiveStat(this.pilot.skill, effective_stats, 'skill')) + "</span>\n        " + attackHTML + "\n        " + attackbHTML + "\n        " + attackfHTML + "\n        " + attacktHTML + "\n        " + attackdtHTML + "\n        " + energyHTML + "\n        <i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i>\n        <span class=\"info-data info-agility\">" + (statAndEffectiveStat((_ref24 = (_ref25 = this.pilot.ship_override) != null ? _ref25.agility : void 0) != null ? _ref24 : this.data.agility, effective_stats, 'agility')) + "</span>                    \n        " + hullIconHTML + "\n        <i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull simple-hull-or-shield\"></i>\n        <span class=\"info-data info-hull simple-hull-or-shield\">" + (statAndEffectiveStat((_ref26 = (_ref27 = this.pilot.ship_override) != null ? _ref27.hull : void 0) != null ? _ref26 : this.data.hull, effective_stats, 'hull')) + "</span>\n        " + shieldIconHTML + "\n        <i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield simple-hull-or-shield\"></i>\n        <span class=\"info-data info-shields simple-hull-or-shield\">" + (statAndEffectiveStat((_ref28 = (_ref29 = this.pilot.ship_override) != null ? _ref29.shields : void 0) != null ? _ref28 : this.data.shields, effective_stats, 'shields')) + "</span>\n        " + forceHTML + "\n        " + chargeHTML + "\n        &nbsp;\n        " + action_bar + "\n        &nbsp;&nbsp;\n        " + action_bar_red + "\n    </div>\n</div>");
-    dialHTML = this.builder.getManeuverTableHTML(effective_stats.maneuvers, this.data.maneuvers);
-    html += $.trim("<div class=\"fancy-dial\">\n    " + dialHTML + "\n</div>");
+    html = $.trim("<div class=\"fancy-pilot-header\">\n    <div class=\"pilot-header-text\">" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " <i class=\"xwing-miniatures-ship xwing-miniatures-ship-" + this.data.xws + "\"></i><span class=\"fancy-ship-type\"> " + (this.data.display_name ? this.data.display_name : this.data.name) + "</span></div>\n    <div class=\"mask\">\n        <div class=\"outer-circle\">\n            <div class=\"inner-circle pilot-points\">" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + "</div>\n        </div>\n    </div>\n</div>\n<div class=\"fancy-pilot-stats\">\n    <div class=\"pilot-stats-content\">\n        <span class=\"info-data info-skill\">INI " + (statAndEffectiveStat(this.pilot.skill, effective_stats, 'skill')) + "</span>\n        " + attackHTML + "\n        " + attackbHTML + "\n        " + attackfHTML + "\n        " + attacktHTML + "\n        " + attackdtHTML + "\n        " + energyHTML + "\n        <i class=\"xwing-miniatures-font header-agility xwing-miniatures-font-agility\"></i>\n        <span class=\"info-data info-agility\">" + (statAndEffectiveStat((_ref24 = (_ref25 = this.pilot.ship_override) != null ? _ref25.agility : void 0) != null ? _ref24 : this.data.agility, effective_stats, 'agility')) + "</span>                    \n        " + hullIconHTML + "\n        <i class=\"xwing-miniatures-font header-hull xwing-miniatures-font-hull simple-hull-or-shield\"></i>\n        <span class=\"info-data info-hull simple-hull-or-shield\">" + (statAndEffectiveStat((_ref26 = (_ref27 = this.pilot.ship_override) != null ? _ref27.hull : void 0) != null ? _ref26 : this.data.hull, effective_stats, 'hull')) + "</span>\n        " + shieldIconHTML + "\n        <i class=\"xwing-miniatures-font header-shield xwing-miniatures-font-shield simple-hull-or-shield\"></i>\n        <span class=\"info-data info-shields simple-hull-or-shield\">" + (statAndEffectiveStat((_ref28 = (_ref29 = this.pilot.ship_override) != null ? _ref29.shields : void 0) != null ? _ref28 : this.data.shields, effective_stats, 'shields')) + "</span>\n        " + forceHTML + "\n        " + chargeHTML + "\n        &nbsp;\n        " + action_bar + "\n        &nbsp;&nbsp;\n        " + action_bar_red + "\n    </div>\n</div>");
     if (this.pilot.text) {
       html += $.trim("<div class=\"fancy-pilot-text\">" + this.pilot.text + "</div>");
     }
@@ -30120,7 +35146,7 @@ Ship = (function() {
 
   Ship.prototype.toTableRow = function() {
     var halfPoints, points, slotted_upgrades, table_html, threshold, upgrade, _i, _len;
-    table_html = $.trim("<tr class=\"simple-pilot\">\n    <td class=\"name\">" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " &mdash; " + (this.data.display_name ? this.data.display_name : this.data.name) + "</td>\n    <td class=\"points\">" + this.pilot.points + "</td>\n</tr>");
+    table_html = $.trim("<tr class=\"simple-pilot\">\n    <td class=\"name\">" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " &mdash; " + (this.data.display_name ? this.data.display_name : this.data.name) + "</td>\n    <td class=\"points\">" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + "</td>\n</tr>");
     slotted_upgrades = (function() {
       var _i, _len, _ref, _results;
       _ref = this.upgrades;
@@ -30148,9 +35174,9 @@ Ship = (function() {
     return table_html;
   };
 
-  Ship.prototype.toRedditText = function() {
-    var points, reddit, reddit_upgrades, slotted_upgrades, upgrade, upgrade_reddit, _i, _len;
-    reddit = "**" + this.pilot.name + " (" + this.pilot.points + ")**    \n";
+  Ship.prototype.toSimpleCopy = function() {
+    var halfPoints, points, simplecopy, simplecopy_upgrades, slotted_upgrades, threshold, upgrade, upgrade_simplecopy, _i, _len;
+    simplecopy = "" + this.pilot.name + " (" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + ")    \n";
     slotted_upgrades = (function() {
       var _i, _len, _ref, _results;
       _ref = this.upgrades;
@@ -30164,7 +35190,42 @@ Ship = (function() {
       return _results;
     }).call(this);
     if (slotted_upgrades.length > 0) {
-      reddit += "    \n";
+      simplecopy += "    ";
+      simplecopy_upgrades = [];
+      for (_i = 0, _len = slotted_upgrades.length; _i < _len; _i++) {
+        upgrade = slotted_upgrades[_i];
+        points = upgrade.getPoints();
+        upgrade_simplecopy = upgrade.toSimpleCopy(points);
+        if (upgrade_simplecopy != null) {
+          simplecopy_upgrades.push(upgrade_simplecopy);
+        }
+      }
+      simplecopy += simplecopy_upgrades.join("    ");
+      simplecopy += "    \n";
+    }
+    halfPoints = Math.ceil(this.getPoints() / 2);
+    threshold = Math.ceil((this.effectiveStats()['hull'] + this.effectiveStats()['shields']) / 2);
+    simplecopy += "Ship total: " + (this.getPoints()) + "  Half Points: " + halfPoints + "  Threshold: " + threshold + "    \n    \n";
+    return simplecopy;
+  };
+
+  Ship.prototype.toRedditText = function() {
+    var points, reddit, reddit_upgrades, slotted_upgrades, upgrade, upgrade_reddit, _i, _len;
+    reddit = "**" + this.pilot.name + " (" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + ")**    \n";
+    slotted_upgrades = (function() {
+      var _i, _len, _ref, _results;
+      _ref = this.upgrades;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        upgrade = _ref[_i];
+        if (upgrade.data != null) {
+          _results.push(upgrade);
+        }
+      }
+      return _results;
+    }).call(this);
+    if (slotted_upgrades.length > 0) {
+      reddit += "    ";
       reddit_upgrades = [];
       for (_i = 0, _len = slotted_upgrades.length; _i < _len; _i++) {
         upgrade = slotted_upgrades[_i];
@@ -30210,7 +35271,7 @@ Ship = (function() {
 
   Ship.prototype.toBBCode = function() {
     var bbcode, bbcode_upgrades, points, slotted_upgrades, upgrade, upgrade_bbcode, _i, _len;
-    bbcode = "[b]" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " (" + this.pilot.points + ")[/b]";
+    bbcode = "[b]" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " (" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + ")[/b]";
     slotted_upgrades = (function() {
       var _i, _len, _ref, _results;
       _ref = this.upgrades;
@@ -30241,7 +35302,7 @@ Ship = (function() {
 
   Ship.prototype.toSimpleHTML = function() {
     var html, points, slotted_upgrades, upgrade, upgrade_html, _i, _len;
-    html = "<b>" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " (" + this.pilot.points + ")</b><br />";
+    html = "<b>" + (this.pilot.display_name ? this.pilot.display_name : this.pilot.name) + " (" + (this.quickbuildId !== -1 ? (this.primary ? exportObj.quickbuildsById[this.quickbuildId].threat : 0) : this.pilot.points) + ")</b><br />";
     slotted_upgrades = (function() {
       var _i, _len, _ref, _results;
       _ref = this.upgrades;
@@ -30269,34 +35330,38 @@ Ship = (function() {
 
   Ship.prototype.toSerialized = function() {
     var addon, conferred_addons, i, serialized_conferred_addons, upgrade, upgrades, _i, _j, _len, _len1, _ref, _ref1;
-    conferred_addons = [];
-    _ref = this.upgrades;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      upgrade = _ref[_i];
-      conferred_addons = conferred_addons.concat((_ref1 = upgrade != null ? upgrade.conferredAddons : void 0) != null ? _ref1 : []);
-    }
-    upgrades = "" + ((function() {
-      var _j, _len1, _ref2, _ref3, _ref4, _results;
-      _ref2 = this.upgrades;
-      _results = [];
-      for (i = _j = 0, _len1 = _ref2.length; _j < _len1; i = ++_j) {
-        upgrade = _ref2[i];
-        if (__indexOf.call(conferred_addons, upgrade) < 0) {
-          _results.push((_ref3 = upgrade != null ? (_ref4 = upgrade.data) != null ? _ref4.id : void 0 : void 0) != null ? _ref3 : -1);
-        }
+    if (this.builder.isQuickbuild) {
+      return "" + this.quickbuildId + ":";
+    } else {
+      conferred_addons = [];
+      _ref = this.upgrades;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        upgrade = _ref[_i];
+        conferred_addons = conferred_addons.concat((_ref1 = upgrade != null ? upgrade.conferredAddons : void 0) != null ? _ref1 : []);
       }
-      return _results;
-    }).call(this));
-    serialized_conferred_addons = [];
-    for (_j = 0, _len1 = conferred_addons.length; _j < _len1; _j++) {
-      addon = conferred_addons[_j];
-      serialized_conferred_addons.push(addon.toSerialized());
+      upgrades = "" + ((function() {
+        var _j, _len1, _ref2, _ref3, _ref4, _results;
+        _ref2 = this.upgrades;
+        _results = [];
+        for (i = _j = 0, _len1 = _ref2.length; _j < _len1; i = ++_j) {
+          upgrade = _ref2[i];
+          if (__indexOf.call(conferred_addons, upgrade) < 0) {
+            _results.push((_ref3 = upgrade != null ? (_ref4 = upgrade.data) != null ? _ref4.id : void 0 : void 0) != null ? _ref3 : "");
+          }
+        }
+        return _results;
+      }).call(this));
+      serialized_conferred_addons = [];
+      for (_j = 0, _len1 = conferred_addons.length; _j < _len1; _j++) {
+        addon = conferred_addons[_j];
+        serialized_conferred_addons.push(addon.toSerialized());
+      }
+      return [this.pilot.id, upgrades, serialized_conferred_addons.join(',')].join(':');
     }
-    return [this.pilot.id, upgrades, serialized_conferred_addons.join(',')].join(':');
   };
 
   Ship.prototype.fromSerialized = function(version, serialized) {
-    var addon_cls, addon_id, addon_type_serialized, conferred_addon, conferredaddon_pair, conferredaddon_pairs, deferred_id, deferred_ids, everythingadded, i, pilot_id, upgrade, upgrade_conferred_addon_pairs, upgrade_id, upgrade_ids, version_4_compatibility_placeholder_mod, version_4_compatibility_placeholder_title, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _len6, _len7, _len8, _m, _n, _o, _p, _q, _ref, _ref1, _ref10, _ref11, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+    var addon_cls, addon_id, addon_type_serialized, conferred_addon, conferredaddon_pair, conferredaddon_pairs, deferred_id, deferred_id_added, deferred_ids, everythingadded, i, pilot_id, upgrade, upgrade_conferred_addon_pairs, upgrade_id, upgrade_ids, upgrade_selection, version_4_compatibility_placeholder_mod, version_4_compatibility_placeholder_title, _, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _len6, _len7, _len8, _len9, _m, _n, _o, _p, _q, _r, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9, _s, _t;
     everythingadded = true;
     switch (version) {
       case 1:
@@ -30349,6 +35414,7 @@ Ship = (function() {
         break;
       case 4:
       case 5:
+      case 6:
         if ((serialized.split(':')).length === 3) {
           _ref5 = serialized.split(':'), pilot_id = _ref5[0], upgrade_ids = _ref5[1], conferredaddon_pairs = _ref5[2];
         } else {
@@ -30375,17 +35441,18 @@ Ship = (function() {
         }
         for (_n = 0, _len5 = deferred_ids.length; _n < _len5; _n++) {
           deferred_id = deferred_ids[_n];
+          deferred_id_added = false;
           _ref9 = this.upgrades;
           for (i = _o = 0, _len6 = _ref9.length; _o < _len6; i = ++_o) {
             upgrade = _ref9[i];
             if (upgrade.isOccupied() || upgrade.slot !== exportObj.upgradesById[deferred_id].slot) {
-              everythingadded = false;
               continue;
             }
             upgrade.setById(deferred_id);
-            everythingadded &= upgrade.lastSetValid;
+            deferred_id_added = upgrade.lastSetValid;
             break;
           }
+          everythingadded &= deferred_id_added;
         }
         if (conferredaddon_pairs != null) {
           conferredaddon_pairs = conferredaddon_pairs.split(',');
@@ -30416,6 +35483,40 @@ Ship = (function() {
             }
           }
         }
+        break;
+      case 7:
+        _ref12 = serialized.split(':'), pilot_id = _ref12[0], upgrade_ids = _ref12[1], conferredaddon_pairs = _ref12[2];
+        upgrade_ids = upgrade_ids.split(',');
+        this.setPilotById(parseInt(pilot_id), true);
+        if (!this.validate) {
+          return false;
+        }
+        for (_ = _r = 1; _r < 3; _ = ++_r) {
+          for (i = _s = _ref13 = upgrade_ids.length - 1; _ref13 <= -1 ? _s < -1 : _s > -1; i = _ref13 <= -1 ? ++_s : --_s) {
+            upgrade_id = upgrade_ids[i];
+            upgrade = exportObj.upgradesById[upgrade_id];
+            if (upgrade == null) {
+              upgrade_ids.splice(i, 1);
+              if (upgrade_id !== "") {
+                console.log("Unknown upgrade id " + upgrade_id + " could not be added. Please report that error");
+                everythingadded = false;
+              }
+              continue;
+            }
+            _ref14 = this.upgrades;
+            for (_t = 0, _len9 = _ref14.length; _t < _len9; _t++) {
+              upgrade_selection = _ref14[_t];
+              if (exportObj.slotsMatching(upgrade.slot, upgrade_selection.slot) && !upgrade_selection.isOccupied()) {
+                upgrade_selection.setById(upgrade_id);
+                if (upgrade_selection.lastSetValid) {
+                  upgrade_ids.splice(i, 1);
+                }
+                break;
+              }
+            }
+          }
+        }
+        everythingadded &= upgrade_ids.length === 0;
     }
     this.updateSelections();
     return everythingadded;
@@ -30473,7 +35574,7 @@ Ship = (function() {
       for (_j = 0, _len = _ref4.length; _j < _len; _j++) {
         upgrade = _ref4[_j];
         func = (_ref5 = (_ref6 = upgrade != null ? (_ref7 = upgrade.data) != null ? _ref7.validation_func : void 0 : void 0) != null ? _ref6 : upgrade != null ? (_ref8 = upgrade.data) != null ? _ref8.restriction_func : void 0 : void 0) != null ? _ref5 : void 0;
-        if (((func != null) && !func(this, upgrade)) || (((upgrade != null ? upgrade.data : void 0) != null) && (_ref9 = upgrade.data, __indexOf.call(equipped_upgrades, _ref9) >= 0))) {
+        if ((((func != null) && !func(this, upgrade)) || (((upgrade != null ? upgrade.data : void 0) != null) && (_ref9 = upgrade.data, __indexOf.call(equipped_upgrades, _ref9) >= 0))) && !this.builder.isQuickbuild) {
           upgrade.setById(null);
           valid = false;
           unchanged = false;
@@ -30523,8 +35624,34 @@ Ship = (function() {
     return false;
   };
 
+  Ship.prototype.doesSlotExist = function(slot) {
+    var upgrade, _i, _len, _ref;
+    _ref = this.upgrades;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      upgrade = _ref[_i];
+      if (slot === upgrade.slot) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  Ship.prototype.isSlotOccupied = function(slot_name) {
+    var upgrade, _i, _len, _ref;
+    _ref = this.upgrades;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      upgrade = _ref[_i];
+      if (exportObj.slotsMatching(upgrade.slot, slot_name)) {
+        if (!upgrade.isOccupied()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   Ship.prototype.toXWS = function() {
-    var upgrade, upgrade_obj, xws, _i, _len, _ref, _ref1, _ref2;
+    var upgrade, upgrade_obj, xws, _i, _len, _ref, _ref1, _ref2, _ref3;
     xws = {
       id: (_ref = this.pilot.xws) != null ? _ref : this.pilot.canonical_name,
       name: (_ref1 = this.pilot.xws) != null ? _ref1 : this.pilot.canonical_name,
@@ -30538,7 +35665,7 @@ Ship = (function() {
     _ref2 = this.upgrades;
     for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
       upgrade = _ref2[_i];
-      if ((upgrade != null ? upgrade.data : void 0) != null) {
+      if (((upgrade != null ? upgrade.data : void 0) != null) && ((upgrade != null ? (_ref3 = upgrade.data) != null ? _ref3.ignorecollection : void 0 : void 0) == null)) {
         upgrade.toXWS(upgrade_obj);
       }
     }
@@ -30635,7 +35762,7 @@ GenericAddon = (function() {
             });
             _this.ship.builder.container.trigger('xwing:releaseUnique', [
               _this.data, _this.type, __iced_deferrals.defer({
-                lineno: 29993
+                lineno: 36714
               })
             ]);
             __iced_deferrals._fulfill();
@@ -30767,8 +35894,8 @@ GenericAddon = (function() {
     if ((new_data != null ? new_data.id : void 0) !== ((_ref = this.data) != null ? _ref.id : void 0)) {
       (function(_this) {
         return (function(__iced_k) {
-          var _ref1;
-          if (((_ref1 = _this.data) != null ? _ref1.unique : void 0) != null) {
+          var _ref1, _ref2;
+          if ((((_ref1 = _this.data) != null ? _ref1.unique : void 0) != null) || (((_ref2 = _this.data) != null ? _ref2.solitary : void 0) != null)) {
             (function(__iced_k) {
               __iced_deferrals = new iced.Deferrals(__iced_k, {
                 parent: ___iced_passed_deferral,
@@ -30776,7 +35903,7 @@ GenericAddon = (function() {
               });
               _this.ship.builder.container.trigger('xwing:releaseUnique', [
                 _this.unadjusted_data, _this.type, __iced_deferrals.defer({
-                  lineno: 30067
+                  lineno: 36788
                 })
               ]);
               __iced_deferrals._fulfill();
@@ -30790,7 +35917,7 @@ GenericAddon = (function() {
           _this.rescindAddons();
           _this.deoccupyOtherUpgrades();
           (function(__iced_k) {
-            if ((new_data != null ? new_data.unique : void 0) != null) {
+            if (((new_data != null ? new_data.unique : void 0) != null) || ((new_data != null ? new_data.solitary : void 0) != null)) {
               (function(__iced_k) {
                 __iced_deferrals = new iced.Deferrals(__iced_k, {
                   parent: ___iced_passed_deferral,
@@ -30798,7 +35925,7 @@ GenericAddon = (function() {
                 });
                 _this.ship.builder.container.trigger('xwing:claimUnique', [
                   new_data, _this.type, __iced_deferrals.defer({
-                    lineno: 30071
+                    lineno: 36792
                   })
                 ]);
                 __iced_deferrals._fulfill();
@@ -30885,7 +36012,7 @@ GenericAddon = (function() {
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           addon = _ref[_i];
           addon.destroy(__iced_deferrals.defer({
-            lineno: 30112
+            lineno: 36833
           }));
         }
         __iced_deferrals._fulfill();
@@ -30994,6 +36121,14 @@ GenericAddon = (function() {
       return $.trim("<tr class=\"simple-addon\">\n    <td class=\"name\">" + (this.data.display_name ? this.data.display_name : this.data.name) + "</td>\n    <td class=\"points\">" + points + "</td>\n</tr>");
     } else {
       return '';
+    }
+  };
+
+  GenericAddon.prototype.toSimpleCopy = function(points) {
+    if (this.data != null) {
+      return "" + this.data.name + " (" + points + ")    \n";
+    } else {
+      return null;
     }
   };
 
@@ -31191,6 +36326,63 @@ exportObj.RestrictedUpgrade = (function(_super) {
 
 })(exportObj.Upgrade);
 
+exportObj.QuickbuildUpgrade = (function(_super) {
+  __extends(QuickbuildUpgrade, _super);
+
+  function QuickbuildUpgrade(args) {
+    QuickbuildUpgrade.__super__.constructor.call(this, args);
+    this.slot = args.slot;
+    this.type = 'Upgrade';
+    this.dataById = exportObj.upgradesById;
+    this.dataByName = exportObj.upgrades;
+    this.serialization_code = 'U';
+    this.upgrade = args.upgrade;
+    this.setupSelector();
+  }
+
+  QuickbuildUpgrade.prototype.setupSelector = function() {
+    return QuickbuildUpgrade.__super__.setupSelector.call(this, {
+      width: '50%',
+      allowClear: false,
+      query: (function(_this) {
+        return function(query) {
+          _this.ship.builder.checkCollection();
+          return query.callback({
+            more: false,
+            results: [
+              {
+                id: _this.upgrade.id,
+                text: _this.upgrade.display_name ? _this.upgrade.display_name : _this.upgrade.name,
+                points: 0,
+                name: _this.upgrade.name,
+                display_name: _this.upgrade.display_name
+              }
+            ]
+          });
+        };
+      })(this)
+    });
+  };
+
+  QuickbuildUpgrade.prototype.getPoints = function(args) {
+    return 0;
+  };
+
+  QuickbuildUpgrade.prototype.updateSelection = function(args) {
+    if (this.data != null) {
+      return this.selector.select2('data', {
+        id: this.data.id,
+        text: "" + (this.data.display_name ? this.data.display_name : this.data.name)
+      });
+    } else {
+      return this.selector.select2('data', null);
+    }
+  };
+
+  return QuickbuildUpgrade;
+
+})(GenericAddon);
+
 SERIALIZATION_CODE_TO_CLASS = {
   'U': exportObj.Upgrade,
   'u': exportObj.RestrictedUpgrade
@@ -31206,7 +36398,9 @@ exportObj.fromXWSFaction = {
   'imperial': 'Galactic Empire',
   'scumandvillainy': 'Scum and Villainy',
   'firstorder': 'First Order',
-  'resistance': 'Resistance'
+  'resistance': 'Resistance',
+  'galacticrepublic': 'Galactic Republic',
+  'separatistalliance': 'Separatist Alliance'
 };
 
 exportObj.toXWSFaction = {
@@ -31214,12 +36408,15 @@ exportObj.toXWSFaction = {
   'Galactic Empire': 'galacticempire',
   'Scum and Villainy': 'scumandvillainy',
   'First Order': 'firstorder',
-  'Resistance': 'resistance'
+  'Resistance': 'resistance',
+  'Galactic Republic': 'galacticrepublic',
+  'Separatist Alliance': 'separatistalliance'
 };
 
 exportObj.toXWSUpgrade = {
   'Modification': 'modification',
-  'Force': 'force-power'
+  'Force': 'force-power',
+  'Tactical Relay': 'tactical-relay'
 };
 
 exportObj.fromXWSUpgrade = {
@@ -31229,7 +36426,8 @@ exportObj.fromXWSUpgrade = {
   'elitepilottalent': 'Talent',
   'system': 'Sensor',
   'mod': 'Modification',
-  'force-power': 'Force'
+  'force-power': 'Force',
+  'tacticalrelay': 'Tactical Relay'
 };
 
 SPEC_URL = 'https://github.com/elistevens/xws-spec';
