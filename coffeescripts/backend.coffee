@@ -394,6 +394,22 @@ class exportObj.SquadBuilderBackend
                 methods_ul.append li
             @ui_ready = true
 
+        @reload_done_modal = $ document.createElement('DIV')
+        @reload_done_modal.addClass 'modal hide fade hidden-print'
+        $(document.body).append @reload_done_modal
+        @reload_done_modal.append $.trim """
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h3>Reload Done</h3>
+            </div>
+            <div class="modal-body">
+                <p>All squads of that faction have been reloaded.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" aria-hidden="true" data-dismiss="modal">Well done!</button>
+            </div>
+        """
+
         @squad_list_modal = $ document.createElement('DIV')
         @squad_list_modal.addClass 'modal hide fade hidden-print squad-list'
         $(document.body).append @squad_list_modal
@@ -418,10 +434,11 @@ class exportObj.SquadBuilderBackend
                 </div>
                 <div class="btn-group squad-display-mode">
                     <button class="btn btn-inverse show-all-squads">All</button>
-                    <button class="btn show-standard-squads">Standard</button>
-                    <button class="btn show-epic-squads">Epic</button>
-                    <button class="btn show-team-epic-squads">Team<span class="hidden-phone"> Epic</span></button>
+                    <button class="btn show-extended-squads">Extended</button>
+                    <button class="btn show-hyperspace-squads">Hyperspace</button>
+                    <button class="btn show-quickbuild-squads">Quickbuild</button>
                 </div>
+                <button class="btn btn reload-all">Reload<span class="hidden-phone"> all squads (this might take a while)</span></button>
                 <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
             </div>
         """
@@ -454,6 +471,35 @@ class exportObj.SquadBuilderBackend
                                     Error deleting #{li.data('squad').name}: <em>#{results.error}</em>
                                 """
 
+        @squad_list_modal.find('button.reload-all').click (e) =>
+            ul = @squad_list_modal.find('ul.squad-list') 
+            squadProcessingStack = [ () =>
+                @reload_done_modal.modal 'show' ]
+            squadDataStack = []
+            for li in ul.find('li')
+                li = $ li
+                squadDataStack.push li.data('squad')
+                builder = li.data('builder')
+                squadProcessingStack.push () => 
+                    sqd = squadDataStack.pop()
+                    # console.log("loading " + sqd.name)
+                    builder.container.trigger 'xwing-backend:squadLoadRequested', [ sqd, () =>
+                        additional_data =
+                            points: builder.total_points
+                            description: builder.describeSquad()
+                            cards: builder.listCards()
+                            notes: builder.notes.val().substr(0, 1024)
+                            obstacles: builder.getObstacles()
+                        # console.log("saving " + builder.current_squad.name)
+                        @save builder.serialize(), builder.current_squad.id, builder.current_squad.name, builder.faction, additional_data, squadProcessingStack.pop() ]
+                        
+            @squad_list_modal.modal 'hide'
+            if builder.current_squad.dirty
+                    @warnUnsaved builder, squadProcessingStack.pop()
+            else
+                squadProcessingStack.pop()()
+
+
         @select_all_button = $ @squad_list_modal.find('button.select-all')
         @select_all_button.click (e) =>
             ul = @squad_list_modal.find('ul.squad-list') 
@@ -466,9 +512,6 @@ class exportObj.SquadBuilderBackend
                              li.find('.squad-delete-confirm').fadeIn 'fast'
                     @number_of_selected_squads_to_be_deleted += 1
 
-        # Hide selection of Standard/epic/team epic as those modes do not exist.
-        @squad_list_modal.find('div.squad-display-mode').hide()
-
         @show_all_squads_button = $ @squad_list_modal.find('.show-all-squads')
         @show_all_squads_button.click (e) =>
             unless @squad_display_mode == 'all'
@@ -477,32 +520,32 @@ class exportObj.SquadBuilderBackend
                 @show_all_squads_button.addClass 'btn-inverse'
                 @squad_list_modal.find('.squad-list li').show()
 
-        @show_standard_squads_button = $ @squad_list_modal.find('.show-standard-squads')
-        @show_standard_squads_button.click (e) =>
-            unless @squad_display_mode == 'standard'
-                @squad_display_mode = 'standard'
+        @show_extended_squads_button = $ @squad_list_modal.find('.show-extended-squads')
+        @show_extended_squads_button.click (e) =>
+            unless @squad_display_mode == 'extended'
+                @squad_display_mode = 'extended'
                 @squad_list_modal.find('.squad-display-mode .btn').removeClass 'btn-inverse'
-                @show_standard_squads_button.addClass 'btn-inverse'
+                @show_extended_squads_button.addClass 'btn-inverse'
                 @squad_list_modal.find('.squad-list li').each (idx, elem) ->
-                    $(elem).toggle (($(elem).data().squad.serialized.search(/v\d+!e/) == -1) and ($(elem).data().squad.serialized.search(/v\d+!t/) == -1))
+                    $(elem).toggle $(elem).data().squad.serialized.search(/v\d+!s/) != -1
 
-        @show_epic_squads_button = $ @squad_list_modal.find('.show-epic-squads')
-        @show_epic_squads_button.click (e) =>
-            unless @squad_display_mode == 'epic'
-                @squad_display_mode = 'epic'
+        @show_hyperspace_squads_button = $ @squad_list_modal.find('.show-hyperspace-squads')
+        @show_hyperspace_squads_button.click (e) =>
+            unless @squad_display_mode == 'hyperspace'
+                @squad_display_mode = 'hyperspace'
                 @squad_list_modal.find('.squad-display-mode .btn').removeClass 'btn-inverse'
-                @show_epic_squads_button.addClass 'btn-inverse'
+                @show_hyperspace_squads_button.addClass 'btn-inverse'
                 @squad_list_modal.find('.squad-list li').each (idx, elem) ->
-                    $(elem).toggle $(elem).data().squad.serialized.search(/v\d+!e/) != -1
+                    $(elem).toggle $(elem).data().squad.serialized.search(/v\d+!h/) != -1
 
-        @show_team_epic_squads_button = $ @squad_list_modal.find('.show-team-epic-squads')
-        @show_team_epic_squads_button.click (e) =>
-            unless @squad_display_mode == 'team-epic'
-                @squad_display_mode = 'team-epic'
+        @show_quickbuild_squads_button = $ @squad_list_modal.find('.show-quickbuild-squads')
+        @show_quickbuild_squads_button.click (e) =>
+            unless @squad_display_mode == 'quickbuild'
+                @squad_display_mode = 'quickbuild'
                 @squad_list_modal.find('.squad-display-mode .btn').removeClass 'btn-inverse'
-                @show_team_epic_squads_button.addClass 'btn-inverse'
+                @show_quickbuild_squads_button.addClass 'btn-inverse'
                 @squad_list_modal.find('.squad-list li').each (idx, elem) ->
-                    $(elem).toggle $(elem).data().squad.serialized.search(/v\d+!t/) != -1
+                    $(elem).toggle $(elem).data().squad.serialized.search(/v\d+!q/) != -1
 
         @save_as_modal = $ document.createElement('DIV')
         @save_as_modal.addClass 'modal hide fade hidden-print'
